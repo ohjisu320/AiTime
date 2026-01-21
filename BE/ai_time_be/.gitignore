@@ -54,3 +54,9 @@ tmp/
 # 5) Java / Compiled (컴파일 결과물 제외)
 ############################################
 *.class
+
+# Gradle Wrapper는 예외로 허용 (필수)
+!gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.properties
+!gradlew
+!gradlew.bat
