@@ -1,0 +1,54 @@
+// -----------------------------------------------------------------------------
+// 🎨 Color Palette (의료/AI 서비스에 맞는 신뢰감 있는 컬러)
+// -----------------------------------------------------------------------------
+
+// Brand Colors
+$color-primary:       #3B82F6; // 메인 블루 (신뢰)
+$color-primary-dark:  #1D4ED8; // 버튼 호버용
+$color-primary-light: #93C5FD; // 배경 강조용
+
+$color-secondary:     #10B981; // 성공/완료 (안정감)
+$color-accent:        #8B5CF6; // AI/분석 강조 (보라색 계열)
+
+// Functional Colors
+$color-success:       #22C55E;
+$color-warning:       #F59E0B;
+$color-danger:        #EF4444; // 녹화 중지, 에러, 삭제
+$color-info:          #0EA5E9;
+
+// Grayscale (Text & Border)
+$color-black:         #111827; // 본문 타이틀
+$color-gray-900:      #1F2937;
+$color-gray-700:      #374151; // 본문 내용
+$color-gray-500:      #6B7280; // 부가 설명
+$color-gray-300:      #D1D5DB; // 비활성 버튼, 보더
+$color-gray-100:      #F3F4F6; // 배경색 (연한 회색)
+$color-white:         #FFFFFF;
+
+// -----------------------------------------------------------------------------
+// 📐 Layout & Spacing
+// -----------------------------------------------------------------------------
+$header-height-mobile: 56px;
+$header-height-desktop: 64px;
+$sidebar-width: 260px; // 의사/접수처 대시보드 사이드바 너비
+
+$border-radius-sm: 4px;
+$border-radius-md: 8px;  // 카드, 버튼 기본
+$border-radius-lg: 16px; // 모달, 큰 컨테이너
+$border-radius-full: 9999px;
+
+// -----------------------------------------------------------------------------
+// 📱 Breakpoints (PWA & Responsive)
+// -----------------------------------------------------------------------------
+$breakpoint-mobile: 480px;   // 모바일 (PWA 기준)
+$breakpoint-tablet: 768px;   // 태블릿
+$breakpoint-desktop: 1024px; // 데스크탑 (의사 대시보드 기준)
+
+// -----------------------------------------------------------------------------
+// 🥞 Z-Index Layers (레이어 순서 관리 - 매우 중요!)
+// -----------------------------------------------------------------------------
+$z-index-base:      1;
+$z-index-nav:       100;  // 헤더
+$z-index-overlay:   200;  // 녹화 화면 오버레이, 드롭다운
+$z-index-modal:     300;  // 팝업/모달
+$z-index-toast:     400;  // 알림 메시지 (가장 위)
