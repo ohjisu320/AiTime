@@ -11,7 +11,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.UuidGenerator;
-import org.hibernate.annotations.Where;
 
 import java.time.LocalDate;
 import java.util.UUID;
