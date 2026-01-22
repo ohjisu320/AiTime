@@ -1,5 +1,6 @@
 package com.ssafy.aitime.domain.exam.entity;
 
+import com.ssafy.aitime.common.entity.AuditableEntity;
 import com.ssafy.aitime.common.entity.BaseEntity;
 import com.ssafy.aitime.domain.child.entity.Child;
 import com.ssafy.aitime.domain.exam.entity.enums.ExamStatus;
@@ -17,7 +18,7 @@ import java.util.UUID;
 @Entity
 @Table(name = "exam")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Exam extends BaseEntity {
+public class Exam extends AuditableEntity {
 
     @Id
     @GeneratedValue

@@ -1,6 +1,7 @@
 package com.ssafy.aitime.domain.hospital.entity;
 
 import com.ssafy.aitime.common.entity.BaseEntity;
+import com.ssafy.aitime.common.entity.SoftDeletableEntity;
 import com.ssafy.aitime.common.enums.RecordStatus;
 import com.ssafy.aitime.domain.hospital.entity.enums.StaffRole;
 import jakarta.persistence.*;
@@ -8,6 +9,7 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.UuidGenerator;
 
 import java.util.UUID;
@@ -19,8 +21,9 @@ import java.util.UUID;
         uniqueConstraints = @UniqueConstraint(name = "uk_hospital_staff_login_id", columnNames = "login_id"),
         indexes = @Index(name = "idx_hospital_staff_hospital_id", columnList = "hospital_id")
 )
+@SQLDelete(sql = "UPDATE hospital_staff SET record_status = 'DELETED', deleted_at = NOW() WHERE hospital_staff_id = ?")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class HospitalStaff extends BaseEntity {
+public class HospitalStaff extends SoftDeletableEntity {
 
     @Id
     @GeneratedValue
@@ -50,10 +53,6 @@ public class HospitalStaff extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "staff_role", nullable = false, length = 20)
     private StaffRole staffRole;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "record_status", nullable = false, length = 20)
-    private RecordStatus recordStatus;
 
     @Builder
     private HospitalStaff(Hospital hospital, String loginId, String password, String name,

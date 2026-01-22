@@ -1,5 +1,6 @@
 package com.ssafy.aitime.domain.hospital.entity;
 
+import com.ssafy.aitime.common.entity.AuditableEntity;
 import com.ssafy.aitime.common.entity.BaseEntity;
 import com.ssafy.aitime.domain.hospital.entity.enums.ReservationStatus;
 import jakarta.persistence.*;
@@ -16,7 +17,7 @@ import java.util.UUID;
 @Entity
 @Table(name = "reservation")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Reservation extends BaseEntity {
+public class Reservation extends AuditableEntity {
 
     @Id
     @GeneratedValue

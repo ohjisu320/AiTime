@@ -1,5 +1,6 @@
 package com.ssafy.aitime.domain.exam.entity;
 
+import com.ssafy.aitime.common.entity.AuditableEntity;
 import com.ssafy.aitime.common.entity.BaseEntity;
 import com.ssafy.aitime.domain.exam.entity.enums.VideoStatus;
 import com.ssafy.aitime.domain.exam.entity.enums.VideoType;
@@ -20,7 +21,7 @@ import java.util.UUID;
         uniqueConstraints = @UniqueConstraint(name = "uk_video_exam_type", columnNames = {"exam_id", "video_type"})
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Video extends BaseEntity {
+public class Video extends AuditableEntity {
 
     @Id
     @GeneratedValue

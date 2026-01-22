@@ -1,6 +1,6 @@
 package com.ssafy.aitime.domain.child.entity;
 
-import com.ssafy.aitime.common.entity.BaseEntity;
+import com.ssafy.aitime.common.entity.SoftDeletableEntity;
 import com.ssafy.aitime.common.enums.RecordStatus;
 import com.ssafy.aitime.domain.child.entity.enums.Gender;
 import com.ssafy.aitime.domain.user.entity.User;
@@ -9,7 +9,9 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.annotations.Where;
 
 import java.time.LocalDate;
 import java.util.UUID;
@@ -20,8 +22,9 @@ import java.util.UUID;
         name = "child",
         indexes = @Index(name = "idx_child_user_id", columnList = "user_id")
 )
+@SQLDelete(sql = "UPDATE child SET record_status = 'DELETED', deleted_at = NOW() WHERE child_id = ?")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Child extends BaseEntity {
+public class Child extends SoftDeletableEntity {
 
     @Id
     @GeneratedValue
@@ -42,10 +45,6 @@ public class Child extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "gender", nullable = false, length = 10)
     private Gender gender;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "record_status", nullable = false, length = 20)
-    private RecordStatus recordStatus;
 
     @Builder
     private Child(User user, String name, LocalDate birthdate, Gender gender, RecordStatus recordStatus) {

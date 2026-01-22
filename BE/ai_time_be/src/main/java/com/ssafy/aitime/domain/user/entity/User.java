@@ -1,6 +1,7 @@
 package com.ssafy.aitime.domain.user.entity;
 
 import com.ssafy.aitime.common.entity.BaseEntity;
+import com.ssafy.aitime.common.entity.SoftDeletableEntity;
 import com.ssafy.aitime.common.enums.RecordStatus;
 import com.ssafy.aitime.domain.user.entity.enums.UserRole;
 import jakarta.persistence.*;
@@ -8,6 +9,7 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.UuidGenerator;
 
 import java.util.UUID;
@@ -18,8 +20,9 @@ import java.util.UUID;
         name = "users",
         uniqueConstraints = @UniqueConstraint(name = "uk_users_login_id", columnNames = "login_id")
 )
+@SQLDelete(sql = "UPDATE users SET record_status = 'DELETED', deleted_at = NOW() WHERE user_id = ?")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class User extends BaseEntity {
+public class User extends SoftDeletableEntity {
 
     @Id
     @GeneratedValue
@@ -45,10 +48,6 @@ public class User extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "user_role", nullable = false, length = 20)
     private UserRole userRole;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "record_status", nullable = false, length = 20)
-    private RecordStatus recordStatus;
 
     @Builder
     private User(String loginId, String password, String name, String email, String phoneNumber,
