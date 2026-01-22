@@ -1,9 +1,9 @@
-package com.ssafy.aitime.domain.exam.service;
+package com.ssafy.aitime.domain.hospital.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-public class ExamServiceImpl implements ExamService {
+public class ReservationServiceImpl implements ReservationService {
 }

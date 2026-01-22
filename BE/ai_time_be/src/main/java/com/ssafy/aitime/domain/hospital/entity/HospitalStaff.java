@@ -1,13 +1,15 @@
 package com.ssafy.aitime.domain.hospital.entity;
 
 import com.ssafy.aitime.common.entity.BaseEntity;
-import com.ssafy.aitime.common.enums.ActiveDeletedStatus;
+import com.ssafy.aitime.common.entity.SoftDeletableEntity;
+import com.ssafy.aitime.common.enums.RecordStatus;
 import com.ssafy.aitime.domain.hospital.entity.enums.StaffRole;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.UuidGenerator;
 
 import java.util.UUID;
@@ -19,8 +21,9 @@ import java.util.UUID;
         uniqueConstraints = @UniqueConstraint(name = "uk_hospital_staff_login_id", columnNames = "login_id"),
         indexes = @Index(name = "idx_hospital_staff_hospital_id", columnList = "hospital_id")
 )
+@SQLDelete(sql = "UPDATE hospital_staff SET record_status = 'DELETED', deleted_at = NOW() WHERE hospital_staff_id = ?")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class HospitalStaff extends BaseEntity {
+public class HospitalStaff extends SoftDeletableEntity {
 
     @Id
     @GeneratedValue
@@ -48,23 +51,19 @@ public class HospitalStaff extends BaseEntity {
     private String phoneNumber;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "role", nullable = false, length = 20)
-    private StaffRole role;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 20)
-    private ActiveDeletedStatus status;
+    @Column(name = "staff_role", nullable = false, length = 20)
+    private StaffRole staffRole;
 
     @Builder
     private HospitalStaff(Hospital hospital, String loginId, String password, String name,
-                          String email, String phoneNumber, StaffRole role, ActiveDeletedStatus status) {
+                          String email, String phoneNumber, StaffRole staffRole, RecordStatus recordStatus) {
         this.hospital = hospital;
         this.loginId = loginId;
         this.password = password;
         this.name = name;
         this.email = email;
         this.phoneNumber = phoneNumber;
-        this.role = (role == null) ? StaffRole.DESK : role;
-        this.status = (status == null) ? ActiveDeletedStatus.ACTIVE : status;
+        this.staffRole = (staffRole == null) ? StaffRole.DESK : staffRole;
+        this.recordStatus = (recordStatus == null) ? RecordStatus.ACTIVE : recordStatus;
     }
 }

@@ -1,12 +1,14 @@
 package com.ssafy.aitime.domain.hospital.entity;
 
 import com.ssafy.aitime.common.entity.BaseEntity;
-import com.ssafy.aitime.common.enums.ActiveDeletedStatus;
+import com.ssafy.aitime.common.entity.SoftDeletableEntity;
+import com.ssafy.aitime.common.enums.RecordStatus;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.UuidGenerator;
 
 import java.util.UUID;
@@ -17,8 +19,9 @@ import java.util.UUID;
         name = "hospital",
         uniqueConstraints = @UniqueConstraint(name = "uk_hospital_code", columnNames = "hospital_code")
 )
+@SQLDelete(sql = "UPDATE hospital SET record_status = 'DELETED', deleted_at = NOW() WHERE hospital_id = ?")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Hospital extends BaseEntity {
+public class Hospital extends SoftDeletableEntity {
 
     @Id
     @GeneratedValue
@@ -35,15 +38,11 @@ public class Hospital extends BaseEntity {
     @Column(name = "address", length = 255)
     private String address;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 20)
-    private ActiveDeletedStatus status;
-
     @Builder
-    private Hospital(String hospitalCode, String name, String address, ActiveDeletedStatus status) {
+    private Hospital(String hospitalCode, String name, String address, RecordStatus recordStatus) {
         this.hospitalCode = hospitalCode;
         this.name = name;
         this.address = address;
-        this.status = (status == null) ? ActiveDeletedStatus.ACTIVE : status;
+        this.recordStatus = (recordStatus == null) ? RecordStatus.ACTIVE : recordStatus;
     }
 }

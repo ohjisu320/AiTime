@@ -1,13 +1,15 @@
 package com.ssafy.aitime.domain.user.entity;
 
 import com.ssafy.aitime.common.entity.BaseEntity;
-import com.ssafy.aitime.common.enums.ActiveDeletedStatus;
+import com.ssafy.aitime.common.entity.SoftDeletableEntity;
+import com.ssafy.aitime.common.enums.RecordStatus;
 import com.ssafy.aitime.domain.user.entity.enums.UserRole;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.UuidGenerator;
 
 import java.util.UUID;
@@ -18,8 +20,9 @@ import java.util.UUID;
         name = "users",
         uniqueConstraints = @UniqueConstraint(name = "uk_users_login_id", columnNames = "login_id")
 )
+@SQLDelete(sql = "UPDATE users SET record_status = 'DELETED', deleted_at = NOW() WHERE user_id = ?")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class User extends BaseEntity {
+public class User extends SoftDeletableEntity {
 
     @Id
     @GeneratedValue
@@ -43,22 +46,18 @@ public class User extends BaseEntity {
     private String phoneNumber;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "role", nullable = false, length = 20)
-    private UserRole role;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 20)
-    private ActiveDeletedStatus status;
+    @Column(name = "user_role", nullable = false, length = 20)
+    private UserRole userRole;
 
     @Builder
     private User(String loginId, String password, String name, String email, String phoneNumber,
-                 UserRole role, ActiveDeletedStatus status) {
+                 UserRole userRole, RecordStatus recordStatus) {
         this.loginId = loginId;
         this.password = password;
         this.name = name;
         this.email = email;
         this.phoneNumber = phoneNumber;
-        this.role = (role == null) ? UserRole.USER : role;
-        this.status = (status == null) ? ActiveDeletedStatus.ACTIVE : status;
+        this.userRole = (userRole == null) ? UserRole.USER : userRole;
+        this.recordStatus = (recordStatus == null) ? RecordStatus.ACTIVE : recordStatus;
     }
 }

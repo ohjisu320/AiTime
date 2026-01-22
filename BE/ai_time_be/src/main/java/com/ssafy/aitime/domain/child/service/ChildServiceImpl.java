@@ -5,5 +5,5 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-public class ChildServiceImpl {
+public class ChildServiceImpl implements ChildService{
 }

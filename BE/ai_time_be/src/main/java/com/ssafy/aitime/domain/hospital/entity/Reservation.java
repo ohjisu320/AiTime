@@ -1,5 +1,6 @@
 package com.ssafy.aitime.domain.hospital.entity;
 
+import com.ssafy.aitime.common.entity.AuditableEntity;
 import com.ssafy.aitime.common.entity.BaseEntity;
 import com.ssafy.aitime.domain.hospital.entity.enums.ReservationStatus;
 import jakarta.persistence.*;
@@ -16,7 +17,7 @@ import java.util.UUID;
 @Entity
 @Table(name = "reservation")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Reservation extends BaseEntity {
+public class Reservation extends AuditableEntity {
 
     @Id
     @GeneratedValue
@@ -33,27 +34,27 @@ public class Reservation extends BaseEntity {
     private LocalDateTime scheduledAt;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 20)
-    private ReservationStatus status;
+    @Column(name = "reservation_status", nullable = false, length = 20)
+    private ReservationStatus reservationStatus;
 
     @Column(name = "cancelled_at")
     private LocalDateTime cancelledAt;
 
     @Builder
     private Reservation(HospitalChildren hospitalChildren, LocalDateTime scheduledAt,
-                        ReservationStatus status, LocalDateTime cancelledAt) {
+                        ReservationStatus reservationStatus, LocalDateTime cancelledAt) {
         this.hospitalChildren = hospitalChildren;
         this.scheduledAt = scheduledAt;
-        this.status = (status == null) ? ReservationStatus.SCHEDULED : status;
+        this.reservationStatus = (reservationStatus == null) ? ReservationStatus.SCHEDULED : reservationStatus;
         this.cancelledAt = cancelledAt;
     }
 
     public void cancel() {
-        this.status = ReservationStatus.CANCELLED;
+        this.reservationStatus = ReservationStatus.CANCELLED;
         this.cancelledAt = LocalDateTime.now();
     }
 
     public void done() {
-        this.status = ReservationStatus.DONE;
+        this.reservationStatus = ReservationStatus.DONE;
     }
 }

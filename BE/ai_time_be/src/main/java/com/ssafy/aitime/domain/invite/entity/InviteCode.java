@@ -42,8 +42,8 @@ public class InviteCode {
     private LocalDateTime expiredAt;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 20)
-    private InviteCodeStatus status;
+    @Column(name = "invite_code_status", nullable = false, length = 20)
+    private InviteCodeStatus inviteCodeStatus;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -56,7 +56,7 @@ public class InviteCode {
         LocalDateTime now = LocalDateTime.now();
         if (createdAt == null) createdAt = now;
         if (updatedAt == null) updatedAt = now;
-        if (status == null) status = InviteCodeStatus.ISSUED;
+        if (inviteCodeStatus == null) inviteCodeStatus = InviteCodeStatus.ISSUED;
     }
 
     @PreUpdate
@@ -66,7 +66,7 @@ public class InviteCode {
 
     @Builder
     private InviteCode(String inviteCode, HospitalStaff hospitalStaff, String childName, LocalDate childBirthdate,
-                       String parentPhone, LocalDateTime scheduledAt, LocalDateTime expiredAt, InviteCodeStatus status) {
+                       String parentPhone, LocalDateTime scheduledAt, LocalDateTime expiredAt, InviteCodeStatus inviteCodeStatus) {
         this.inviteCode = inviteCode;
         this.hospitalStaff = hospitalStaff;
         this.childName = childName;
@@ -74,6 +74,6 @@ public class InviteCode {
         this.parentPhone = parentPhone;
         this.scheduledAt = scheduledAt;
         this.expiredAt = expiredAt;
-        this.status = (status == null) ? InviteCodeStatus.ISSUED : status;
+        this.inviteCodeStatus = (inviteCodeStatus == null) ? InviteCodeStatus.ISSUED : inviteCodeStatus;
     }
 }
