@@ -1,5 +1,5 @@
 package com.ssafy.aitime.common.enums;
 
-public enum ActiveDeletedStatus {
+public enum RecordStatus {
     ACTIVE, DELETED
 }

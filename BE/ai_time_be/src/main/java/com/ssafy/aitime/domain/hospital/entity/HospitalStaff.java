@@ -1,7 +1,7 @@
 package com.ssafy.aitime.domain.hospital.entity;
 
 import com.ssafy.aitime.common.entity.BaseEntity;
-import com.ssafy.aitime.common.enums.ActiveDeletedStatus;
+import com.ssafy.aitime.common.enums.RecordStatus;
 import com.ssafy.aitime.domain.hospital.entity.enums.StaffRole;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -48,23 +48,23 @@ public class HospitalStaff extends BaseEntity {
     private String phoneNumber;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "role", nullable = false, length = 20)
-    private StaffRole role;
+    @Column(name = "staff_role", nullable = false, length = 20)
+    private StaffRole staffRole;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 20)
-    private ActiveDeletedStatus status;
+    @Column(name = "record_status", nullable = false, length = 20)
+    private RecordStatus recordStatus;
 
     @Builder
     private HospitalStaff(Hospital hospital, String loginId, String password, String name,
-                          String email, String phoneNumber, StaffRole role, ActiveDeletedStatus status) {
+                          String email, String phoneNumber, StaffRole staffRole, RecordStatus recordStatus) {
         this.hospital = hospital;
         this.loginId = loginId;
         this.password = password;
         this.name = name;
         this.email = email;
         this.phoneNumber = phoneNumber;
-        this.role = (role == null) ? StaffRole.DESK : role;
-        this.status = (status == null) ? ActiveDeletedStatus.ACTIVE : status;
+        this.staffRole = (staffRole == null) ? StaffRole.DESK : staffRole;
+        this.recordStatus = (recordStatus == null) ? RecordStatus.ACTIVE : recordStatus;
     }
 }

@@ -1,7 +1,7 @@
 package com.ssafy.aitime.domain.child.entity;
 
 import com.ssafy.aitime.common.entity.BaseEntity;
-import com.ssafy.aitime.common.enums.ActiveDeletedStatus;
+import com.ssafy.aitime.common.enums.RecordStatus;
 import com.ssafy.aitime.domain.child.entity.enums.Gender;
 import com.ssafy.aitime.domain.user.entity.User;
 import jakarta.persistence.*;
@@ -44,15 +44,15 @@ public class Child extends BaseEntity {
     private Gender gender;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 20)
-    private ActiveDeletedStatus status;
+    @Column(name = "record_status", nullable = false, length = 20)
+    private RecordStatus recordStatus;
 
     @Builder
-    private Child(User user, String name, LocalDate birthdate, Gender gender, ActiveDeletedStatus status) {
+    private Child(User user, String name, LocalDate birthdate, Gender gender, RecordStatus recordStatus) {
         this.user = user;
         this.name = name;
         this.birthdate = birthdate;
         this.gender = (gender == null) ? Gender.MALE : gender;
-        this.status = (status == null) ? ActiveDeletedStatus.ACTIVE : status;
+        this.recordStatus = (recordStatus == null) ? RecordStatus.ACTIVE : recordStatus;
     }
 }

@@ -37,8 +37,8 @@ public class HospitalChildren {
     private Hospital hospital;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 20)
-    private LinkStatus status;
+    @Column(name = "link_status", nullable = false, length = 20)
+    private LinkStatus linkStatus;
 
     @Column(name = "registered_at", nullable = false, updatable = false)
     private LocalDateTime registeredAt;
@@ -49,21 +49,21 @@ public class HospitalChildren {
     @PrePersist
     void onCreate() {
         if (registeredAt == null) registeredAt = LocalDateTime.now();
-        if (status == null) status = LinkStatus.ACTIVE;
+        if (linkStatus == null) linkStatus = LinkStatus.ACTIVE;
     }
 
     @Builder
-    private HospitalChildren(Child child, Hospital hospital, LinkStatus status,
+    private HospitalChildren(Child child, Hospital hospital, LinkStatus linkStatus,
                              LocalDateTime registeredAt, LocalDateTime deletedAt) {
         this.child = child;
         this.hospital = hospital;
-        this.status = (status == null) ? LinkStatus.ACTIVE : status;
+        this.linkStatus = (linkStatus == null) ? LinkStatus.ACTIVE : linkStatus;
         this.registeredAt = registeredAt;
         this.deletedAt = deletedAt;
     }
 
     public void unlink() {
-        this.status = LinkStatus.INACTIVE;
+        this.linkStatus = LinkStatus.INACTIVE;
         this.deletedAt = LocalDateTime.now();
     }
 }

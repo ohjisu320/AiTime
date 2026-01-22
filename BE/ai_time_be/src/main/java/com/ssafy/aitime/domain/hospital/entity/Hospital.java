@@ -1,7 +1,7 @@
 package com.ssafy.aitime.domain.hospital.entity;
 
 import com.ssafy.aitime.common.entity.BaseEntity;
-import com.ssafy.aitime.common.enums.ActiveDeletedStatus;
+import com.ssafy.aitime.common.enums.RecordStatus;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -36,14 +36,14 @@ public class Hospital extends BaseEntity {
     private String address;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 20)
-    private ActiveDeletedStatus status;
+    @Column(name = "record_status", nullable = false, length = 20)
+    private RecordStatus recordStatus;
 
     @Builder
-    private Hospital(String hospitalCode, String name, String address, ActiveDeletedStatus status) {
+    private Hospital(String hospitalCode, String name, String address, RecordStatus recordStatus) {
         this.hospitalCode = hospitalCode;
         this.name = name;
         this.address = address;
-        this.status = (status == null) ? ActiveDeletedStatus.ACTIVE : status;
+        this.recordStatus = (recordStatus == null) ? RecordStatus.ACTIVE : recordStatus;
     }
 }

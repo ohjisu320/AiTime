@@ -30,10 +30,10 @@ public class Exam extends BaseEntity {
     private Child child;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 20)
-    private ExamStatus status;
+    @Column(name = "exam_status", nullable = false, length = 20)
+    private ExamStatus examStatus;
 
-    @Column(name = "isSubmitted", nullable = false)
+    @Column(name = "is_submitted", nullable = false)
     private boolean submitted;
 
     @Column(name = "next_eligible_at")
@@ -43,10 +43,10 @@ public class Exam extends BaseEntity {
     private LocalDateTime completedAt;
 
     @Builder
-    private Exam(Child child, ExamStatus status, boolean submitted,
+    private Exam(Child child, ExamStatus examStatus, boolean submitted,
                  LocalDateTime nextEligibleAt, LocalDateTime completedAt) {
         this.child = child;
-        this.status = (status == null) ? ExamStatus.IN_PROGRESS : status;
+        this.examStatus = (examStatus == null) ? ExamStatus.IN_PROGRESS : examStatus;
         this.submitted = submitted;
         this.nextEligibleAt = nextEligibleAt;
         this.completedAt = completedAt;
@@ -54,7 +54,7 @@ public class Exam extends BaseEntity {
 
     public void markSubmitted() {
         this.submitted = true;
-        this.status = ExamStatus.COMPLETED;
+        this.examStatus = ExamStatus.COMPLETED;
         this.completedAt = LocalDateTime.now();
     }
 }

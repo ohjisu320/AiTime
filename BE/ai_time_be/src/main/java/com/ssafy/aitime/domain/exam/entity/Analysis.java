@@ -32,8 +32,8 @@ public class Analysis {
     private Video video;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 20)
-    private AnalysisStatus status;
+    @Column(name = "analysis_status", nullable = false, length = 20)
+    private AnalysisStatus analysisStatus;
 
     @Column(name = "model_version", length = 50)
     private String modelVersion;
@@ -50,24 +50,24 @@ public class Analysis {
     @PrePersist
     void onCreate() {
         if (requestedAt == null) requestedAt = LocalDateTime.now();
-        if (status == null) status = AnalysisStatus.PENDING;
+        if (analysisStatus == null) analysisStatus = AnalysisStatus.PENDING;
     }
 
     @Builder
-    private Analysis(Video video, AnalysisStatus status, String modelVersion,
+    private Analysis(Video video, AnalysisStatus analysisStatus, String modelVersion,
                      LocalDateTime requestedAt, LocalDateTime completedAt, String failReason) {
         this.video = video;
-        this.status = (status == null) ? AnalysisStatus.PENDING : status;
+        this.analysisStatus = (analysisStatus == null) ? AnalysisStatus.PENDING : analysisStatus;
         this.modelVersion = modelVersion;
         this.requestedAt = requestedAt;
         this.completedAt = completedAt;
         this.failReason = failReason;
     }
 
-    public void markProcessing() { this.status = AnalysisStatus.PROCESSING; }
-    public void markSuccess() { this.status = AnalysisStatus.SUCCESS; this.completedAt = LocalDateTime.now(); }
+    public void markProcessing() { this.analysisStatus = AnalysisStatus.PROCESSING; }
+    public void markSuccess() { this.analysisStatus = AnalysisStatus.SUCCESS; this.completedAt = LocalDateTime.now(); }
     public void markFailed(String reason) {
-        this.status = AnalysisStatus.FAILED;
+        this.analysisStatus = AnalysisStatus.FAILED;
         this.failReason = reason;
         this.completedAt = LocalDateTime.now();
     }

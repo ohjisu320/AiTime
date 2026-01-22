@@ -49,21 +49,21 @@ public class Video extends BaseEntity {
     private LocalDateTime recordedAt;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 20)
-    private VideoStatus status;
+    @Column(name = "video_status", nullable = false, length = 20)
+    private VideoStatus videoStatus;
 
     @Builder
     private Video(Exam exam, VideoType videoType, String s3Bucket, String s3Key,
-                  Integer durationSec, LocalDateTime recordedAt, VideoStatus status) {
+                  Integer durationSec, LocalDateTime recordedAt, VideoStatus videoStatus) {
         this.exam = exam;
         this.videoType = videoType;
         this.s3Bucket = s3Bucket;
         this.s3Key = s3Key;
         this.durationSec = durationSec;
         this.recordedAt = recordedAt;
-        this.status = (status == null) ? VideoStatus.UPLOADED : status;
+        this.videoStatus = (videoStatus == null) ? VideoStatus.UPLOADED : videoStatus;
     }
 
-    public void markAnalyzing() { this.status = VideoStatus.ANALYZING; }
-    public void markFailed() { this.status = VideoStatus.FAILED; }
+    public void markAnalyzing() { this.videoStatus = VideoStatus.ANALYZING; }
+    public void markFailed() { this.videoStatus = VideoStatus.FAILED; }
 }

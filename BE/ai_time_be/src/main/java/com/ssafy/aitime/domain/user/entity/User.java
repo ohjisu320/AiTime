@@ -1,7 +1,7 @@
 package com.ssafy.aitime.domain.user.entity;
 
 import com.ssafy.aitime.common.entity.BaseEntity;
-import com.ssafy.aitime.common.enums.ActiveDeletedStatus;
+import com.ssafy.aitime.common.enums.RecordStatus;
 import com.ssafy.aitime.domain.user.entity.enums.UserRole;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -43,22 +43,22 @@ public class User extends BaseEntity {
     private String phoneNumber;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "role", nullable = false, length = 20)
-    private UserRole role;
+    @Column(name = "user_role", nullable = false, length = 20)
+    private UserRole userRole;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 20)
-    private ActiveDeletedStatus status;
+    @Column(name = "record_status", nullable = false, length = 20)
+    private RecordStatus recordStatus;
 
     @Builder
     private User(String loginId, String password, String name, String email, String phoneNumber,
-                 UserRole role, ActiveDeletedStatus status) {
+                 UserRole userRole, RecordStatus recordStatus) {
         this.loginId = loginId;
         this.password = password;
         this.name = name;
         this.email = email;
         this.phoneNumber = phoneNumber;
-        this.role = (role == null) ? UserRole.USER : role;
-        this.status = (status == null) ? ActiveDeletedStatus.ACTIVE : status;
+        this.userRole = (userRole == null) ? UserRole.USER : userRole;
+        this.recordStatus = (recordStatus == null) ? RecordStatus.ACTIVE : recordStatus;
     }
 }

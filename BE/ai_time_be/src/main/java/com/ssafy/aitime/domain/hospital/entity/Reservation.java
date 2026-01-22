@@ -33,27 +33,27 @@ public class Reservation extends BaseEntity {
     private LocalDateTime scheduledAt;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 20)
-    private ReservationStatus status;
+    @Column(name = "reservation_status", nullable = false, length = 20)
+    private ReservationStatus reservationStatus;
 
     @Column(name = "cancelled_at")
     private LocalDateTime cancelledAt;
 
     @Builder
     private Reservation(HospitalChildren hospitalChildren, LocalDateTime scheduledAt,
-                        ReservationStatus status, LocalDateTime cancelledAt) {
+                        ReservationStatus reservationStatus, LocalDateTime cancelledAt) {
         this.hospitalChildren = hospitalChildren;
         this.scheduledAt = scheduledAt;
-        this.status = (status == null) ? ReservationStatus.SCHEDULED : status;
+        this.reservationStatus = (reservationStatus == null) ? ReservationStatus.SCHEDULED : reservationStatus;
         this.cancelledAt = cancelledAt;
     }
 
     public void cancel() {
-        this.status = ReservationStatus.CANCELLED;
+        this.reservationStatus = ReservationStatus.CANCELLED;
         this.cancelledAt = LocalDateTime.now();
     }
 
     public void done() {
-        this.status = ReservationStatus.DONE;
+        this.reservationStatus = ReservationStatus.DONE;
     }
 }
