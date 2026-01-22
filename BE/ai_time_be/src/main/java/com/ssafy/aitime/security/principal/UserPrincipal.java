@@ -18,31 +18,21 @@ public class UserPrincipal implements UserDetails {
     private final UUID userId;
     private final String loginId;
     private final String password;
+    private final String name;
     private final UserRole userRole;
     private final RecordStatus recordStatus;
 
-    private UserPrincipal(
-            UUID userId,
-            String loginId,
-            String password,
-            UserRole userRole,
-            RecordStatus recordStatus
-    ) {
-        this.userId = userId;
-        this.loginId = loginId;
-        this.password = password;
-        this.userRole = userRole;
-        this.recordStatus = recordStatus;
+    private UserPrincipal(User user) {
+        this.userId = user.getUserId();
+        this.loginId = user.getLoginId();
+        this.password = user.getPassword();
+        this.name = user.getName();
+        this.userRole = user.getUserRole();
+        this.recordStatus = user.getRecordStatus();
     }
 
     public static UserPrincipal from(User user) {
-        return new UserPrincipal(
-                user.getUserId(),
-                user.getLoginId(),
-                user.getPassword(),
-                user.getUserRole(),
-                user.getRecordStatus()
-        );
+        return new UserPrincipal(user);
     }
 
     /**

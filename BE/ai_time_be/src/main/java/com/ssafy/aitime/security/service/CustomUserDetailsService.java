@@ -16,20 +16,11 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     private final UserRepository userRepository;
 
-    /**
-     * 🔑 로그인 시 Security가 호출하는 메서드
-     */
     @Override
-    public UserDetails loadUserByUsername(String loginId)
-            throws UsernameNotFoundException {
-
+    public UserDetails loadUserByUsername(String loginId) throws UsernameNotFoundException {
         User user = userRepository
                 .findByLoginIdAndRecordStatus(loginId, RecordStatus.ACTIVE)
-                .orElseThrow(() ->
-                        new UsernameNotFoundException(
-                                "ACTIVE user not found. loginId=" + loginId
-                        )
-                );
+                .orElseThrow(() -> new UsernameNotFoundException(loginId));
 
         return UserPrincipal.from(user);
     }
