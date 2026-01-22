@@ -5,5 +5,5 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-public class HospitalChildrenServiceImpl {
+public class HospitalChildrenServiceImpl implements HospitalChildrenService {
 }
