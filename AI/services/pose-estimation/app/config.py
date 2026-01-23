@@ -1,4 +1,4 @@
-# app/config.py
+# AI/services/pose-estimation/app/config.py
 """설정 관리"""
 
 from pydantic_settings import BaseSettings

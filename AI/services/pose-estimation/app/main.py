@@ -1,14 +1,15 @@
 # Fastapi 진입점.
 
-# app/main.py
+# AI/services/pose-estimation/app/main.py
 """FastAPI 서버 (API 엔드포인트)"""
 
 import io
 import time
+import argparse
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, UploadFile, File, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, UploadFile, File, HTTPException, Query
+from fastapi.responses import JSONResponse, StreamingResponse
 from PIL import Image
 
 from app.config import settings
@@ -22,7 +23,6 @@ async def lifespan(app: FastAPI):
     print("✅ FastAPI 서버 실행 중...")
     get_model()
     yield
-    # Shutdown
     print(" ✅ 서버 종료 중...")
 
 
@@ -40,20 +40,26 @@ async def health_check():
     model = get_model()
     return {
         "status": "healthy",
-        "device": str(model.device)
+        "device": str(model.device),
+        "debug_mode": settings.DEBUG_MODE
     }
 
 
 @app.post("/api/v1/pose/detect")
 async def detect_pose(
     file: UploadFile = File(...),
-    threshold: float = 0.3
+    threshold: float = 0.3,
+    visualize: bool = Query(False, description="스켈레톤 시각화 이미지 반환 (debug 모드에서만 동작)"),
+    show_bbox: bool = True,     # 바운딩 박스
+    show_keypoints: bool = True, # 키 포인트
+    show_frame: bool = True # 스켈레톤
 ):
     """
     단일 이미지에서 자세 추정
     
-    - **file**: 이미지 파일 (jpg, png 등)
-    - **threshold**: 감지 신뢰도 임계값 (0.0 ~ 1.0)
+    - file: 이미지 파일 (jpg, png 등)
+    - threshold: 감지 신뢰도 임계값 (0.0 ~ 1.0)
+    - visualize: 스켈레톤 시각화 이미지 반환 여부 (debug 모드에서만 동작)
     """
     start_time = time.time()
     
@@ -67,6 +73,33 @@ async def detect_pose(
         results = model.detect(image, threshold)
         
         processing_time = (time.time() - start_time) * 1000
+        
+        # 디버그 모드 + visualize 요청 시 이미지 반환
+        if settings.DEBUG_MODE and visualize:
+            from app.utils.visualize import draw_skeleton
+            
+            annotated_image = draw_skeleton(
+                image, 
+                results,
+                keypoint_threshold=threshold,
+                show_bbox=show_bbox,
+                show_keypoints=show_keypoints,
+                show_frame=show_frame
+            )
+                        
+            # PIL -> bytes
+            img_buffer = io.BytesIO()
+            annotated_image.save(img_buffer, format="PNG")
+            img_buffer.seek(0)
+            
+            return StreamingResponse(
+                img_buffer,
+                media_type="image/png",
+                headers={
+                    "X-Processing-Time-Ms": str(round(processing_time, 2)),
+                    "X-Person-Count": str(len(results))
+                }
+            )
         
         return JSONResponse(content={
             "status": "success",
@@ -87,7 +120,7 @@ async def detect_pose_from_url(
     """
     URL에서 이미지 다운로드 후 자세 추정
     
-    - **image_url**: 이미지 URL
+    - image_url: 이미지 URL
     - **threshold**: 감지 신뢰도 임계값
     """
     import requests
@@ -121,4 +154,23 @@ async def detect_pose_from_url(
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+    parser = argparse.ArgumentParser(description="ViTPose API Server")
+    parser.add_argument("--debug", action="store_true", help="Enable debug mode")
+    parser.add_argument("--host", default="0.0.0.0", help="Host to bind")
+    parser.add_argument("--port", type=int, default=8000, help="Port to bind")
+    parser.add_argument("--reload", action="store_true", help="Enable auto-reload")
+
+    args = parser.parse_args()
+
+    # 디버그 모드 설정
+    if args.debug:
+        settings.DEBUG_MODE = True
+        print(" ✅ 디버그 모드 활성화 - 스켈레톤 시각화 가능")
+    
+    uvicorn.run(
+        "app.main:app",
+        host=args.host,
+        port=args.port,
+        reload=args.reload
+    )
