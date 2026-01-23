@@ -12,4 +12,6 @@ import java.util.UUID;
 public interface UserRepository extends JpaRepository<User, UUID> {
     // Active인 데이터만 조회
     Optional<User> findByLoginIdAndRecordStatus(String loginId, RecordStatus recordStatus);
+
+    boolean existsByLoginId(String loginId);
 }
