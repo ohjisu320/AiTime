@@ -1,9 +1,12 @@
 package com.ssafy.aitime.domain.user.service;
 
+import com.ssafy.aitime.common.enums.RecordStatus;
 import com.ssafy.aitime.domain.user.dto.request.UserLoginRequest;
 import com.ssafy.aitime.domain.user.dto.response.TokenResponse;
 import com.ssafy.aitime.domain.user.dto.response.UserLoginResponse;
+import com.ssafy.aitime.domain.user.entity.User;
 import com.ssafy.aitime.domain.user.entity.enums.UserRole;
+import com.ssafy.aitime.domain.user.repository.UserRepository;
 import com.ssafy.aitime.domain.user.service.dto.UserInfoDTO;
 import com.ssafy.aitime.security.entity.RefreshToken;
 import com.ssafy.aitime.security.principal.UserPrincipal;
@@ -26,6 +29,7 @@ public class UserServiceImpl implements UserService {
     private final JwtTokenProvider jwtTokenProvider;
 
     private final RefreshTokenRepository refreshTokenRepository;
+    private final UserRepository userRepository;
 
     @Value("${jwt.refresh-token-expiration}") // 밀리초 단위
     private long refreshTokenExpirationMillis;
@@ -61,6 +65,50 @@ public class UserServiceImpl implements UserService {
             accessToken,
             refreshToken,
             new UserInfoDTO(userId, name, role)
+        );
+    }
+
+    @Override
+    public TokenResponse refresh(String refreshToken) {
+// 1. JWT 유효성 검증
+        if (!jwtTokenProvider.validateToken(refreshToken)) {
+            throw new IllegalArgumentException("유효하지 않거나 만료된 리프레시 토큰입니다.");
+        }
+
+        // 2. 토큰에서 loginId 추출
+        String loginId = jwtTokenProvider.getLoginId(refreshToken);
+
+        // 3. Redis에서 저장된 리프레시 토큰 조회
+        RefreshToken savedToken = refreshTokenRepository.findById(loginId)
+                .orElseThrow(() -> new IllegalArgumentException("로그인 정보가 없습니다. 다시 로그인해주세요."));
+
+        // 4. 전달받은 토큰과 Redis에 저장된 토큰이 일치하는지 확인
+        if (!savedToken.getRefreshToken().equals(refreshToken)) {
+            // 일치하지 않으면 보안 위협으로 간주하고 레디스 데이터 삭제 (RTR 보호)
+            refreshTokenRepository.delete(savedToken);
+            throw new IllegalArgumentException("잘못된 리프레시 토큰입니다. 다시 로그인해주세요.");
+        }
+
+        // 5. 새로운 Access/Refresh Token 생성
+        // (이때 UserRole 정보가 필요하므로 DB 조회가 발생할 수 있습니다)
+        User user = userRepository.findByLoginIdAndRecordStatus(loginId, RecordStatus.ACTIVE)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
+        String newAccessToken = jwtTokenProvider.createAccessToken(loginId, user.getUserRole().toString());
+        String newRefreshToken = jwtTokenProvider.createRefreshToken(loginId);
+
+        // 6. Redis 정보 갱신 (RTR 적용)
+        RefreshToken updatedRf = RefreshToken.builder()
+                .loginId(loginId)
+                .refreshToken(newRefreshToken)
+                .expiration(refreshTokenExpirationMillis / 1000)
+                .build();
+        refreshTokenRepository.save(updatedRf);
+
+        return new TokenResponse(
+                newAccessToken,
+                newRefreshToken,
+                new UserInfoDTO(user.getUserId(), user.getName(), user.getUserRole())
         );
     }
 }

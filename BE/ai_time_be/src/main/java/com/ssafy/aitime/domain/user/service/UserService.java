@@ -6,4 +6,5 @@ import com.ssafy.aitime.domain.user.dto.response.UserLoginResponse;
 
 public interface UserService {
     TokenResponse login(UserLoginRequest userLoginRequest);
+    TokenResponse refresh(String refreshToken);
 }
