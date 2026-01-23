@@ -92,8 +92,4 @@ public class UserController {
                 .body(ApiResponse.ok("로그아웃 되었습니다."));
     }
 
-    @GetMapping("/test")
-    public String test(){
-        return "접근 가능";
-    }
 }
