@@ -5,9 +5,12 @@ import com.ssafy.aitime.domain.user.dto.response.TokenResponse;
 import com.ssafy.aitime.domain.user.dto.response.UserLoginResponse;
 import com.ssafy.aitime.domain.user.entity.enums.UserRole;
 import com.ssafy.aitime.domain.user.service.dto.UserInfoDTO;
+import com.ssafy.aitime.security.entity.RefreshToken;
 import com.ssafy.aitime.security.principal.UserPrincipal;
 import com.ssafy.aitime.security.provider.JwtTokenProvider;
+import com.ssafy.aitime.security.repository.RefreshTokenRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -21,6 +24,11 @@ public class UserServiceImpl implements UserService {
 
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider jwtTokenProvider;
+
+    private final RefreshTokenRepository refreshTokenRepository;
+
+    @Value("${jwt.refresh-token-expiration}") // 밀리초 단위
+    private long refreshTokenExpirationMillis;
 
     @Override
     public TokenResponse login(UserLoginRequest userLoginRequest) {
@@ -39,6 +47,15 @@ public class UserServiceImpl implements UserService {
 
         String accessToken = jwtTokenProvider.createAccessToken(loginId, role.toString());
         String refreshToken = jwtTokenProvider.createRefreshToken(loginId);
+
+        // 레디스에 id와
+        RefreshToken rf = RefreshToken.builder()
+                .loginId(loginId)
+                .refreshToken(refreshToken)
+                .expiration(refreshTokenExpirationMillis / 1000) // 초 단위로 변환
+                .build();
+
+        refreshTokenRepository.save(rf);
 
         return new TokenResponse(
             accessToken,
