@@ -1,10 +1,4 @@
 @import "tailwindcss";
 
-/* 1. 테마 변수 (색상 정의) */
-@import "./theme.css";
-
-/* 2. 테일윈드 테마 연결 */
-@import "./tailwind.css";
-
-/* 3. 프로젝트 전용 스타일 */
-@import "./aitime.scss";
+/* 1. 프로젝트 전용 스타일 */
+@import "aitime";
