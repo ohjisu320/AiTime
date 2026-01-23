@@ -3,97 +3,81 @@ package com.ssafy.aitime.domain.user.repository;
 import com.ssafy.aitime.common.enums.RecordStatus;
 import com.ssafy.aitime.domain.user.entity.User;
 import com.ssafy.aitime.domain.user.entity.enums.UserRole;
-import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 
-
 import java.util.Optional;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.junit.jupiter.api.Assertions.*;
 
 @DataJpaTest
 class UserRepositoryTest {
     @Autowired
     private UserRepository userRepository;
 
-    @Autowired
-    private EntityManager em;
-
     @Test
-    @DisplayName("ACTIVE 유저는 findByLoginIdAndRecordStatus(loginId, ACTIVE)로 조회된다")
-    void find_active_user_by_loginId_and_recordStatus() {
+    @DisplayName("로그인 ID와 ACTIVE 상태로 사용자를 조회한다")
+    void findByLoginIdAndRecordStatus_Success() {
         // given
         User user = User.builder()
-                .loginId("test01")
-                .password("encodedPw")
-                .name("테스트유저")
-                .email("test01@test.com")
-                .phoneNumber("01012345678")
+                .loginId("ssafy123")
+                .password("password!")
+                .name("김싸피")
                 .userRole(UserRole.USER)
                 .recordStatus(RecordStatus.ACTIVE)
                 .build();
-
         userRepository.save(user);
-        em.flush();
-        em.clear();
 
         // when
-        Optional<User> found = userRepository.findByLoginIdAndRecordStatus("test01", RecordStatus.ACTIVE);
+        Optional<User> foundUser = userRepository.findByLoginIdAndRecordStatus("ssafy123", RecordStatus.ACTIVE);
 
         // then
-        assertThat(found).isPresent();
-        assertThat(found.get().getLoginId()).isEqualTo("test01");
-        assertThat(found.get().getRecordStatus()).isEqualTo(RecordStatus.ACTIVE);
+        assertThat(foundUser).isPresent();
+        assertThat(foundUser.get().getLoginId()).isEqualTo("ssafy123");
+        assertThat(foundUser.get().getRecordStatus()).isEqualTo(RecordStatus.ACTIVE);
     }
 
     @Test
-    @DisplayName("DELETED 유저는 ACTIVE 조건으로 조회되지 않는다")
-    void deleted_user_is_not_found_when_querying_active() {
+    @DisplayName("사용자 상태가 DELETED인 경우 조회되지 않아야 한다")
+    void findByLoginIdAndRecordStatus_Fail_WhenDeleted() {
         // given
-        User deletedUser = User.builder()
-                .loginId("deleted01")
-                .password("encodedPw")
-                .name("삭제유저")
+        User user = User.builder()
+                .loginId("deletedUser")
+                .password("password!")
+                .name("탈퇴자")
                 .userRole(UserRole.USER)
                 .recordStatus(RecordStatus.DELETED)
                 .build();
+        userRepository.save(user);
 
-        userRepository.save(deletedUser);
-        em.flush();
-        em.clear();
-
-        // when
-        Optional<User> found = userRepository.findByLoginIdAndRecordStatus("deleted01", RecordStatus.ACTIVE);
+        // when: ACTIVE 상태로 조회 시도
+        Optional<User> foundUser = userRepository.findByLoginIdAndRecordStatus("deletedUser", RecordStatus.ACTIVE);
 
         // then
-        assertThat(found).isEmpty();
+        assertThat(foundUser).isEmpty();
     }
 
     @Test
-    @DisplayName("DELETED 유저는 DELETED 조건으로 조회된다")
-    void deleted_user_is_found_when_querying_deleted() {
+    @DisplayName("로그인 ID 중복 여부를 확인한다")
+    void existsByLoginId_Success() {
         // given
-        User deletedUser = User.builder()
-                .loginId("deleted02")
-                .password("encodedPw")
-                .name("삭제유저2")
+        User user = User.builder()
+                .loginId("existUser")
+                .password("password!")
+                .name("기존유저")
                 .userRole(UserRole.USER)
-                .recordStatus(RecordStatus.DELETED)
                 .build();
-
-        userRepository.save(deletedUser);
-        em.flush();
-        em.clear();
+        userRepository.save(user);
 
         // when
-        Optional<User> found = userRepository.findByLoginIdAndRecordStatus("deleted02", RecordStatus.DELETED);
+        boolean exists = userRepository.existsByLoginId("existUser");
+        boolean notExists = userRepository.existsByLoginId("newUser");
 
         // then
-        assertThat(found).isPresent();
-        assertThat(found.get().getRecordStatus()).isEqualTo(RecordStatus.DELETED);
+        assertThat(exists).isTrue();
+        assertThat(notExists).isFalse();
     }
 }

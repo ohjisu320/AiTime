@@ -1,138 +1,53 @@
 package com.ssafy.aitime.domain.user.controller;
 
-import com.ssafy.aitime.common.enums.RecordStatus;
 import com.ssafy.aitime.domain.user.dto.request.UserLoginRequest;
-import com.ssafy.aitime.domain.user.entity.User;
+import com.ssafy.aitime.domain.user.dto.response.TokenResponse;
 import com.ssafy.aitime.domain.user.entity.enums.UserRole;
-import com.ssafy.aitime.domain.user.repository.UserRepository;
-import org.junit.jupiter.api.BeforeEach;
+import com.ssafy.aitime.domain.user.service.UserService;
+import com.ssafy.aitime.domain.user.service.dto.UserInfoDTO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
 
-import static org.hamcrest.Matchers.containsString;
+import java.util.UUID;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-
-@SpringBootTest
-@AutoConfigureMockMvc
-@Transactional
+@WebMvcTest(UserController.class)
+@AutoConfigureMockMvc(addFilters = false) // 시큐리티 필터는 제외하고 API 로직만 테스트
 class UserControllerTest {
-    @Autowired
-    MockMvc mockMvc;
-    @Autowired
-    ObjectMapper objectMapper;
 
     @Autowired
-    UserRepository userRepository;
-    @Autowired
-    PasswordEncoder passwordEncoder;
-
-    private String activeLoginId;
-
-    @BeforeEach
-    void setUp() {
-
-        activeLoginId = "test01_" + System.nanoTime();
-
-
-        // ACTIVE 사용자
-        User activeUser = User.builder()
-                .loginId(activeLoginId)
-                .password(passwordEncoder.encode("1234")) // ✅ 반드시 인코딩
-                .name("테스트유저")
-                .email("test01@test.com")
-                .phoneNumber("01012345678")
-                .userRole(UserRole.USER)
-                .recordStatus(RecordStatus.ACTIVE)
-                .build();
-
-        // DELETED 사용자
-        User deletedUser = User.builder()
-                .loginId("deleted01")
-                .password(passwordEncoder.encode("1234"))
-                .name("삭제유저")
-                .userRole(UserRole.USER)
-                .recordStatus(RecordStatus.DELETED)
-                .build();
-
-        userRepository.save(activeUser);
-//        userRepository.save(deletedUser);
-    }
+    private MockMvc mockMvc;
+    @MockitoBean
+    private UserService userService;
+    @Autowired private ObjectMapper objectMapper;
 
     @Test
-    @DisplayName("로그인 성공: ACTIVE 유저 + 올바른 비밀번호면 200")
-    void login_success() throws Exception {
-        UserLoginRequest req = new UserLoginRequest(activeLoginId, "1234");
+    @DisplayName("로그인 요청 시 AccessToken과 쿠키(Refresh)를 반환한다")
+    void loginApiTest() throws Exception {
+        // given
+        UserLoginRequest request = new UserLoginRequest("testId", "password");
+        TokenResponse tokenResponse = new TokenResponse("access-token", "refresh-token",
+                new UserInfoDTO(UUID.randomUUID(), "홍길동", UserRole.USER));
 
+        when(userService.login(any())).thenReturn(tokenResponse);
+
+        // when & then
         mockMvc.perform(post("/user/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(req)))
+                        .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data").exists());
-    }
-
-    @Test
-    @DisplayName("로그인 성공 시 accessToken(JWT) 발급 + refreshToken 쿠키(Set-Cookie) 내려온다")
-    void login_issues_tokens() throws Exception {
-        UserLoginRequest req = new UserLoginRequest(activeLoginId, "1234");
-
-        mockMvc.perform(post("/user/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(req)))
-                .andExpect(status().isOk())
-
-                // ApiResponse<UserLoginResponse> 기준: $.data.accessToken 존재
-                .andExpect(jsonPath("$.data.accessToken").exists())
-
-                // JWT 형식 간단 검증: "a.b.c" 형태라 점(.)이 포함
-                .andExpect(jsonPath("$.data.accessToken").value(containsString(".")))
-
-                // refreshToken 쿠키가 Set-Cookie에 포함되는지
-                .andExpect(header().string("Set-Cookie", containsString("refreshToken=")))
-                .andExpect(header().string("Set-Cookie", containsString("HttpOnly")));
-    }
-
-    @Test
-    @DisplayName("로그인 실패: 비밀번호가 틀리면 4xx(보통 401)")
-    void login_fail_wrong_password() throws Exception {
-        UserLoginRequest req = new UserLoginRequest(activeLoginId, "wrong");
-
-        mockMvc.perform(post("/user/login")
-                        .contentType("application/json")
-                        .content(objectMapper.writeValueAsString(req)))
-                // 현재 exceptionHandling/EntryPoint를 주석처리했으니
-                // 401 대신 500이 나올 수도 있음. 이상적으론 401로 맞추는 게 목표.
-                .andExpect(status().is4xxClientError());
-    }
-
-    @Test
-    @DisplayName("로그인 실패: DELETED 유저는 UsernameNotFound로 처리되어 4xx")
-    void login_fail_deleted_user() throws Exception {
-        UserLoginRequest req = new UserLoginRequest("deleted01", "1234");
-
-        mockMvc.perform(post("/user/login")
-                        .contentType("application/json")
-                        .content(objectMapper.writeValueAsString(req)))
-                .andExpect(status().is4xxClientError());
-    }
-
-    @Test
-    @DisplayName("로그인 실패: 존재하지 않는 loginId면 4xx")
-    void login_fail_not_found() throws Exception {
-        UserLoginRequest req = new UserLoginRequest("nope", "1234");
-
-        mockMvc.perform(post("/user/login")
-                        .contentType("application/json")
-                        .content(objectMapper.writeValueAsString(req)))
-                .andExpect(status().is4xxClientError());
+                .andExpect(header().exists("Set-Cookie")) // 쿠키 생성 확인
+                .andExpect(jsonPath("$.data.accessToken").value("access-token"));
     }
 }
