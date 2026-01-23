@@ -11,14 +11,15 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 
 @SpringBootTest
@@ -35,13 +36,17 @@ class UserControllerTest {
     @Autowired
     PasswordEncoder passwordEncoder;
 
+    private String activeLoginId;
+
     @BeforeEach
     void setUp() {
-        userRepository.deleteAll();
+
+        activeLoginId = "test01_" + System.nanoTime();
+
 
         // ACTIVE 사용자
         User activeUser = User.builder()
-                .loginId("test01")
+                .loginId(activeLoginId)
                 .password(passwordEncoder.encode("1234")) // ✅ 반드시 인코딩
                 .name("테스트유저")
                 .email("test01@test.com")
@@ -60,26 +65,46 @@ class UserControllerTest {
                 .build();
 
         userRepository.save(activeUser);
-        userRepository.save(deletedUser);
+//        userRepository.save(deletedUser);
     }
 
     @Test
     @DisplayName("로그인 성공: ACTIVE 유저 + 올바른 비밀번호면 200")
     void login_success() throws Exception {
-        UserLoginRequest req = new UserLoginRequest("test01", "1234");
+        UserLoginRequest req = new UserLoginRequest(activeLoginId, "1234");
 
         mockMvc.perform(post("/user/login")
-                        .contentType("application/json")
+                        .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isOk())
-                // ApiResponse 구조에 맞춰서 data.userInfo 같은 경로로 내려가면 경로를 맞춰야 함
                 .andExpect(jsonPath("$.data").exists());
+    }
+
+    @Test
+    @DisplayName("로그인 성공 시 accessToken(JWT) 발급 + refreshToken 쿠키(Set-Cookie) 내려온다")
+    void login_issues_tokens() throws Exception {
+        UserLoginRequest req = new UserLoginRequest(activeLoginId, "1234");
+
+        mockMvc.perform(post("/user/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk())
+
+                // ApiResponse<UserLoginResponse> 기준: $.data.accessToken 존재
+                .andExpect(jsonPath("$.data.accessToken").exists())
+
+                // JWT 형식 간단 검증: "a.b.c" 형태라 점(.)이 포함
+                .andExpect(jsonPath("$.data.accessToken").value(containsString(".")))
+
+                // refreshToken 쿠키가 Set-Cookie에 포함되는지
+                .andExpect(header().string("Set-Cookie", containsString("refreshToken=")))
+                .andExpect(header().string("Set-Cookie", containsString("HttpOnly")));
     }
 
     @Test
     @DisplayName("로그인 실패: 비밀번호가 틀리면 4xx(보통 401)")
     void login_fail_wrong_password() throws Exception {
-        UserLoginRequest req = new UserLoginRequest("test01", "wrong");
+        UserLoginRequest req = new UserLoginRequest(activeLoginId, "wrong");
 
         mockMvc.perform(post("/user/login")
                         .contentType("application/json")
