@@ -1,4 +1,4 @@
-# app/worker.py
+# AI/services/pose-estimation/app/worker.py
 """RabbitMQ 컨슈머 (메시지 수신 및 처리)"""
 
 import json
