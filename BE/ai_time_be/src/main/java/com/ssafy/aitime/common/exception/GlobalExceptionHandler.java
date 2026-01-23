@@ -4,6 +4,12 @@ import com.ssafy.aitime.common.exception.commonExceptions.DeleteFailedException;
 import com.ssafy.aitime.common.exception.commonExceptions.InsertFailedException;
 import com.ssafy.aitime.common.exception.commonExceptions.UpdateFailedException;
 import com.ssafy.aitime.common.response.ApiResponse;
+import com.ssafy.aitime.domain.user.exception.InvalidPasswordException;
+import com.ssafy.aitime.domain.user.exception.InvalidUserRoleException;
+import com.ssafy.aitime.domain.user.exception.UserAlreadyExistException;
+import com.ssafy.aitime.domain.user.exception.UserNotFoundException;
+import com.ssafy.aitime.security.exception.RefreshTokenInvalidException;
+import com.ssafy.aitime.security.exception.RefreshTokenMissingException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindException;
@@ -89,4 +95,56 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.of(HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage(), null));
     }
+    /********************************************************************************/
+    /*                        User CustomException                                  */
+    /********************************************************************************/
+
+    @ExceptionHandler({
+            InvalidUserRoleException.class
+    })
+    public ResponseEntity<ApiResponse<Object>> handleUserBadRequestException(RuntimeException e){
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.of(HttpStatus.BAD_REQUEST, e.getMessage(), null));
+
+    }
+
+    @ExceptionHandler({
+            UserAlreadyExistException.class
+    })
+    public ResponseEntity<ApiResponse<Object>> handleUserConflictException(RuntimeException e){
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(ApiResponse.of(HttpStatus.CONFLICT, e.getMessage(), null));
+
+    }
+
+    @ExceptionHandler({
+            InvalidPasswordException.class
+    })
+    public ResponseEntity<ApiResponse<Object>> handleUserUnauthorizedException(RuntimeException e){
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED).body(ApiResponse.of(HttpStatus.UNAUTHORIZED, e.getMessage(), null));
+    }
+
+    @ExceptionHandler({
+            UserNotFoundException.class,
+    })
+    public ResponseEntity<ApiResponse<Object>> handleUserNotFoundException(RuntimeException e){
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND).body(ApiResponse.of(HttpStatus.NOT_FOUND, e.getMessage(), null));
+    }
+    /********************************************************************************/
+    /*                        Security CustomException                              */
+    /********************************************************************************/
+
+    @ExceptionHandler({
+            RefreshTokenMissingException.class,
+            RefreshTokenInvalidException.class
+    })
+    public ResponseEntity<ApiResponse<Object>> handleSecurityUnauthorizedException(RuntimeException e){
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED).body(ApiResponse.of(HttpStatus.UNAUTHORIZED, e.getMessage(), null));
+    }
+
 }
