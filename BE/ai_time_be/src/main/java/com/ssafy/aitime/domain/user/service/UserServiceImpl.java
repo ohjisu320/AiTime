@@ -3,7 +3,6 @@ package com.ssafy.aitime.domain.user.service;
 import com.ssafy.aitime.common.enums.RecordStatus;
 import com.ssafy.aitime.domain.user.dto.request.UserLoginRequest;
 import com.ssafy.aitime.domain.user.dto.response.TokenResponse;
-import com.ssafy.aitime.domain.user.dto.response.UserLoginResponse;
 import com.ssafy.aitime.domain.user.entity.User;
 import com.ssafy.aitime.domain.user.entity.enums.UserRole;
 import com.ssafy.aitime.domain.user.repository.UserRepository;
@@ -12,14 +11,17 @@ import com.ssafy.aitime.security.entity.RefreshToken;
 import com.ssafy.aitime.security.principal.UserPrincipal;
 import com.ssafy.aitime.security.provider.JwtTokenProvider;
 import com.ssafy.aitime.security.repository.RefreshTokenRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +29,7 @@ public class UserServiceImpl implements UserService {
 
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider jwtTokenProvider;
+    private final StringRedisTemplate redisTemplate;
 
     private final RefreshTokenRepository refreshTokenRepository;
     private final UserRepository userRepository;
@@ -35,6 +38,7 @@ public class UserServiceImpl implements UserService {
     private long refreshTokenExpirationMillis;
 
     @Override
+    @Transactional
     public TokenResponse login(UserLoginRequest userLoginRequest) {
         // 1. 스프링 시큐리티 기본 인증 처리
         UsernamePasswordAuthenticationToken authToken =
@@ -69,6 +73,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional
     public TokenResponse refresh(String refreshToken) {
 // 1. JWT 유효성 검증
         if (!jwtTokenProvider.validateToken(refreshToken)) {
@@ -110,5 +115,25 @@ public class UserServiceImpl implements UserService {
                 newRefreshToken,
                 new UserInfoDTO(user.getUserId(), user.getName(), user.getUserRole())
         );
+    }
+
+    @Override
+    @Transactional
+    public void logout(String accessToken, String refreshToken) {
+        // 리프레쉬토큰에서 유저 로그인 아이디 추출
+        String loginId = jwtTokenProvider.getLoginId(refreshToken);
+        // 레디스에서 해당 토큰 삭제
+        refreshTokenRepository.deleteById(loginId);
+
+        // 액세스 토큰 블랙리스트 등록 (남은 유효 시간만큼 저장)
+        long expiration = jwtTokenProvider.getExpiration(accessToken);
+        if (expiration > 0) {
+            redisTemplate.opsForValue().set(
+                    "blacklist:" + accessToken,
+                    "logout",
+                    expiration,
+                    TimeUnit.MILLISECONDS
+            );
+        }
     }
 }

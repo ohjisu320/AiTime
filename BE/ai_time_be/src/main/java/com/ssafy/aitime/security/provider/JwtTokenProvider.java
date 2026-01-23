@@ -136,4 +136,13 @@ public class JwtTokenProvider {
         }
     }
 
+    /*
+        토큰의 만료 시간(ms)를 가져옴
+     */
+    public long getExpiration(String token) {
+        Date expiration = parseClaims(token).getExpiration();
+        long now = new Date().getTime();
+        return expiration.getTime() - now;
+    }
+
 }
