@@ -12,6 +12,7 @@ import com.ssafy.aitime.security.exception.RefreshTokenInvalidException;
 import com.ssafy.aitime.security.exception.RefreshTokenMissingException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.BindException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -120,7 +121,8 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler({
-            InvalidPasswordException.class
+            InvalidPasswordException.class,
+            BadCredentialsException.class
     })
     public ResponseEntity<ApiResponse<Object>> handleUserUnauthorizedException(RuntimeException e){
         return ResponseEntity

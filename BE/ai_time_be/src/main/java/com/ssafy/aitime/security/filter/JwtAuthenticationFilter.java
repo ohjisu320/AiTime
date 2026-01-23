@@ -57,9 +57,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         response.setContentType("application/json;charset=UTF-8");
         response.getWriter().write(
                 "{" +
-                        "\"status\": 401," +
-                        "\"error\": \"Unauthorized\"," +
-                        "\"message\": \"" + message + "\"" +
+                        "\"status\": \"UNAUTHORIZED\"," +
+                        "\"message\": \"" + message + "\"," +
+                        "\"data\": null" +
                         "}"
         );
     }

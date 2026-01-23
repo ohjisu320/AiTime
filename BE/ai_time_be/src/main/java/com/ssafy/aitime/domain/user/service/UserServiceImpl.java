@@ -5,6 +5,7 @@ import com.ssafy.aitime.domain.user.dto.request.UserLoginRequest;
 import com.ssafy.aitime.domain.user.dto.response.TokenResponse;
 import com.ssafy.aitime.domain.user.entity.User;
 import com.ssafy.aitime.domain.user.entity.enums.UserRole;
+import com.ssafy.aitime.domain.user.exception.InvalidPasswordException;
 import com.ssafy.aitime.domain.user.repository.UserRepository;
 import com.ssafy.aitime.domain.user.service.dto.UserInfoDTO;
 import com.ssafy.aitime.security.entity.RefreshToken;
@@ -16,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -44,7 +46,7 @@ public class UserServiceImpl implements UserService {
         UsernamePasswordAuthenticationToken authToken =
                 new UsernamePasswordAuthenticationToken(userLoginRequest.loginId(), userLoginRequest.password());
 
-        Authentication authentication = authenticationManager.authenticate(authToken);
+        Authentication authentication = authenticate(userLoginRequest.loginId(), userLoginRequest.password());
 
         UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
 
@@ -134,6 +136,17 @@ public class UserServiceImpl implements UserService {
                     expiration,
                     TimeUnit.MILLISECONDS
             );
+        }
+    }
+
+    private Authentication authenticate(String loginId, String password) {
+        try {
+            UsernamePasswordAuthenticationToken authToken =
+                    new UsernamePasswordAuthenticationToken(loginId, password);
+            return authenticationManager.authenticate(authToken);
+        } catch (BadCredentialsException e) {
+            // 시큐리티 예외를 커스텀 예외로 전환하여 던짐
+            throw new InvalidPasswordException("아이디 또는 비밀번호가 일치하지 않습니다.");
         }
     }
 }
