@@ -1,16 +1,14 @@
 import os
 import tempfile
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
 from typing import Any
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from .debug_stream import hub
-from .engine import get_analyzer, run_analyze
+from app.rtn.service.engine import build_engine
 
 # 업로드 허용 확장자 (필요시 추가)
 ALLOWED_VIDEO_EXTS = {".mp4", ".mov", ".avi", ".mkv", ".webm"}
@@ -18,16 +16,24 @@ ALLOWED_VIDEO_EXTS = {".mp4", ".mov", ".avi", ".mkv", ".webm"}
 # (선택) 업로드 최대 용량 제한 (예: 300MB)
 MAX_UPLOAD_BYTES = 300 * 1024 * 1024
 
+# 엔진/디버그 라우터 생성 (mjpeg 켤 거면 True)
+engine, debug_router = build_engine(enable_mjpeg=True, debug=False)
+
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     # startup: 모델/분석기 선로딩
-    get_analyzer()
+    if getattr(engine, "analyzer", None) is None and hasattr(engine, "get_analyzer"):
+        engine.get_analyzer()
     yield
     # shutdown: 필요 시 정리 로직 추가 가능
 
 
 app = FastAPI(title="rtn-eyecontact-service", lifespan=lifespan)
+
+
+if debug_router is not None:
+    app.include_router(debug_router)
 
 
 class AnalyzeRequest(BaseModel):
@@ -44,6 +50,11 @@ def health() -> dict[str, str]:
     return {"status": "ok", "service": "I'm Okay, and you?"}
 
 
+def _analyze_sync(video_path: str) -> dict[str, Any]:
+    analyzer = engine.analyzer
+    return analyzer.analyze(video_path)
+
+
 @app.post("/analyze")
 async def analyze(req: AnalyzeRequest) -> dict[str, Any]:
     """
@@ -56,7 +67,7 @@ async def analyze(req: AnalyzeRequest) -> dict[str, Any]:
         )
 
     # 오래 걸리는 분석은 threadpool로 빼기 (event loop block 방지)
-    result = await run_in_threadpool(run_analyze, req.video_path)
+    result = await run_in_threadpool(_analyze_sync, req.video_path)
     return result
 
 
@@ -102,25 +113,10 @@ async def analyze_upload(file: UploadFile = UPLOAD_FILE_DEFAULT) -> dict[str, An
                 tmp.write(chunk)
 
         # 분석 실행
-        result = await run_in_threadpool(run_analyze, tmp_path)
+        result = await run_in_threadpool(_analyze_sync, tmp_path)
         return result
 
     finally:
         if tmp_path:
             with suppress(FileNotFoundError):
                 os.remove(tmp_path)
-
-
-@app.get("/debug/mjpeg")
-def debug_mjpeg() -> StreamingResponse:
-    def gen() -> Iterator[bytes]:
-        while True:
-            jpg = hub.get(timeout=1.0)
-            if jpg is None:
-                continue
-            yield (b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + jpg + b"\r\n")
-
-    return StreamingResponse(
-        gen(),
-        media_type="multipart/x-mixed-replace; boundary=frame",
-    )
