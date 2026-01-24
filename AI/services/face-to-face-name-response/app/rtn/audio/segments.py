@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import os
 
 from app.rtn.audio.ffmpeg import FFmpegAudioExtractor
