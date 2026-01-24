@@ -1,10 +1,126 @@
-from fastapi import FastAPI
+import os
+import tempfile
+from collections.abc import AsyncIterator, Iterator
+from contextlib import asynccontextmanager, suppress
+from typing import Any
 
-# 1. FastAPI 앱 인스턴스 생성
-app = FastAPI()
+from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
+
+from .debug_stream import hub
+from .engine import get_analyzer, run_analyze
+
+# 업로드 허용 확장자 (필요시 추가)
+ALLOWED_VIDEO_EXTS = {".mp4", ".mov", ".avi", ".mkv", ".webm"}
+
+# (선택) 업로드 최대 용량 제한 (예: 300MB)
+MAX_UPLOAD_BYTES = 300 * 1024 * 1024
 
 
-# 2. 루트(/) 경로에 대한 GET 요청 처리
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    # startup: 모델/분석기 선로딩
+    get_analyzer()
+    yield
+    # shutdown: 필요 시 정리 로직 추가 가능
+
+
+app = FastAPI(title="rtn-eyecontact-service", lifespan=lifespan)
+
+
+class AnalyzeRequest(BaseModel):
+    video_path: str
+
+
 @app.get("/")
-async def root():
-    return {"message": "Hello World"}
+def root() -> dict[str, str]:
+    return {"message": "rtn-eyecontact-service is running. Go to /docs"}
+
+
+@app.get("/health")
+def health() -> dict[str, str]:
+    return {"status": "ok", "service": "I'm Okay, and you?"}
+
+
+@app.post("/analyze")
+async def analyze(req: AnalyzeRequest) -> dict[str, Any]:
+    """
+    서버 로컬 경로에 있는 비디오를 분석 (예: EC2 내부 경로)
+    """
+    if not os.path.exists(req.video_path):
+        raise HTTPException(
+            status_code=400,
+            detail=f"video_path not found: {req.video_path}",
+        )
+
+    # 오래 걸리는 분석은 threadpool로 빼기 (event loop block 방지)
+    result = await run_in_threadpool(run_analyze, req.video_path)
+    return result
+
+
+UPLOAD_FILE_DEFAULT: Any = File(...)
+
+
+@app.post("/analyze/upload")
+async def analyze_upload(file: UploadFile = UPLOAD_FILE_DEFAULT) -> dict[str, Any]:
+    """
+    사용자가 업로드한 비디오 파일을 임시 저장 후 분석
+    """
+    filename = file.filename or "uploaded.mp4"
+    suffix = os.path.splitext(filename)[-1].lower() or ".mp4"
+
+    # 확장자 검사
+    if suffix not in ALLOWED_VIDEO_EXTS:
+        allowed = ", ".join(sorted(ALLOWED_VIDEO_EXTS))
+        raise HTTPException(
+            status_code=400,
+            detail=(f"unsupported file type: {suffix} (allowed: [{allowed}])"),
+        )
+
+    tmp_path: str | None = None
+    total: int = 0
+
+    try:
+        # 임시 파일로 스트리밍 저장 (큰 파일도 안전)
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            tmp_path = tmp.name
+
+            while True:
+                chunk = await file.read(1024 * 1024)  # 1MB
+                if not chunk:
+                    break
+
+                total += len(chunk)
+                if total > MAX_UPLOAD_BYTES:
+                    raise HTTPException(
+                        status_code=413,
+                        detail=f"file too large (max {MAX_UPLOAD_BYTES} bytes)",
+                    )
+
+                tmp.write(chunk)
+
+        # 분석 실행
+        result = await run_in_threadpool(run_analyze, tmp_path)
+        return result
+
+    finally:
+        if tmp_path:
+            with suppress(FileNotFoundError):
+                os.remove(tmp_path)
+
+
+@app.get("/debug/mjpeg")
+def debug_mjpeg() -> StreamingResponse:
+    def gen() -> Iterator[bytes]:
+        while True:
+            jpg = hub.get(timeout=1.0)
+            if jpg is None:
+                continue
+            yield (b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + jpg + b"\r\n")
+
+    return StreamingResponse(
+        gen(),
+        media_type="multipart/x-mixed-replace; boundary=frame",
+    )
