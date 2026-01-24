@@ -12,6 +12,18 @@ import mediapipe as mp
 import numpy as np
 import numpy.typing as npt
 
+from app.rtn.config import (
+    AnalysisConfig,
+    ContactConfig,
+    FaceDetConfig,
+    GazeSmoothConfig,
+    ROIConfig,
+    RoleAssignConfig,
+    TrackConfig,
+    VADConfig,
+)
+from app.rtn.types import BBox, FrameBGR, Landmarks, MaskU8, Track
+
 # scipy는 SORT 매칭(헝가리안)에 쓰고, 없으면 greedy fallback
 try:
     from scipy.optimize import linear_sum_assignment
@@ -21,16 +33,6 @@ except Exception:
     SCIPY_OK = False
 
 # -----------------------------
-# Typing aliases
-# -----------------------------
-FrameBGR = npt.NDArray[np.uint8]
-MaskU8 = npt.NDArray[np.uint8]
-BBox = tuple[float, float, float, float]
-Landmark3D = tuple[float, float, float]
-Landmarks = list[Landmark3D]
-Track = tuple[float, float, float, float, int]
-
-# -----------------------------
 # Logging
 # -----------------------------
 logger = logging.getLogger("RTNAnalyzer")
@@ -38,67 +40,6 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
 )
-
-
-# -----------------------------
-# Configs
-# -----------------------------
-@dataclass(frozen=True)
-class VADConfig:
-    sr: int = 16000
-    min_speech_ms: int = 250
-    min_silence_ms: int = 250
-    merge_gap_s: float = 0.3
-    tmp_dirname: str = ".tmp_vad"
-
-
-@dataclass(frozen=True)
-class FaceDetConfig:
-    min_conf: float = 0.6
-    model_selection: int = 0  # MP FaceDetection: 0/1
-
-
-@dataclass(frozen=True)
-class TrackConfig:
-    max_age: int = 8
-    min_hits: int = 2
-    iou_threshold: float = 0.3
-
-
-@dataclass(frozen=True)
-class RoleAssignConfig:
-    warmup_s: float = 1.0  # role assignment warmup seconds
-
-
-@dataclass(frozen=True)
-class ROIConfig:
-    # parent ROI
-    mesh_dilate_px: int = 14
-    bbox_fallback_dilate_px: int = 28
-
-
-@dataclass(frozen=True)
-class GazeSmoothConfig:
-    alpha: float = 0.25
-    max_jump: float = 0.12
-    deadzone: float = 0.02
-    gaze_scale: float = 1.6
-
-    end_alpha: float = 0.30
-    end_jump_px: float = 40.0
-
-
-@dataclass(frozen=True)
-class ContactConfig:
-    min_contact_frames: int = 3
-    raycast_samples: int = 11
-
-
-@dataclass(frozen=True)
-class AnalysisConfig:
-    window_s: float = 5.0
-    debug: bool = False
-    fps_override: float | None = None
 
 
 # -----------------------------
