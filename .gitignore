@@ -606,4 +606,7 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 
+# face-to-face-name-response
+AI/services/face-to-face-name-response/asset
+
 # End of https://www.toptal.com/developers/gitignore/api/python,macos,react,java,windows,intellij,flask,node
