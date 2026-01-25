@@ -36,4 +36,23 @@ public class AuthServiceImpl implements AuthService {
 
         return PhoneVerificationResponse.of(phoneNumber, expiredAt);
     }
+
+    @Override
+    public boolean verifyCode(String phoneNumber, String inputCode) {
+        String redisKey = "SMS_CODE:" + phoneNumber;
+        String savedCode = redisTemplate.opsForValue().get(redisKey);
+
+        if (savedCode != null && savedCode.equals(inputCode)) {
+            // 1. 인증 성공 시 '가입용 인증 완료 마크'를 Redis에 10분간 저장
+            redisTemplate.opsForValue().set(
+                    "AUTH_VERIFIED:" + phoneNumber,
+                    "true",
+                    Duration.ofMinutes(10)
+            );
+            // 2. 사용 완료된 인증번호 삭제
+            redisTemplate.delete(redisKey);
+            return true;
+        }
+        return false;
+    }
 }

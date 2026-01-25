@@ -4,4 +4,5 @@ import com.ssafy.aitime.domain.auth.dto.response.PhoneVerificationResponse;
 
 public interface AuthService {
     PhoneVerificationResponse sendVerificationCode(String phoneNumber);
+    boolean verifyCode(String phoneNumber, String inputCode);
 }
