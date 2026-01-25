@@ -18,4 +18,12 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  css: {
+    preprocessorOptions: {
+      scss: {
+        api: 'modern-compiler', // 최신 Sass 컴파일러 사용
+        silenceDeprecations: ['import'], // @import 관련 경고 숨기기
+      },
+    },
+  },
 })
