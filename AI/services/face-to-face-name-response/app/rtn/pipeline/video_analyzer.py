@@ -68,13 +68,6 @@ class VideoAnalyzer:
                 tmp_dir=tmp_dir,
             )
 
-        segs = vad_segments_from_video(
-            video_path=video_path,
-            vad=self.vad,
-            cfg=self.vad_cfg,
-            tmp_dir=tmp_dir,
-        )
-
         results: list[CallResult] = []
         for i, (s, e) in enumerate(segs, start=1):
             r = self.window_analyzer.analyze_call(
