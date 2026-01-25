@@ -2,6 +2,7 @@ package com.ssafy.aitime.domain.user.controller;
 
 import com.ssafy.aitime.common.response.ApiResponse;
 import com.ssafy.aitime.domain.user.dto.request.UserLoginRequest;
+import com.ssafy.aitime.domain.user.dto.response.IdDuplicateResponse;
 import com.ssafy.aitime.domain.user.dto.response.TokenResponse;
 import com.ssafy.aitime.domain.user.dto.response.UserLoginResponse;
 import com.ssafy.aitime.domain.user.service.UserService;
@@ -92,4 +93,11 @@ public class UserController {
                 .body(ApiResponse.ok("로그아웃 되었습니다."));
     }
 
+    @GetMapping("/duplicate-id")
+    public ResponseEntity<ApiResponse<IdDuplicateResponse>> checkDuplicate(
+            @RequestParam("loginId") String loginId
+    ) {
+        return ResponseEntity.ok(
+                ApiResponse.ok("아이디 중복 확인이 완료되었습니다.", userService.checkIdDuplicate(loginId)));
+    }
 }

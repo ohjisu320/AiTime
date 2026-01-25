@@ -2,6 +2,7 @@ package com.ssafy.aitime.domain.user.service;
 
 import com.ssafy.aitime.common.enums.RecordStatus;
 import com.ssafy.aitime.domain.user.dto.request.UserLoginRequest;
+import com.ssafy.aitime.domain.user.dto.response.IdDuplicateResponse;
 import com.ssafy.aitime.domain.user.dto.response.TokenResponse;
 import com.ssafy.aitime.domain.user.entity.User;
 import com.ssafy.aitime.domain.user.entity.enums.UserRole;
@@ -136,6 +137,11 @@ public class UserServiceImpl implements UserService {
                     TimeUnit.MILLISECONDS
             );
         }
+    }
+
+    @Override
+    public IdDuplicateResponse checkIdDuplicate(String loginId) {
+        return new IdDuplicateResponse(userRepository.existsByLoginId(loginId));
     }
 
     private Authentication authenticate(String loginId, String password) {

@@ -59,6 +59,7 @@ public class SecurityConfig {
                                 "/user/login",
                                 "/user/refresh",
                                 "/user/logout",
+                                "/user/duplicate-id",
                                 "/auth/**"
                         ).permitAll()
                         .requestMatchers("/error").permitAll()
