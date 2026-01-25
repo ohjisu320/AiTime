@@ -137,3 +137,9 @@ class GazeEstimatorIrisRatio:
         )
         self._end_f = end_smoothed
         return end_smoothed, dx, dy
+
+    def reset(self) -> None:
+        self._has = False
+        self._dx_f = 0.0
+        self._dy_f = 0.0
+        self._end_f = None

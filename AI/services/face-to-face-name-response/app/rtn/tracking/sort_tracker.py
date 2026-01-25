@@ -207,3 +207,7 @@ class SortTracker:
             unmatched_trks = [i for i in range(len(preds)) if i not in used_t]
 
         return matched, unmatched_dets, unmatched_trks
+
+    def reset(self) -> None:
+        self.trackers = []
+        self.frame_count = 0
