@@ -1,3 +1,5 @@
+import logging
+import time
 from collections.abc import Callable
 
 import cv2
@@ -27,6 +29,8 @@ from app.rtn.types import BBox, FrameBGR, Landmarks
 from app.rtn.utils import crop_face_square
 from app.rtn.vision.mp_face_detector import FaceDetectorMP
 from app.rtn.vision.mp_facemesh import FaceMeshMP
+
+logger = logging.getLogger("RTNAnalyzer.pipeline.window_analyzer")
 
 
 class WindowAnalyzer:
@@ -61,11 +65,18 @@ class WindowAnalyzer:
         call_start: float,
         call_end: float,
     ) -> CallResult:
+        t0 = time.perf_counter()
+
         self.tracker.reset()
         self.gaze_estimator.reset()
 
         cap = cv2.VideoCapture(video_path)
         if not cap.isOpened():
+            logger.error(
+                "call open_failed video=%s call=%d",
+                video_path,
+                call_idx,
+            )
             raise RuntimeError(f"비디오 열기 실패: {video_path}")
 
         fps = cap.get(cv2.CAP_PROP_FPS)
@@ -78,11 +89,28 @@ class WindowAnalyzer:
         end_t = call_end + self.analysis_cfg.window_s
         cap.set(cv2.CAP_PROP_POS_MSEC, start_t * 1000.0)
 
+        logger.info(
+            "call start video=%s call=%d call_start=%.3f call_end=%.3f \
+                window=[%.3f,%.3f] \fps=%.2f",
+            video_path,
+            call_idx,
+            call_start,
+            call_end,
+            start_t,
+            end_t,
+            fps,
+        )
+
         role_assigner = RoleAssignerByArea(self.role_cfg.warmup_s)
 
         consec_contact: int = 0
         first_contact_time: float | None = None
         gaze_duration: float = 0.0
+
+        # event logs (avoid per-frame spamming)
+        role_logged = False
+        first_contact_logged = False
+        frames = 0
 
         debug = DebugRenderer(self.analysis_cfg.debug)
 
@@ -94,6 +122,8 @@ class WindowAnalyzer:
                 ok, frame = cap.read()
                 if not ok:
                     break
+
+                frames += 1
 
                 cur_msec = cap.get(cv2.CAP_PROP_POS_MSEC)
                 cur_t = cur_msec / 1000.0
@@ -111,6 +141,18 @@ class WindowAnalyzer:
 
                 role_assigner.update_warmup(cur_t, start_t, tracks)
                 role_assigner.maybe_assign(cur_t, start_t)
+
+                if role_assigner.assigned and not role_logged:
+                    logger.info(
+                        "role assigned video=%s call=%d t=%.3f parent_id=%s \
+                            child_id=%s",
+                        video_path,
+                        call_idx,
+                        cur_t,
+                        role_assigner.parent_id,
+                        role_assigner.child_id,
+                    )
+                    role_logged = True
 
                 if debug_mode and dbg is not None:
                     msg = (
@@ -278,6 +320,17 @@ class WindowAnalyzer:
                         and consec_contact >= self.contact_cfg.min_contact_frames
                     ):
                         first_contact_time = cur_t
+                        if not first_contact_logged:
+                            logger.info(
+                                "first contact video=%s call=%d t=%.3f latency_s=%.3f \
+                                    consec=%d",
+                                video_path,
+                                call_idx,
+                                cur_t,
+                                (cur_t - call_end),
+                                consec_contact,
+                            )
+                            first_contact_logged = True
                     status_msg = f"CONTACT ({roi_mode})"
                     status_color = (0, 255, 0)
                 else:
@@ -364,6 +417,18 @@ class WindowAnalyzer:
 
         success = first_contact_time is not None
         latency = (first_contact_time - call_end) if success else None
+
+        logger.info(
+            "call done video=%s call=%d success=%s latency_s=%s gaze_s=%.3f frames=%d \
+                elapsed_s=%.3f",
+            video_path,
+            call_idx,
+            success,
+            latency,
+            float(gaze_duration),
+            frames,
+            time.perf_counter() - t0,
+        )
 
         return CallResult(
             call_index=call_idx,
