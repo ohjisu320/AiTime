@@ -61,6 +61,9 @@ class WindowAnalyzer:
         call_start: float,
         call_end: float,
     ) -> CallResult:
+        self.tracker.reset()
+        self.gaze_estimator.reset()
+
         cap = cv2.VideoCapture(video_path)
         if not cap.isOpened():
             raise RuntimeError(f"비디오 열기 실패: {video_path}")
