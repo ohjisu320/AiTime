@@ -155,10 +155,10 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public UserJoinResponse join(UserJoinRequest request) {
         // 휴대폰 인증 여부 최종 확인 (Redis) - postman 테스트 용으로 주석
-//        String isVerified = redisTemplate.opsForValue().get("AUTH_VERIFIED:" + request.phoneNumber());
-//        if (isVerified == null || !isVerified.equals("true")) {
-//            throw new PhoneVerificationRequiredException();
-//        }
+        String isVerified = redisTemplate.opsForValue().get("AUTH_VERIFIED:" + request.phoneNumber());
+        if (isVerified == null || !isVerified.equals("true")) {
+            throw new PhoneVerificationRequiredException();
+        }
 
         // 아이디 중복 최종 체크 (API 우회 방지)
         if (userRepository.existsByLoginId(request.loginId())) {
@@ -181,7 +181,7 @@ public class UserServiceImpl implements UserService {
         User savedUser = userRepository.save(user);
 
         // 회원가입 성공 후 Redis의 인증 마크 삭제 (재사용 방지)  - postman 테스트 용으로 주석
-//        redisTemplate.delete("AUTH_VERIFIED:" + request.phoneNumber());
+        redisTemplate.delete("AUTH_VERIFIED:" + request.phoneNumber());
 
         return new UserJoinResponse(
                 savedUser.getUserId(),
