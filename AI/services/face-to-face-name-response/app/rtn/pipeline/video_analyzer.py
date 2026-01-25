@@ -1,3 +1,4 @@
+import logging
 import os
 import tempfile
 import time
@@ -23,6 +24,8 @@ from app.rtn.pipeline.window_analyzer import WindowAnalyzer
 from app.rtn.types import FrameBGR
 from app.rtn.vision.mp_face_detector import FaceDetectorMP
 from app.rtn.vision.mp_facemesh import FaceMeshMP
+
+logger = logging.getLogger("RTNAnalyzer.pipeline.video_analyzer")
 
 
 class VideoAnalyzer:
@@ -60,6 +63,10 @@ class VideoAnalyzer:
         )
 
     def analyze(self, video_path: str) -> dict[str, Any]:
+        t0 = time.perf_counter()
+        logger.info("analyze start video_path=%s", video_path)
+
+        # VAD 단계에서 wav 추출이 필요해서 tmp_dir를 사용한다.
         with tempfile.TemporaryDirectory(prefix="rtn_vad_") as tmp_dir:
             segs = vad_segments_from_video(
                 video_path=video_path,
@@ -68,8 +75,15 @@ class VideoAnalyzer:
                 tmp_dir=tmp_dir,
             )
 
+        logger.info(
+            "vad segments video=%s count=%d",
+            os.path.basename(video_path),
+            len(segs),
+        )
+
         results: list[CallResult] = []
         for i, (s, e) in enumerate(segs, start=1):
+            t_call = time.perf_counter()
             r = self.window_analyzer.analyze_call(
                 video_path,
                 call_idx=i,
@@ -78,11 +92,35 @@ class VideoAnalyzer:
             )
             results.append(r)
 
+            logger.info(
+                "call done video=%s call=%d start=%.3f end=%.3f success=%s \
+                    latency_s=%s gaze_s=%.3f elapsed_s=%.3f",
+                os.path.basename(video_path),
+                i,
+                s,
+                e,
+                r.success,
+                r.latency_s,
+                r.gaze_duration_s,
+                time.perf_counter() - t_call,
+            )
+
         total_calls = len(results)
         success_calls = sum(1 for r in results if r.success)
         total_gaze = sum(r.gaze_duration_s for r in results)
         latencies = [r.latency_s for r in results if r.latency_s is not None]
         avg_latency = float(np.mean(latencies)) if latencies else None
+
+        logger.info(
+            "analyze done video=%s elapsed_s=%.3f success=%d/%d avg_latency_s=%s \
+                total_gaze_s=%.3f",
+            os.path.basename(video_path),
+            time.perf_counter() - t0,
+            int(success_calls),
+            int(total_calls),
+            avg_latency,
+            float(total_gaze),
+        )
 
         params = {
             "window_s": self.analysis_cfg.window_s,
