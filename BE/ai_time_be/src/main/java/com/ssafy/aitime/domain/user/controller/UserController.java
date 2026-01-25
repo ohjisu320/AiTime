@@ -1,14 +1,17 @@
 package com.ssafy.aitime.domain.user.controller;
 
 import com.ssafy.aitime.common.response.ApiResponse;
+import com.ssafy.aitime.domain.user.dto.request.UserJoinRequest;
 import com.ssafy.aitime.domain.user.dto.request.UserLoginRequest;
 import com.ssafy.aitime.domain.user.dto.response.IdDuplicateResponse;
 import com.ssafy.aitime.domain.user.dto.response.TokenResponse;
+import com.ssafy.aitime.domain.user.dto.response.UserJoinResponse;
 import com.ssafy.aitime.domain.user.dto.response.UserLoginResponse;
 import com.ssafy.aitime.domain.user.service.UserService;
 import com.ssafy.aitime.security.provider.JwtTokenProvider;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -99,5 +102,13 @@ public class UserController {
     ) {
         return ResponseEntity.ok(
                 ApiResponse.ok("아이디 중복 확인이 완료되었습니다.", userService.checkIdDuplicate(loginId)));
+    }
+
+    @PostMapping("/join")
+    public ResponseEntity<ApiResponse<UserJoinResponse>> join(
+            @Valid @RequestBody UserJoinRequest request
+    ) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.created("회원가입이 성공적으로 완료되었습니다.", userService.join(request)));
     }
 }
