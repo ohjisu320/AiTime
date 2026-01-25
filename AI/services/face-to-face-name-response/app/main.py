@@ -1,3 +1,4 @@
+import logging
 import os
 import tempfile
 from collections.abc import AsyncIterator
@@ -15,6 +16,12 @@ ALLOWED_VIDEO_EXTS = {".mp4", ".mov", ".avi", ".mkv", ".webm"}
 
 # (선택) 업로드 최대 용량 제한 (예: 300MB)
 MAX_UPLOAD_BYTES = 300 * 1024 * 1024
+
+logger = logging.getLogger("RTNAnalyzer")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+)
 
 # 엔진/디버그 라우터 생성 (mjpeg 켤 거면 True)
 engine, debug_router = build_engine(enable_mjpeg=True, debug=False)
