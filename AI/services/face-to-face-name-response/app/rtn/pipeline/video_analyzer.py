@@ -1,4 +1,5 @@
 import os
+import tempfile
 import time
 from collections.abc import Callable
 from typing import Any
@@ -59,10 +60,13 @@ class VideoAnalyzer:
         )
 
     def analyze(self, video_path: str) -> dict[str, Any]:
-        tmp_dir = os.path.join(
-            os.path.dirname(os.path.abspath(video_path)),
-            self.vad_cfg.tmp_dirname,
-        )
+        with tempfile.TemporaryDirectory(prefix="rtn_vad_") as tmp_dir:
+            segs = vad_segments_from_video(
+                video_path=video_path,
+                vad=self.vad,
+                cfg=self.vad_cfg,
+                tmp_dir=tmp_dir,
+            )
 
         segs = vad_segments_from_video(
             video_path=video_path,
