@@ -58,7 +58,8 @@ public class SecurityConfig {
                                 "/user/join",
                                 "/user/login",
                                 "/user/refresh",
-                                "/user/logout"
+                                "/user/logout",
+                                "/auth/**"
                         ).permitAll()
                         .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated()
