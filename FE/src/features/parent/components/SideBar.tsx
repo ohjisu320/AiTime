@@ -1,10 +1,12 @@
 import type { DashboardData } from '../types/dashboard';
 
+// 1. Props 인터페이스에 클릭 핸들러 추가
 interface SidebarProps {
   childName: string;
+  onCodeInputClick: () => void; 
 }
 
-const Sidebar = ({ childName }: SidebarProps) => {
+const Sidebar = ({ childName, onCodeInputClick }: SidebarProps) => {
   return (
     <aside className="w-64 h-screen bg-white border-r border-gray-200 flex flex-none flex-col sticky top-0">
       <div className="h-24 px-6 pt-6 border-b border-gray-200 flex flex-col justify-start items-start">
@@ -21,10 +23,16 @@ const Sidebar = ({ childName }: SidebarProps) => {
         <div className="h-12 pl-4 bg-gradient-to-b from-indigo-100 to-indigo-50 rounded-2xl inline-flex items-center gap-3 cursor-pointer">
           <div className="text-indigo-600 font-bold">홈</div>
         </div>
-        <div className="h-12 pl-4 rounded-2xl inline-flex items-center gap-3 text-gray-600 hover:bg-gray-50 cursor-pointer">
+        
+        {/* 2. 초대 코드 입력 메뉴에 onClick 이벤트 연결 */}
+        <div 
+          onClick={onCodeInputClick}
+          className="h-12 pl-4 rounded-2xl inline-flex items-center gap-3 text-gray-600 hover:bg-gray-50 cursor-pointer transition-colors"
+        >
           <span>초대 코드 입력</span>
         </div>
-        <div className="h-12 pl-4 rounded-2xl inline-flex items-center gap-3 text-gray-600 hover:bg-gray-50 cursor-pointer">
+
+        <div className="h-12 pl-4 rounded-2xl inline-flex items-center gap-3 text-gray-600 hover:bg-gray-50 cursor-pointer transition-colors">
           <span>회원정보 수정</span>
         </div>
 
@@ -37,7 +45,7 @@ const Sidebar = ({ childName }: SidebarProps) => {
                 <span className="text-gray-500 text-[10px] truncate">{childName}의 부모님</span>
               </div>
             </div>
-            <button className="h-9 w-full bg-white rounded-lg border border-gray-200 text-gray-600 text-xs font-medium hover:bg-gray-50">
+            <button className="h-9 w-full bg-white rounded-lg border border-gray-200 text-gray-600 text-xs font-medium hover:bg-gray-50 transition-colors">
               로그아웃
             </button>
           </div>
