@@ -1,11 +1,15 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, Database, Hospital, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/common/Button';
 import ConsentHeader from '../components/ConsentHeader';
 import ConsentItem from '../components/ConsentItem';
 import ConsentNotice from '../components/ConsentNotice';
 
+
+
 const ConsentPage = () => {
+  const navigate = useNavigate(); // 훅 호출
   const [agreements, setAgreements] = useState({
     media: false,     // 1. 영상·음성 수집
     aiUsage: false,   // 2. AI 학습 미사용 고지
@@ -17,6 +21,12 @@ const ConsentPage = () => {
 
   const handleToggle = (key: keyof typeof agreements) => {
     setAgreements((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleStartExam = () => {
+    if (allRequiredAgreed) {
+      navigate('/exam/guide'); // 가이드 페이지로 이동
+    }
   };
 
   return (
@@ -52,7 +62,7 @@ const ConsentPage = () => {
             onToggle={() => handleToggle('aiUsage')}
           >
             <p className="text-sm text-gray-600">
-              수집된 영상 및 음성 데이터는 <strong>AI 모델 학습, 성능 개선, 고도화, 재학습 목적에 사용되지 않습니다.</strong> 
+              수집된 영상 및 음성 데이터는 <strong>AI 모델 학습, 성능 개선, 고도화, 재학습 목적에 사용되지 않습니다.</strong>
               오직 검사 결과 산출 및 사후 분쟁 대응, 서비스 품질 검증 목적에 한하여 보관합니다.
             </p>
           </ConsentItem>
@@ -91,6 +101,7 @@ const ConsentPage = () => {
           variant={allRequiredAgreed ? "default" : "secondary"}
           size="lg"
           className="w-full h-16 mt-10 text-xl"
+          onClick={handleStartExam} // 클릭 이벤트 연결
         >
           {allRequiredAgreed ? "약관 동의 및 검사 시작" : "모든 필수 항목에 동의해주세요"}
         </Button>
