@@ -15,15 +15,15 @@ class FFmpegAudioExtractor:
 
         cmd = [
             ffmpeg,
-            "-y",
-            "-i",
+            "-y",  # 출력 파일이 이미 있어도 질문 없이 덮어쓴다
+            "-i",  # 입력 파일 지정
             video_path,
-            "-vn",
-            "-ac",
+            "-vn",  # Video 무시 (오디오만 사용하니까)
+            "-ac",  # 출력 오디오 채널 수를 1개(모노)로 설정
             "1",
-            "-ar",
+            "-ar",  # 출력 오디오 샘플레이트를 sr(16kHz)로 resample
             str(sr),
-            "-f",
+            "-f",  # wav로 저장 강제
             "wav",
             wav_path,
         ]
