@@ -2,10 +2,7 @@ package com.ssafy.aitime.domain.user.service;
 
 import com.ssafy.aitime.domain.user.dto.request.UserJoinRequest;
 import com.ssafy.aitime.domain.user.dto.request.UserLoginRequest;
-import com.ssafy.aitime.domain.user.dto.response.IdDuplicateResponse;
-import com.ssafy.aitime.domain.user.dto.response.IdFindResponse;
-import com.ssafy.aitime.domain.user.dto.response.TokenResponse;
-import com.ssafy.aitime.domain.user.dto.response.UserJoinResponse;
+import com.ssafy.aitime.domain.user.dto.response.*;
 
 public interface UserService {
     TokenResponse login(UserLoginRequest userLoginRequest);
@@ -14,4 +11,5 @@ public interface UserService {
     IdDuplicateResponse checkIdDuplicate(String loginId);
     UserJoinResponse join(UserJoinRequest request);
     IdFindResponse getIdByPhone(String phoneNumber);
+    UserIdentityResponse verifyUserIdentity(String phoneNumber);
 }

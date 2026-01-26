@@ -3,10 +3,7 @@ package com.ssafy.aitime.domain.user.service;
 import com.ssafy.aitime.common.enums.RecordStatus;
 import com.ssafy.aitime.domain.user.dto.request.UserJoinRequest;
 import com.ssafy.aitime.domain.user.dto.request.UserLoginRequest;
-import com.ssafy.aitime.domain.user.dto.response.IdDuplicateResponse;
-import com.ssafy.aitime.domain.user.dto.response.IdFindResponse;
-import com.ssafy.aitime.domain.user.dto.response.TokenResponse;
-import com.ssafy.aitime.domain.user.dto.response.UserJoinResponse;
+import com.ssafy.aitime.domain.user.dto.response.*;
 import com.ssafy.aitime.domain.user.entity.User;
 import com.ssafy.aitime.domain.user.entity.enums.UserRole;
 import com.ssafy.aitime.domain.user.exception.InvalidPasswordException;
@@ -208,6 +205,21 @@ public class UserServiceImpl implements UserService {
         return new IdFindResponse(user.getLoginId(), user.getCreatedAt());
     }
 
+    @Override
+    public UserIdentityResponse verifyUserIdentity(String phoneNumber) {
+
+        String isVerified = redisTemplate.opsForValue().get("AUTH_VERIFIED:" + phoneNumber);
+        if (isVerified == null || !isVerified.equals("true")) {
+            throw new PhoneVerificationRequiredException();
+        }
+
+        // 해당 번호로 가입된 유저 찾기
+        User user = userRepository.findByPhoneNumberAndRecordStatus(phoneNumber, RecordStatus.ACTIVE)
+                .orElseThrow(UserNotFoundException::new);
+
+        return new UserIdentityResponse(true, user.getUserId());
+    }
+
     private Authentication authenticate(String loginId, String password) {
         try {
             UsernamePasswordAuthenticationToken authToken =
@@ -215,7 +227,7 @@ public class UserServiceImpl implements UserService {
             return authenticationManager.authenticate(authToken);
         } catch (BadCredentialsException e) {
             // 시큐리티 예외를 커스텀 예외로 전환하여 던짐
-            throw new InvalidPasswordException("아이디 또는 비밀번호가 일치하지 않습니다.");
+            throw new InvalidPasswordException();
         }
     }
 }

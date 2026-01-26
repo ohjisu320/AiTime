@@ -113,4 +113,10 @@ public class UserController {
     public ResponseEntity<ApiResponse<IdFindResponse>> getId(@RequestParam("phoneNumber") String phoneNumber) {
         return ResponseEntity.ok(ApiResponse.ok("아이디 조회가 완료되었습니다.", userService.getIdByPhone(phoneNumber)));
     }
+
+    @GetMapping("/verify-identity")
+    public ResponseEntity<ApiResponse<UserIdentityResponse>> verifyIdentity(
+            @RequestParam("phoneNumber") String phoneNumber) {
+        return ResponseEntity.ok(ApiResponse.ok("본인 확인에 성공하였습니다.", userService.verifyUserIdentity(phoneNumber)));
+    }
 }
