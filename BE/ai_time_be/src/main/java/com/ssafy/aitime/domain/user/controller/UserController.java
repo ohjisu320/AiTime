@@ -6,12 +6,14 @@ import com.ssafy.aitime.domain.user.dto.request.UserJoinRequest;
 import com.ssafy.aitime.domain.user.dto.request.UserLoginRequest;
 import com.ssafy.aitime.domain.user.dto.response.*;
 import com.ssafy.aitime.domain.user.service.UserService;
+import com.ssafy.aitime.security.principal.UserPrincipal;
 import com.ssafy.aitime.security.provider.JwtTokenProvider;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -126,5 +128,12 @@ public class UserController {
             @Valid @RequestBody PasswordResetRequest request
     ) {
         return ResponseEntity.ok(ApiResponse.ok("비밀번호가 성공적으로 변경되었습니다.", userService.resetPassword(request)));
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<UserMeResponse>> getMyInfo(
+            @AuthenticationPrincipal UserPrincipal userPrincipal
+    ) {
+        return ResponseEntity.ok(ApiResponse.ok("사용자 정보 조회가 완료되었습니다.", userService.getUserInfo(userPrincipal.getUserId())));
     }
 }
