@@ -4,6 +4,7 @@ import com.ssafy.aitime.common.exception.commonExceptions.DeleteFailedException;
 import com.ssafy.aitime.common.exception.commonExceptions.InsertFailedException;
 import com.ssafy.aitime.common.exception.commonExceptions.UpdateFailedException;
 import com.ssafy.aitime.common.response.ApiResponse;
+import com.ssafy.aitime.domain.hospital.exception.DoctorNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindException;
@@ -88,5 +89,21 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.of(HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage(), null));
+    }
+
+    /********************************************************************************/
+    /*                        Hospital CustomException                              */
+    /********************************************************************************/
+
+    /**
+     * 의사를 찾을 수 없을 때 (404)
+     */
+    @ExceptionHandler({
+            DoctorNotFoundException.class
+    })
+    public ResponseEntity<ApiResponse<Object>> handleHospitalNotFoundException(RuntimeException e){
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.of(HttpStatus.NOT_FOUND, e.getMessage(), null));
     }
 }

@@ -49,9 +49,12 @@ public class User extends SoftDeletableEntity {
     @Column(name = "user_role", nullable = false, length = 20)
     private UserRole userRole;
 
+    @Column(name = "privacy_agreed", nullable = false) // 누락된 필드 추가
+    private boolean privacyAgreed;
+
     @Builder
     private User(String loginId, String password, String name, String email, String phoneNumber,
-                 UserRole userRole, RecordStatus recordStatus) {
+                 UserRole userRole, RecordStatus recordStatus, boolean privacyAgreed) {
         this.loginId = loginId;
         this.password = password;
         this.name = name;
@@ -59,5 +62,6 @@ public class User extends SoftDeletableEntity {
         this.phoneNumber = phoneNumber;
         this.userRole = (userRole == null) ? UserRole.USER : userRole;
         this.recordStatus = (recordStatus == null) ? RecordStatus.ACTIVE : recordStatus;
+        this.privacyAgreed = privacyAgreed;
     }
 }
