@@ -19,4 +19,5 @@ public interface UserService {
     PasswordResetResponse resetPassword(PasswordResetRequest request);
     UserMeResponse getUserInfo(UUID userId);
     UserUpdateResponse updateUserInfo(UUID userId, UserUpdateRequest request);
+    void withdraw(UUID userId, String accessToken, String refreshToken);
 }
