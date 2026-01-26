@@ -63,7 +63,10 @@ public class SecurityConfig {
                                 "/user/get-id",
                                 "/user/verify-identity",
                                 "/user/password",
-                                "/auth/**"
+                                "/auth/**",
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html"
                         ).permitAll()
                         .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated()
