@@ -68,6 +68,26 @@ EPSILON_NORM_CHECK = 1e-8  # 정규화 벡터 크기 체크용 엡실론
 # 만세 동작 감지
 HURRAY_WRIST_MARGIN = 0.3  # 손목이 어깨 위로 올라가야 하는 거리 (정규화 좌표)
 
+# 박수 동작 감지
+CLAPPING_WRIST_DISTANCE_THRESHOLD = 0.15  # 손목 간 거리 임계값
+
+# 점프 동작 감지
+JUMPING_HIP_RISE_MARGIN = 0.08  # 엉덩이 상승 마진
+
+# 발차기 동작 감지
+KICKING_ANKLE_HEIGHT_DIFF = 0.15  # 발목 높이 차이
+
+# 던지기 동작 감지
+THROWING_WRIST_ABOVE_SHOULDER = 0.1  # 손목이 어깨 위로
+
+# 뒤로 걷기 동작 감지
+WALKING_BACK_MOVE_THRESHOLD = 0.05  # 이동 감지 임계값
+
+# 개선된 유사도 기반 감지 (fallback)
+SIMILARITY_WINDOW_SIZE = 5  # 슬라이딩 윈도우 크기
+INITIAL_FRAMES_TO_SKIP = 3  # 준비 자세로 간주할 초기 프레임 수
+SIMILARITY_CHANGE_THRESHOLD = 0.1  # 유사도 변화율 임계값
+
 # 프레임 파일 포맷
 FRAME_FILENAME_PATTERN = "frame_{:05d}.jpg"  # 추출된 프레임 파일명
 VISUALIZED_FILENAME_PATTERN = "viz_{:05d}.jpg"  # 시각화된 프레임 파일명
@@ -551,11 +571,10 @@ class MotionAnalyzer:
         action_type: str = "hurray"
     ) -> int:
         """
-        시퀀스에서 동작이 시작되는 프레임 인덱스 감지.
+        시퀀스에서 동작이 시작되는 프레임 인덱스 감지 (하이브리드 방식).
         
-        동작 타입에 따라 다른 감지 방법을 사용합니다:
-        - hurray: 손목이 어깨 위로 올라간 시점 (더 정확함)
-        - 기타: 유사도 기반 감지
+        동작 타입에 따라 특화된 감지 알고리즘을 사용하고,
+        미정의 동작은 개선된 유사도 기반으로 감지합니다.
         
         Args:
             sequence: 분석할 시퀀스 (T, 17, 3)
@@ -566,18 +585,21 @@ class MotionAnalyzer:
         Returns:
             동작 시작 프레임 인덱스. 동작 미시작 시 시퀀스 길이 반환.
         """
-        if action_type == "hurray":
-            return self._detect_hurray_start_frame(sequence)
+        # 특화 알고리즘 매핑
+        specialized_detectors = {
+            "hurray": self._detect_hurray_start_frame,
+            "clapping": self._detect_clapping_start_frame,
+            "jumping": self._detect_jumping_start_frame,
+            "kicking": self._detect_kicking_start_frame,
+            "throwing": self._detect_throwing_start_frame,
+            "walking_back": self._detect_walking_back_start_frame,
+        }
         
-        # 기타 동작: 유사도 기반 감지
-        ref_mid = ref_sequence[len(ref_sequence) // 2]
-        
-        for i, frame in enumerate(sequence):
-            sim = self._quick_frame_similarity(frame, ref_mid)
-            if sim >= threshold:
-                return i
-        
-        return len(sequence)
+        if action_type in specialized_detectors:
+            return specialized_detectors[action_type](sequence)
+        else:
+            # 미정의 동작: 개선된 유사도 기반 감지
+            return self._detect_by_similarity_improved(sequence, ref_sequence, threshold)
     
     def _detect_hurray_start_frame(
         self,
@@ -614,6 +636,205 @@ class MotionAnalyzer:
                 return i
         
         return len(sequence)
+    
+    def _detect_clapping_start_frame(
+        self,
+        sequence: np.ndarray,
+        distance_threshold: float = CLAPPING_WRIST_DISTANCE_THRESHOLD
+    ) -> int:
+        """
+        박수 동작 시작 프레임 감지 (손목 간 거리 기반).
+        
+        양쪽 손목이 가까워지는 첫 프레임을 감지합니다.
+        
+        Args:
+            sequence: 분석할 시퀀스 (T, 17, 3)
+            distance_threshold: 손목 간 거리 임계값
+            
+        Returns:
+            박수 시작 프레임 인덱스. 미감지 시 시퀀스 길이 반환.
+        """
+        # COCO: 9=L_Wrist, 10=R_Wrist
+        for i, frame in enumerate(sequence):
+            l_wrist = frame[9, :2]
+            r_wrist = frame[10, :2]
+            distance = np.linalg.norm(l_wrist - r_wrist)
+            if distance < distance_threshold:
+                return i
+        return len(sequence)
+    
+    def _detect_jumping_start_frame(
+        self,
+        sequence: np.ndarray,
+        margin: float = JUMPING_HIP_RISE_MARGIN
+    ) -> int:
+        """
+        점프 동작 시작 프레임 감지 (엉덩이 위치 기반).
+        
+        엉덩이(hip)가 초기 위치보다 올라가는 첫 프레임을 감지합니다.
+        
+        Args:
+            sequence: 분석할 시퀀스 (T, 17, 3)
+            margin: 엉덩이 상승 마진
+            
+        Returns:
+            점프 시작 프레임 인덱스. 미감지 시 시퀀스 길이 반환.
+        """
+        # COCO: 11=L_Hip, 12=R_Hip
+        initial_hip_y = (sequence[0, 11, 1] + sequence[0, 12, 1]) / 2
+        
+        for i, frame in enumerate(sequence):
+            current_hip_y = (frame[11, 1] + frame[12, 1]) / 2
+            # y좌표는 위로 갈수록 작아짐 (정규화 기준)
+            if current_hip_y < (initial_hip_y - margin):
+                return i
+        return len(sequence)
+    
+    def _detect_kicking_start_frame(
+        self,
+        sequence: np.ndarray,
+        height_diff: float = KICKING_ANKLE_HEIGHT_DIFF
+    ) -> int:
+        """
+        발차기 동작 시작 프레임 감지 (발목 높이 기반).
+        
+        한쪽 발목이 반대쪽보다 높이 올라가는 첫 프레임을 감지합니다.
+        
+        Args:
+            sequence: 분석할 시퀀스 (T, 17, 3)
+            height_diff: 발목 높이 차이 임계값
+            
+        Returns:
+            발차기 시작 프레임 인덱스. 미감지 시 시퀀스 길이 반환.
+        """
+        # COCO: 15=L_Ankle, 16=R_Ankle
+        for i, frame in enumerate(sequence):
+            l_ankle_y = frame[15, 1]
+            r_ankle_y = frame[16, 1]
+            # 둘 중 하나가 다른 쪽보다 height_diff 이상 위에 있으면
+            if abs(l_ankle_y - r_ankle_y) > height_diff:
+                return i
+        return len(sequence)
+    
+    def _detect_throwing_start_frame(
+        self,
+        sequence: np.ndarray,
+        margin: float = THROWING_WRIST_ABOVE_SHOULDER
+    ) -> int:
+        """
+        던지기 동작 시작 프레임 감지 (손목 위치 기반).
+        
+        한쪽 손목이 어깨 위로 올라가는 첫 프레임(백스윙)을 감지합니다.
+        
+        Args:
+            sequence: 분석할 시퀀스 (T, 17, 3)
+            margin: 손목이 어깨 위로 올라가야 하는 거리
+            
+        Returns:
+            던지기 시작 프레임 인덱스. 미감지 시 시퀀스 길이 반환.
+        """
+        # COCO: 5=L_Shoulder, 6=R_Shoulder, 9=L_Wrist, 10=R_Wrist
+        for i, frame in enumerate(sequence):
+            # 왼손 또는 오른손 중 하나가 어깨 위로
+            l_above = frame[9, 1] < (frame[5, 1] - margin)
+            r_above = frame[10, 1] < (frame[6, 1] - margin)
+            if l_above or r_above:
+                return i
+        return len(sequence)
+    
+    def _detect_walking_back_start_frame(
+        self,
+        sequence: np.ndarray,
+        move_threshold: float = WALKING_BACK_MOVE_THRESHOLD
+    ) -> int:
+        """
+        뒤로 걷기 동작 시작 프레임 감지 (중심 이동 기반).
+        
+        전체 중심점(골반)이 초기 대비 이동하는 첫 프레임을 감지합니다.
+        
+        Args:
+            sequence: 분석할 시퀀스 (T, 17, 3)
+            move_threshold: 이동 감지 임계값
+            
+        Returns:
+            걷기 시작 프레임 인덱스. 미감지 시 시퀀스 길이 반환.
+        """
+        # COCO: 11=L_Hip, 12=R_Hip (골반 중심 사용)
+        initial_hip_x = (sequence[0, 11, 0] + sequence[0, 12, 0]) / 2
+        
+        for i, frame in enumerate(sequence):
+            current_hip_x = (frame[11, 0] + frame[12, 0]) / 2
+            if abs(current_hip_x - initial_hip_x) > move_threshold:
+                return i
+        return len(sequence)
+    
+    def _detect_by_similarity_improved(
+        self,
+        sequence: np.ndarray,
+        ref_sequence: np.ndarray,
+        threshold: float
+    ) -> int:
+        """
+        개선된 유사도 기반 동작 시작 감지 (fallback).
+        
+        동작 절정 프레임을 찾고, 유사도 변화량으로 동작 시작을 감지합니다.
+        
+        Args:
+            sequence: 분석할 시퀀스 (T, 17, 3)
+            ref_sequence: 참조 동작 시퀀스 (T_ref, 17, 3)
+            threshold: 동작 시작 판정 임계값
+            
+        Returns:
+            동작 시작 프레임 인덱스. 미감지 시 시퀀스 길이 반환.
+        """
+        if len(sequence) < INITIAL_FRAMES_TO_SKIP + SIMILARITY_WINDOW_SIZE:
+            return 0
+        
+        # 1. 동작 절정 프레임 찾기 (첫 프레임과 가장 다른 프레임)
+        peak_frame = self._find_peak_action_frame(ref_sequence)
+        
+        # 2. 초기 프레임의 유사도 계산 (baseline)
+        initial_sim = self._quick_frame_similarity(sequence[0], peak_frame)
+        
+        # 3. 슬라이딩 윈도우로 유사도 변화 감지
+        for i in range(INITIAL_FRAMES_TO_SKIP, len(sequence) - SIMILARITY_WINDOW_SIZE):
+            window_sims = []
+            for j in range(SIMILARITY_WINDOW_SIZE):
+                sim = self._quick_frame_similarity(sequence[i + j], peak_frame)
+                window_sims.append(sim)
+            
+            avg_sim = np.mean(window_sims)
+            sim_change = avg_sim - initial_sim
+            
+            # 유사도가 초기 대비 크게 변화하면 동작 시작으로 간주
+            if sim_change > SIMILARITY_CHANGE_THRESHOLD:
+                return i
+        
+        return len(sequence)
+    
+    def _find_peak_action_frame(self, sequence: np.ndarray) -> np.ndarray:
+        """
+        시퀀스에서 동작 절정 프레임 찾기.
+        
+        첫 프레임(준비 자세)과 가장 다른 프레임을 반환합니다.
+        
+        Args:
+            sequence: 시퀀스 (T, 17, 3)
+            
+        Returns:
+            동작 절정 프레임 (17, 3)
+        """
+        first_frame = sequence[0]
+        max_diff = 0
+        peak_idx = len(sequence) // 2  # 기본값은 중간
+        
+        for i, frame in enumerate(sequence):
+            diff = np.linalg.norm(frame[:, :2] - first_frame[:, :2])
+            if diff > max_diff:
+                max_diff = diff
+                peak_idx = i
+        
+        return sequence[peak_idx]
     
     def _calculate_reaction_delay_from_parent(
         self,
@@ -795,17 +1016,6 @@ class MotionAnalyzer:
             )
             logger.info(f"시각화 완료: {viz_count}개 이미지")
             
-            # 6. 스켈레톤 동영상 생성
-            skeleton_video_path = None
-            if save_skeleton_video:
-                skeleton_video_path = output_path / "skeleton_video.mp4"
-                self._create_skeleton_video(
-                    viz_folder, 
-                    skeleton_video_path, 
-                    fps=self.video_processor.target_fps
-                )
-                logger.info(f"동영상 생성 완료: {skeleton_video_path}")
-            
             # 아이 시퀀스를 query로 사용 (없으면 부모 시퀀스)
             child_seq = norm_result.get("child_sequence")
             parent_seq = norm_result.get("parent_sequence")
@@ -831,7 +1041,7 @@ class MotionAnalyzer:
             ref_normalized = parent_seq
             logger.info("부모-아이 시퀀스 분석 시작")
             
-            # 7. 반응 지연 계산 (DTW 정렬 전 - 부모-아이 상대 시간)
+            # 6. 반응 지연 계산 (DTW 정렬 전 - 부모-아이 상대 시간)
             threshold = settings.get_action_threshold(action_type)
             reaction_delay_detail = None
             
@@ -845,24 +1055,42 @@ class MotionAnalyzer:
                 action_type=action_type
             )
             
-            # 8. DTW ALIGNMENT
+            # 7. DTW ALIGNMENT
             logger.info("시간 정렬 중...")
             aligned_query, aligned_ref = self.dtw_aligner.align_sequences(
                 query_normalized, ref_normalized
             )
             
-            # 9. SIMILARITY CALCULATION
+            # 8. SIMILARITY CALCULATION
             logger.info("유사도 계산 중...")
             similarity_result = self.similarity_calculator.compute_similarity(
                 aligned_query, aligned_ref, aligned=True
             )
             
-            # 10. 지속 시간 계산 (정렬 후 유사도 기반)
+            # 9. 지속 시간 계산 (정렬 후 유사도 기반)
             duration = self._calculate_duration(
                 similarity_result.frame_similarities,
                 video_info.fps,
                 threshold=threshold
             )
+            
+            # 10. 스켈레톤 동영상 생성 (메트릭 정보 포함)
+            skeleton_video_path = None
+            if save_skeleton_video:
+                skeleton_video_path = output_path / "skeleton_video.mp4"
+                self._create_skeleton_video_with_metrics(
+                    viz_folder, 
+                    skeleton_video_path, 
+                    fps=self.video_processor.target_fps,
+                    reaction_delay=reaction_delay,
+                    duration=duration,
+                    similarity_score=similarity_result.overall,
+                    frame_similarities=similarity_result.frame_similarities,
+                    reaction_delay_detail=reaction_delay_detail,
+                    action_type=action_type,
+                    threshold=threshold
+                )
+                logger.info(f"동영상 생성 완료: {skeleton_video_path}")
             
             validity = self._calculate_validity(query_normalized)
             processing_time = (datetime.now() - start_time).total_seconds()
@@ -1118,6 +1346,170 @@ class MotionAnalyzer:
         
         out.release()
         logger.debug(f"동영상 생성: {output_path} ({len(frame_files)} frames, {fps}fps)")
+    
+    def _create_skeleton_video_with_metrics(
+        self,
+        frames_folder: Path,
+        output_path: Path,
+        fps: float,
+        reaction_delay: float,
+        duration: float,
+        similarity_score: float,
+        frame_similarities: list[float],
+        reaction_delay_detail: dict,
+        action_type: str,
+        threshold: float
+    ) -> None:
+        """
+        시각화된 프레임들을 메트릭 정보와 함께 동영상으로 합성.
+        
+        부모/아이 동작 시작 시점을 강조 표시합니다.
+        
+        Args:
+            frames_folder: 시각화된 프레임 폴더
+            output_path: 출력 동영상 경로
+            fps: 동영상 FPS
+            reaction_delay: 반응 지연 시간 (초)
+            duration: 동작 지속 시간 (초)
+            similarity_score: 전체 유사도 점수
+            frame_similarities: 프레임별 유사도
+            reaction_delay_detail: 반응 지연 상세 정보
+            action_type: 동작 타입
+            threshold: 통과 임계값
+        """
+        import cv2
+        
+        frame_files = sorted(frames_folder.glob(f"viz_*{IMAGE_EXTENSION}"))
+        
+        if not frame_files:
+            logger.warning("시각화된 프레임이 없습니다.")
+            return
+        
+        # 첫 프레임으로 크기 확인
+        first_frame = cv2.imread(str(frame_files[0]))
+        height, width = first_frame.shape[:2]
+        
+        # 비디오 라이터
+        fourcc = cv2.VideoWriter_fourcc(*VIDEO_FOURCC)
+        out = cv2.VideoWriter(str(output_path), fourcc, fps, (width, height))
+        
+        # 반응 지연 상세 정보 추출
+        parent_start_frame = reaction_delay_detail.get("parent_start_frame", -1)
+        child_start_frame = reaction_delay_detail.get("child_start_frame", -1)
+        detection_method = reaction_delay_detail.get("detection_method", "unknown")
+        
+        # 강조 지속 프레임 수 (0.5초)
+        highlight_duration = int(fps * 0.5)
+        
+        for frame_idx, frame_path in enumerate(frame_files):
+            frame = cv2.imread(str(frame_path))
+            frame_time = frame_idx / fps
+            
+            # ========== 상단 정보 패널 (반투명 배경) ==========
+            overlay = frame.copy()
+            cv2.rectangle(overlay, (0, 0), (width, 180), (0, 0, 0), -1)
+            cv2.addWeighted(overlay, 0.6, frame, 0.4, 0, frame)
+            
+            # 동작 타입 및 결과
+            passed = similarity_score >= threshold
+            result_text = f"{action_type.upper()} - {'PASS' if passed else 'FAIL'}"
+            result_color = (0, 255, 0) if passed else (0, 0, 255)  # BGR
+            cv2.putText(frame, result_text, (10, 30), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.9, result_color, 2)
+            
+            # 전체 유사도
+            cv2.putText(frame, f"Overall Score: {similarity_score:.1%}", (10, 60),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+            
+            # 반응 지연 시간
+            delay_color = (0, 255, 255)  # 노란색
+            cv2.putText(frame, f"Reaction Delay: {reaction_delay:.2f}s", (10, 90),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, delay_color, 2)
+            
+            # 동작 지속 시간
+            cv2.putText(frame, f"Action Duration: {duration:.2f}s", (10, 120),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 200, 100), 2)
+            
+            # 현재 시간 / 프레임
+            cv2.putText(frame, f"Time: {frame_time:.2f}s (Frame {frame_idx})", (10, 150),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200, 200, 200), 1)
+            
+            # 감지 방식
+            cv2.putText(frame, f"Detection: {detection_method}", (10, 175),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (150, 150, 150), 1)
+            
+            # ========== 우측 상단: 현재 프레임 유사도 ==========
+            if frame_idx < len(frame_similarities):
+                current_sim = frame_similarities[frame_idx]
+                sim_color = (0, 255, 0) if current_sim >= threshold else (100, 100, 255)
+                cv2.putText(frame, f"Sim: {current_sim:.1%}", (width - 150, 30),
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, sim_color, 2)
+                
+                # 유사도 바
+                bar_width = 120
+                bar_height = 15
+                bar_x = width - 150
+                bar_y = 40
+                filled_width = int(bar_width * current_sim)
+                cv2.rectangle(frame, (bar_x, bar_y), (bar_x + bar_width, bar_y + bar_height), 
+                             (100, 100, 100), -1)
+                cv2.rectangle(frame, (bar_x, bar_y), (bar_x + filled_width, bar_y + bar_height), 
+                             sim_color, -1)
+            
+            # ========== 부모 동작 시작 강조 ==========
+            if parent_start_frame <= frame_idx < parent_start_frame + highlight_duration:
+                # 파란색 테두리 깜빡임 효과
+                border_thickness = 8
+                cv2.rectangle(frame, (0, 0), (width-1, height-1), (255, 100, 0), border_thickness)
+                
+                # 부모 시작 텍스트 (화면 중앙)
+                text = "PARENT ACTION START!"
+                text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 1.2, 3)[0]
+                text_x = (width - text_size[0]) // 2
+                text_y = height // 2 - 50
+                
+                # 텍스트 배경
+                cv2.rectangle(frame, (text_x - 10, text_y - 35), 
+                             (text_x + text_size[0] + 10, text_y + 10), (255, 100, 0), -1)
+                cv2.putText(frame, text, (text_x, text_y), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 255, 255), 3)
+                
+                # 시간 표시
+                parent_time = parent_start_frame / fps
+                time_text = f"Frame {parent_start_frame} ({parent_time:.2f}s)"
+                time_size = cv2.getTextSize(time_text, cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2)[0]
+                cv2.putText(frame, time_text, ((width - time_size[0]) // 2, text_y + 40),
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 200, 100), 2)
+            
+            # ========== 아이 동작 시작 강조 ==========
+            if child_start_frame <= frame_idx < child_start_frame + highlight_duration:
+                # 주황색 테두리 깜빡임 효과
+                border_thickness = 8
+                cv2.rectangle(frame, (0, 0), (width-1, height-1), (0, 165, 255), border_thickness)
+                
+                # 아이 시작 텍스트 (화면 중앙)
+                text = "CHILD ACTION START!"
+                text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 1.2, 3)[0]
+                text_x = (width - text_size[0]) // 2
+                text_y = height // 2 + 50
+                
+                # 텍스트 배경
+                cv2.rectangle(frame, (text_x - 10, text_y - 35), 
+                             (text_x + text_size[0] + 10, text_y + 10), (0, 165, 255), -1)
+                cv2.putText(frame, text, (text_x, text_y), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 255, 255), 3)
+                
+                # 시간 및 지연 표시
+                child_time = child_start_frame / fps
+                delay_text = f"Frame {child_start_frame} ({child_time:.2f}s) | Delay: {reaction_delay:.2f}s"
+                delay_size = cv2.getTextSize(delay_text, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)[0]
+                cv2.putText(frame, delay_text, ((width - delay_size[0]) // 2, text_y + 40),
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (100, 255, 200), 2)
+            
+            out.write(frame)
+        
+        out.release()
+        logger.debug(f"메트릭 포함 동영상 생성: {output_path} ({len(frame_files)} frames, {fps}fps)")
 
 
 def main():
@@ -1265,7 +1657,7 @@ def main():
         print("\n" + "=" * 60)
         print("👶 분석 결과")
         print("=" * 60)
-        print(f"  통과 여부: {'👶 PASS' if result.passed else '😭 FAIL'}")
+        print(f"  통과 여부: {'⭕ PASS' if result.passed else '😭 FAIL'}")
         print(f"  유사도 점수: {result.similarity_score:.2%}")
         print(f"  적용 기준: {result.threshold_used:.2%}")
         print(f"  반응 지연: {result.reaction_delay_sec:.2f}초")
@@ -1282,8 +1674,8 @@ def main():
         
         if result.role_info:
             print("\n👶 역할 식별 정보:")
-            print(f"  부모 감지: {'👶' if result.role_info['parent_identified'] else '😭'}")
-            print(f"  아이 감지: {'👶' if result.role_info['child_identified'] else '😭'}")
+            print(f"  부모 감지: {'⭕' if result.role_info['parent_identified'] else '😭'}")
+            print(f"  아이 감지: {'⭕' if result.role_info['child_identified'] else '😭'}")
             if result.role_info['parent_torso_length']:
                 print(f"  부모 몸통 길이: {result.role_info['parent_torso_length']:.1f}px")
             if result.role_info['child_torso_length']:
@@ -1310,7 +1702,7 @@ def main():
                 print("  역할 기반 색상: 👶 활성화 (부모=파란색, 아이=주황색)")
         
         print("\n" + "=" * 60)
-        print("👶 분석 완료!")
+        print("⭕ 분석 완료!")
         print("=" * 60 + "\n")
         
     except Exception as e:
