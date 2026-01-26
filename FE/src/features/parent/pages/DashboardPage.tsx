@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 // 컴포넌트 임포트
 import HeroBanner from '../components/HeroBanner';
-import Sidebar from '../components/SideBar';
-import ConfirmModal from '../components/ConfirmModal';
+import Sidebar from '../components/Sidebar'; // SideBar -> Sidebar (대소문자 확인)
 import HospitalTimeline from '../components/HospitalTimeline';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import GuideVideo from '../components/GuideVideo';
@@ -50,6 +49,7 @@ const DashboardPage = () => {
         }
     };
 
+
     // 3. bannerProps를 함수 내부로 이동 (에러 해결: Cannot find name 'data')
     // useMemo를 사용하면 렌더링 최적화에 도움이 됩니다.
     const bannerProps = useMemo(() => {
@@ -68,7 +68,7 @@ const DashboardPage = () => {
     if (isError || !data) return <div className="p-8 text-center">데이터를 불러오는 중 오류가 발생했습니다.</div>;
 
     return (
-        <div className="flex w-full min-h-screen bg-white overflow-hidden">
+        <div className="flex w-full min-h-[1000px] bg-white overflow-hidden">
             <Sidebar
                 childName={data.name}
                 onCodeInputClick={() => setIsCodeModalOpen(true)}
@@ -120,7 +120,14 @@ const DashboardPage = () => {
             <CodeRegisterModal
                 isOpen={isCodeModalOpen}
                 onClose={() => setIsCodeModalOpen(false)}
-                childName={data.name}
+                onConfirm={(code) => {
+                    console.log("서버로 전송할 코드:", code); // Swagger { "inviteCode": code }
+                    setIsCodeModalOpen(false);
+                }}
+                title="병원 초대 코드 등록"
+                childName={data.name} // 반드시 추가
+                description="어린이의 검사 결과를 공유받을 병원 초대 코드를 입력해 주세요."
+                confirmText="병원 연결하기"
             />
         </div>
     );
