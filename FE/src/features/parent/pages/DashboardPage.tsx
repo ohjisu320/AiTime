@@ -3,12 +3,11 @@ import { useNavigate } from 'react-router-dom';
 
 // 컴포넌트 임포트
 import HeroBanner from '../components/HeroBanner';
-import Sidebar from '../components/SideBar';
+import SideBar from '../components/SideBar';
 import ConfirmModal from '../components/ConfirmModal';
 import HospitalTimeline from '../components/HospitalTimeline';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import GuideVideo from '../components/GuideVideo';
-import CodeRegisterModal from '../components/CodeRegisterModal';
 
 // 데이터 및 훅 임포트
 import { useParentDashboard } from '../hooks/useParentDashboard';
@@ -22,8 +21,6 @@ const DashboardPage = () => {
     // 모달 상태 관리
     const [isModifyModalOpen, setIsModifyModalOpen] = useState(false);
     const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-    const [isCodeModalOpen, setIsCodeModalOpen] = useState(false);
-
 
     // 2. 메인 버튼 클릭 핸들러 (순서 중요: bannerProps보다 먼저 정의되어야 함)
     const handleMainButtonClick = () => {
@@ -69,10 +66,7 @@ const DashboardPage = () => {
 
     return (
         <div className="flex w-full min-h-screen bg-white overflow-hidden">
-            <Sidebar
-                childName={data.name}
-                onCodeInputClick={() => setIsCodeModalOpen(true)}
-            />
+            <SideBar childName={data.name} />
 
             <main className="flex-1 h-screen overflow-y-auto p-8 flex flex-col gap-8">
                 {/* bannerProps가 있을 때만 렌더링 */}
@@ -115,12 +109,6 @@ const DashboardPage = () => {
                     navigate('/parent/report');
                 }}
                 onClose={() => setIsViewModalOpen(false)}
-            />
-            {/* 초대 코드 등록 모달 추가 */}
-            <CodeRegisterModal
-                isOpen={isCodeModalOpen}
-                onClose={() => setIsCodeModalOpen(false)}
-                childName={data.name}
             />
         </div>
     );
