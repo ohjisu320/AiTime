@@ -85,8 +85,8 @@ class DoctorServiceImplTest {
         UUID childId1 = UUID.randomUUID();
         UUID childId2 = UUID.randomUUID();
 
-        HospitalChildren hc1 = mockHospitalChildren(hcId1, childId1);
-        HospitalChildren hc2 = mockHospitalChildren(hcId2, childId2);
+        HospitalChildren hc1 = mockHospitalChildren(childId1);//(hcId1, childId1);
+        HospitalChildren hc2 = mockHospitalChildren(childId2);//(hcId2, childId2);
 
         given(hospitalChildrenRepository.findByHospitalChildrenIdInAndLinkStatus(
                 argThat(list -> list.containsAll(List.of(hcId1, hcId2))), eq(LinkStatus.ACTIVE)
@@ -158,8 +158,8 @@ class DoctorServiceImplTest {
         UUID childId1 = UUID.randomUUID();
         UUID childId2 = UUID.randomUUID();
 
-        HospitalChildren hc1 = mockHospitalChildren(hcId1, childId1);
-        HospitalChildren hc2 = mockHospitalChildren(hcId2, childId2);
+        HospitalChildren hc1 = mockHospitalChildren(childId1);//(hcId1, childId1);
+        HospitalChildren hc2 = mockHospitalChildren(childId2);//(hcId2, childId2);
 
         given(hospitalChildrenRepository.findByHospitalChildrenIdInAndLinkStatus(anyList(), eq(LinkStatus.ACTIVE)))
                 .willReturn(List.of(hc1, hc2));

@@ -4,6 +4,7 @@ import com.ssafy.aitime.common.enums.RecordStatus;
 import com.ssafy.aitime.domain.user.dto.request.PasswordResetRequest;
 import com.ssafy.aitime.domain.user.dto.request.UserJoinRequest;
 import com.ssafy.aitime.domain.user.dto.request.UserLoginRequest;
+import com.ssafy.aitime.domain.user.dto.request.UserUpdateRequest;
 import com.ssafy.aitime.domain.user.dto.response.*;
 import com.ssafy.aitime.domain.user.entity.User;
 import com.ssafy.aitime.domain.user.entity.enums.UserRole;
@@ -50,9 +51,6 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public TokenResponse login(UserLoginRequest userLoginRequest) {
-        // 1. 스프링 시큐리티 기본 인증 처리
-        UsernamePasswordAuthenticationToken authToken =
-                new UsernamePasswordAuthenticationToken(userLoginRequest.loginId(), userLoginRequest.password());
 
         Authentication authentication = authenticate(userLoginRequest.loginId(), userLoginRequest.password());
 
@@ -129,22 +127,16 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public void logout(String accessToken, String refreshToken) {
-        // 리프레쉬토큰에서 유저 로그인 아이디 추출
-        String loginId = jwtTokenProvider.getLoginId(refreshToken);
-        // 레디스에서 해당 토큰 삭제
-        refreshTokenRepository.deleteById(loginId);
 
-        // 액세스 토큰 블랙리스트 등록 (남은 유효 시간만큼 저장)
-        long expiration = jwtTokenProvider.getExpiration(accessToken);
-        if (expiration > 0) {
-            redisTemplate.opsForValue().set(
-                    "blacklist:" + accessToken,
-                    "logout",
-                    expiration,
-                    TimeUnit.MILLISECONDS
-            );
+        if (refreshToken != null && !refreshToken.isBlank() && jwtTokenProvider.validateToken(refreshToken)) {
+            String loginId = jwtTokenProvider.getLoginId(refreshToken);
+            refreshTokenRepository.deleteById(loginId);
         }
+
+        blacklistAccessToken(accessToken);
     }
+
+
 
     @Override
     @Transactional(readOnly = true)
@@ -156,10 +148,7 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public UserJoinResponse join(UserJoinRequest request) {
         // 휴대폰 인증 여부 최종 확인 (Redis) - postman 테스트 용으로 주석
-        String isVerified = redisTemplate.opsForValue().get("AUTH_VERIFIED:" + request.phoneNumber());
-        if (isVerified == null || !isVerified.equals("true")) {
-            throw new PhoneVerificationRequiredException();
-        }
+        validatePhoneVerification(request.phoneNumber());
 
         // 아이디 중복 최종 체크 (API 우회 방지)
         if (userRepository.existsByLoginId(request.loginId())) {
@@ -182,7 +171,7 @@ public class UserServiceImpl implements UserService {
         User savedUser = userRepository.save(user);
 
         // 회원가입 성공 후 Redis의 인증 마크 삭제 (재사용 방지)  - postman 테스트 용으로 주석
-        redisTemplate.delete("AUTH_VERIFIED:" + request.phoneNumber());
+//        redisTemplate.delete("AUTH_VERIFIED:" + request.phoneNumber());
 
         return new UserJoinResponse(
                 savedUser.getUserId(),
@@ -236,6 +225,49 @@ public class UserServiceImpl implements UserService {
         return new PasswordResetResponse(user.getUserId(), LocalDateTime.now());
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public UserMeResponse getUserInfo(UUID userId) {
+        User user = userRepository.findByUserIdAndRecordStatus(userId, RecordStatus.ACTIVE)
+                .orElseThrow(UserNotFoundException::new);
+
+        return new UserMeResponse(
+                user.getUserId(),
+                user.getName(),
+                user.getPhoneNumber(),
+                user.getLoginId()
+        );
+    }
+
+    @Override
+    @Transactional
+    public UserUpdateResponse updateUserInfo(UUID userId, UserUpdateRequest request) {
+        // 존재하는 유저인지 검사
+        User user = userRepository.findByUserIdAndRecordStatus(userId, RecordStatus.ACTIVE)
+                .orElseThrow(UserNotFoundException::new);
+
+        // 도메인 메서드로 정보 수정
+        user.updateProfile(request.name(), request.phoneNumber());
+
+        // 변경된 정보를 담아 반환 (Dirty Checking으로 자동 DB 반영)
+        return new UserUpdateResponse(
+                user.getName(),
+                user.getPhoneNumber(),
+                LocalDateTime.now()
+        );
+    }
+
+    @Override
+    @Transactional
+    public void withdraw(UUID userId, String accessToken, String refreshToken) {
+        User user = userRepository.findByUserIdAndRecordStatus(userId, RecordStatus.ACTIVE)
+                .orElseThrow(UserNotFoundException::new);
+
+        logout(accessToken, refreshToken);
+
+        userRepository.delete(user);
+    }
+
     private Authentication authenticate(String loginId, String password) {
         try {
             UsernamePasswordAuthenticationToken authToken =
@@ -251,6 +283,25 @@ public class UserServiceImpl implements UserService {
         String isVerified = redisTemplate.opsForValue().get("AUTH_VERIFIED:" + phoneNumber);
         if (isVerified == null || !isVerified.equals("true")) {
             throw new PhoneVerificationRequiredException();
+        }
+    }
+
+    private void blacklistAccessToken(String accessToken) {
+        if (accessToken == null || accessToken.isBlank()) {
+            return;
+        }
+        if (!jwtTokenProvider.validateToken(accessToken)) {
+            return;
+        }
+
+        long expiration = jwtTokenProvider.getExpiration(accessToken);
+        if (expiration > 0) {
+            redisTemplate.opsForValue().set(
+                    "blacklist:" + accessToken,
+                    "logout",
+                    expiration,
+                    TimeUnit.MILLISECONDS
+            );
         }
     }
 }

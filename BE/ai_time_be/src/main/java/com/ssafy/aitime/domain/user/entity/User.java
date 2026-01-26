@@ -66,4 +66,13 @@ public class User extends SoftDeletableEntity {
         }
         this.password = encryptedPassword;
     }
+
+    public void updateProfile(String name, String phoneNumber) {
+        if (name != null && !name.isBlank()) {
+            this.name = name;
+        }
+        if (phoneNumber != null && !phoneNumber.isBlank()) {
+            this.phoneNumber = phoneNumber;
+        }
+    }
 }
