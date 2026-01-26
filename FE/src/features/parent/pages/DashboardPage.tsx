@@ -3,11 +3,12 @@ import { useNavigate } from 'react-router-dom';
 
 // 컴포넌트 임포트
 import HeroBanner from '../components/HeroBanner';
-import Sidebar from '../components/Sidebar'; // SideBar -> Sidebar (대소문자 확인)
+import Sidebar from '../components/Sidebar';
 import HospitalTimeline from '../components/HospitalTimeline';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import GuideVideo from '../components/GuideVideo';
 import CodeRegisterModal from '../components/CodeRegisterModal';
+import ConfirmModal from '../components/ConfirmModal';
 
 // 데이터 및 훅 임포트
 import { useParentDashboard } from '../hooks/useParentDashboard';

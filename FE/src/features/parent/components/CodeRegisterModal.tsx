@@ -1,78 +1,70 @@
-import { useState } from 'react';
-import { toast } from "sonner"; // 알림을 위해 추가
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogOverlay, // 1. Overlay 컴포넌트 추가
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
-interface CodeRegisterProps {
+
+interface CodeRegisterModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (inviteCode: string) => void; // 입력받은 코드를 전달하도록 수정
+  onConfirm: (code: string) => void; 
   title: string;
+  childName: string; //
   description: string;
   confirmText: string;
-  isDestructive?: boolean;
-  childName?: string;
 }
 
-const CodeRegisterModal = ({ 
-  isOpen, 
-  onClose, 
-  onConfirm, 
-  title, 
-  description, 
-  confirmText, 
-  isDestructive,
-  childName 
-}: CodeRegisterProps) => { // 타입을 CodeRegisterProps로 일치시킴
-
-  const [inviteCode, setInviteCode] = useState(""); // Swagger input: inviteCode
-
-  if (!isOpen) return null;
-
-  const handleConfirm = () => {
-    if (!inviteCode.trim()) {
-      toast.error("초대 코드를 입력해 주세요.");
-      return;
-    }
-    onConfirm(inviteCode); // 부모 컴포넌트(DashboardPage)로 코드 전달
-  };
+const CodeRegisterModal = ({ isOpen, onClose, childName }: CodeRegisterModalProps) => {
+  const [inviteCode, setInviteCode] = useState("");
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-[100] p-4 backdrop-blur-sm">
-      <div className={`bg-white p-8 rounded-3xl shadow-2xl text-center max-w-sm w-full ${isDestructive ? 'border-t-8 border-rose-500' : ''}`}>
-        
-        {/* 제목 및 설명 (childName 반영) */}
-        <h2 className="text-xl font-bold mb-2 text-[#6366F1]">{title}</h2>
-        <div className="text-gray-500 mb-6 text-sm leading-relaxed">
-          <span className="font-bold text-gray-700">{childName}</span> {description}
-        </div>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      {/* 2. 배경 오버레이 설정: 반투명 블랙 배경 적용 */}
+      <DialogOverlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" /> 
+      
+      <DialogContent className="fixed left-[50%] top-[50%] z-50 w-full max-w-[420px] translate-x-[-50%] translate-y-[-50%] rounded-3xl p-8 bg-white shadow-2xl border-none outline-none">
+        <DialogHeader className="space-y-4 text-center">
+          <DialogTitle className="text-2xl font-bold text-[#6366F1]">
+            병원 초대 코드 등록
+          </DialogTitle>
+          <DialogDescription className="text-gray-500">
+            <strong>{childName}</strong> 어린이의 검사 결과를 공유받을<br />
+            병원 초대 코드를 입력해 주세요.
+          </DialogDescription>
+        </DialogHeader>
 
-        {/* 초대 코드 입력창 추가 */}
-        <div className="mb-6">
-          <input
-            type="text"
+        <div className="py-8">
+          <Input
             placeholder="초대 코드 입력"
             value={inviteCode}
             onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-            className="w-full h-14 text-center text-xl font-mono tracking-widest rounded-2xl border-2 border-indigo-50 bg-gray-50 focus:border-[#6366F1] focus:bg-white outline-none transition-all"
+            className="h-16 text-center text-xl font-mono tracking-widest rounded-2xl border-2 border-indigo-100 bg-white focus-visible:ring-[#6366F1]"
           />
         </div>
 
-        {/* 버튼 영역 */}
-        <div className="flex gap-3">
-          <button 
-            onClick={onClose} 
-            className="flex-1 py-3 bg-gray-50 text-gray-500 rounded-xl font-semibold hover:bg-gray-100 transition-colors"
+        <DialogFooter>
+          <Button
+            className="w-full h-16 bg-[#6366F1] hover:bg-[#4F46E5] text-white text-lg font-bold rounded-2xl shadow-lg transition-all"
+            onClick={() => {
+              console.log({ inviteCode });
+              toast.success("등록되었습니다.");
+              onClose();
+            }}
           >
-            닫기
-          </button>
-          <button 
-            onClick={handleConfirm} 
-            className="flex-1 py-3 bg-[#6366F1] text-white rounded-xl font-semibold shadow-lg shadow-indigo-200 hover:bg-[#4F46E5] transition-colors"
-          >
-            {confirmText}
-          </button>
-        </div>
-      </div>
-    </div>
+            병원 연결하기
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
 
