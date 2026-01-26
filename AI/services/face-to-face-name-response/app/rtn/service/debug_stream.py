@@ -9,10 +9,15 @@ from starlette.responses import StreamingResponse
 
 
 def create_debug_router(broker: FrameBroker) -> APIRouter:
+    """
+    디버그 MJPEG 스트림 라우터를 생성
+    just for develop mode and debug mode
+    """
     router = APIRouter(prefix="/debug", tags=["debug"])
 
     @router.get("/mjpeg")
     def mjpeg() -> StreamingResponse:
+        # multipart/x-mixed-replace에서 각 파트를 구분하는 boundary 문자열
         boundary = "frame"
 
         def gen() -> Iterator[bytes]:
@@ -30,6 +35,7 @@ def create_debug_router(broker: FrameBroker) -> APIRouter:
                     payload = dummy_jpeg
                     time.sleep(0.1)
                 else:
+                    # ts는 broker가 관리하는 "마지막 프레임 갱신 시각"
                     # 같은 프레임 반복 과다 전송 방지(클라 부하 줄임)
                     if ts == last_ts:
                         time.sleep(0.01)
