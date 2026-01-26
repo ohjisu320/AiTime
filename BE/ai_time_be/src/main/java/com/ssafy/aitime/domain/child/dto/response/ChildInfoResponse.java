@@ -4,7 +4,7 @@ import com.ssafy.aitime.domain.child.entity.enums.Gender;
 
 import java.util.UUID;
 
-public record ChildCreateResponse(
+public record ChildInfoResponse(
         UUID childId,
         String name,
         long months,
