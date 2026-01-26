@@ -8,4 +8,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/child")
 @RequiredArgsConstructor
 public class ChildController {
+
+
 }

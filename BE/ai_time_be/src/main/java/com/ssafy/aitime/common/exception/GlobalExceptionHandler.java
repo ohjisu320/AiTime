@@ -7,6 +7,7 @@ import com.ssafy.aitime.common.response.ApiResponse;
 import com.ssafy.aitime.domain.user.exception.*;
 import com.ssafy.aitime.security.exception.RefreshTokenInvalidException;
 import com.ssafy.aitime.security.exception.RefreshTokenMissingException;
+import com.ssafy.aitime.domain.hospital.exception.DoctorNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -147,4 +148,20 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.UNAUTHORIZED).body(ApiResponse.of(HttpStatus.UNAUTHORIZED, e.getMessage(), null));
     }
 
+
+    /********************************************************************************/
+    /*                        Hospital CustomException                              */
+    /********************************************************************************/
+
+    /**
+     * 의사를 찾을 수 없을 때 (404)
+     */
+    @ExceptionHandler({
+            DoctorNotFoundException.class
+    })
+    public ResponseEntity<ApiResponse<Object>> handleHospitalNotFoundException(RuntimeException e){
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.of(HttpStatus.NOT_FOUND, e.getMessage(), null));
+    }
 }

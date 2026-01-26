@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Getter
 @Entity
@@ -51,6 +52,9 @@ public class InviteCode {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    @Column(name = "doctor_id", columnDefinition = "BINARY(16)")
+    private UUID doctorId;
+
     @PrePersist
     void onCreate() {
         LocalDateTime now = LocalDateTime.now();
@@ -66,7 +70,8 @@ public class InviteCode {
 
     @Builder
     private InviteCode(String inviteCode, HospitalStaff hospitalStaff, String childName, LocalDate childBirthdate,
-                       String parentPhone, LocalDateTime scheduledAt, LocalDateTime expiredAt, InviteCodeStatus inviteCodeStatus) {
+                       String parentPhone, LocalDateTime scheduledAt, LocalDateTime expiredAt, InviteCodeStatus inviteCodeStatus,
+                       UUID doctorId) {
         this.inviteCode = inviteCode;
         this.hospitalStaff = hospitalStaff;
         this.childName = childName;
@@ -75,5 +80,6 @@ public class InviteCode {
         this.scheduledAt = scheduledAt;
         this.expiredAt = expiredAt;
         this.inviteCodeStatus = (inviteCodeStatus == null) ? InviteCodeStatus.ISSUED : inviteCodeStatus;
+        this.doctorId = doctorId;
     }
 }
