@@ -80,4 +80,69 @@ class UserRepositoryTest {
         assertThat(exists).isTrue();
         assertThat(notExists).isFalse();
     }
+
+    @Test
+    @DisplayName("유저 ID와 ACTIVE 상태로 사용자를 조회한다")
+    void findByUserIdAndRecordStatus_Success() {
+        // given
+        User user = User.builder()
+                .loginId("userIdTest")
+                .password("password!")
+                .name("ID테스트")
+                .recordStatus(RecordStatus.ACTIVE)
+                .build();
+        User savedUser = userRepository.save(user);
+
+        // when
+        Optional<User> foundUser = userRepository.findByUserIdAndRecordStatus(savedUser.getUserId(), RecordStatus.ACTIVE);
+
+        // then
+        assertThat(foundUser).isPresent();
+        assertThat(foundUser.get().getUserId()).isEqualTo(savedUser.getUserId());
+        assertThat(foundUser.get().getRecordStatus()).isEqualTo(RecordStatus.ACTIVE);
+    }
+
+    @Test
+    @DisplayName("핸드폰 번호와 ACTIVE 상태로 사용자를 조회한다")
+    void findByPhoneNumberAndRecordStatus_Success() {
+        // given
+        String phone = "01099998888";
+        User user = User.builder()
+                .loginId("phoneTest")
+                .password("password!")
+                .name("폰테스트")
+                .phoneNumber(phone)
+                .recordStatus(RecordStatus.ACTIVE)
+                .build();
+        userRepository.save(user);
+
+        // when
+        Optional<User> foundUser = userRepository.findByPhoneNumberAndRecordStatus(phone, RecordStatus.ACTIVE);
+
+        // then
+        assertThat(foundUser).isPresent();
+        assertThat(foundUser.get().getPhoneNumber()).isEqualTo(phone);
+        assertThat(foundUser.get().getRecordStatus()).isEqualTo(RecordStatus.ACTIVE);
+    }
+
+    @Test
+    @DisplayName("핸드폰 번호가 같더라도 DELETED 상태라면 조회되지 않아야 한다")
+    void findByPhoneNumberAndRecordStatus_Fail_WhenDeleted() {
+        // given
+        String phone = "01011112222";
+        User user = User.builder()
+                .loginId("deletedPhoneUser")
+                .password("password!")
+                .name("삭제유저")
+                .phoneNumber(phone)
+                .recordStatus(RecordStatus.DELETED)
+                .build();
+        userRepository.save(user);
+
+        // when
+        Optional<User> foundUser = userRepository.findByPhoneNumberAndRecordStatus(phone, RecordStatus.ACTIVE);
+
+        // then
+        assertThat(foundUser).isEmpty();
+    }
 }
