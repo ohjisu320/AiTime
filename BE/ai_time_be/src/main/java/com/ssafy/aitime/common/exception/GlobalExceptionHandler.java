@@ -4,6 +4,8 @@ import com.ssafy.aitime.common.exception.commonExceptions.DeleteFailedException;
 import com.ssafy.aitime.common.exception.commonExceptions.InsertFailedException;
 import com.ssafy.aitime.common.exception.commonExceptions.UpdateFailedException;
 import com.ssafy.aitime.common.response.ApiResponse;
+import com.ssafy.aitime.domain.child.exception.ChildAccessDeniedException;
+import com.ssafy.aitime.domain.child.exception.ChildNotFoundException;
 import com.ssafy.aitime.domain.user.exception.*;
 import com.ssafy.aitime.security.exception.RefreshTokenInvalidException;
 import com.ssafy.aitime.security.exception.RefreshTokenMissingException;
@@ -134,6 +136,27 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND).body(ApiResponse.of(HttpStatus.NOT_FOUND, e.getMessage(), null));
     }
+
+    /********************************************************************************/
+    /*                        Child CustomException                                  */
+    /********************************************************************************/
+
+    @ExceptionHandler({
+            ChildNotFoundException.class
+    })
+    public ResponseEntity<ApiResponse<Object>> handleChildNotFoundException(RuntimeException e){
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND).body(ApiResponse.of(HttpStatus.NOT_FOUND, e.getMessage(), null));
+    }
+
+    @ExceptionHandler({
+            ChildAccessDeniedException.class
+    })
+    public ResponseEntity<ApiResponse<Object>> handleChildForbiddenException(RuntimeException e){
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN).body(ApiResponse.of(HttpStatus.FORBIDDEN, e.getMessage(), null));
+    }
+
     /********************************************************************************/
     /*                        Security CustomException                              */
     /********************************************************************************/

@@ -2,8 +2,11 @@ package com.ssafy.aitime.domain.child.service;
 
 import com.ssafy.aitime.common.enums.RecordStatus;
 import com.ssafy.aitime.domain.child.dto.request.ChildCreateRequest;
+import com.ssafy.aitime.domain.child.dto.request.ChildDeleteResponse;
 import com.ssafy.aitime.domain.child.dto.response.ChildInfoResponse;
 import com.ssafy.aitime.domain.child.entity.Child;
+import com.ssafy.aitime.domain.child.exception.ChildAccessDeniedException;
+import com.ssafy.aitime.domain.child.exception.ChildNotFoundException;
 import com.ssafy.aitime.domain.child.repository.ChildRepository;
 import com.ssafy.aitime.domain.user.entity.User;
 import com.ssafy.aitime.domain.user.service.UserService;
@@ -62,6 +65,28 @@ public class ChildServiceImpl implements ChildService{
                         child.getGender()
                 ))
                 .toList();
+    }
+
+    @Override
+    @Transactional
+    public ChildDeleteResponse deleteChild(UUID userId, UUID childId) {
+        // 삭제 주체(부모)가 유효한지 확인
+        userService.getById(userId);
+
+        // 삭제할 아이가 존재하는지 확인 (ACTIVE 상태만)
+        Child child = childRepository.findByChildIdAndRecordStatus(childId, RecordStatus.ACTIVE)
+                .orElseThrow(ChildNotFoundException::new);
+
+        // 권한 체크: 아이의 부모 ID와 현재 로그인한 유저 ID 비교
+        if (!child.getUser().getUserId().equals(userId)) {
+            // 본인의 아이가 아니면 에러 발생
+            throw new ChildAccessDeniedException();
+        }
+
+        // 삭제 수행 (Soft Delete)
+        childRepository.delete(child);
+
+        return new ChildDeleteResponse(childId, RecordStatus.DELETED);
     }
 
     private long getChildMonths(LocalDate birthdate){
