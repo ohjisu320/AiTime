@@ -4,6 +4,7 @@ import com.ssafy.aitime.common.enums.RecordStatus;
 import com.ssafy.aitime.domain.user.dto.request.UserJoinRequest;
 import com.ssafy.aitime.domain.user.dto.request.UserLoginRequest;
 import com.ssafy.aitime.domain.user.dto.response.IdDuplicateResponse;
+import com.ssafy.aitime.domain.user.dto.response.IdFindResponse;
 import com.ssafy.aitime.domain.user.dto.response.TokenResponse;
 import com.ssafy.aitime.domain.user.dto.response.UserJoinResponse;
 import com.ssafy.aitime.domain.user.entity.User;
@@ -11,13 +12,14 @@ import com.ssafy.aitime.domain.user.entity.enums.UserRole;
 import com.ssafy.aitime.domain.user.exception.InvalidPasswordException;
 import com.ssafy.aitime.domain.user.exception.PhoneVerificationRequiredException;
 import com.ssafy.aitime.domain.user.exception.UserAlreadyExistException;
+import com.ssafy.aitime.domain.user.exception.UserNotFoundException;
 import com.ssafy.aitime.domain.user.repository.UserRepository;
 import com.ssafy.aitime.domain.user.service.dto.UserInfoDTO;
 import com.ssafy.aitime.security.entity.RefreshToken;
 import com.ssafy.aitime.security.principal.UserPrincipal;
 import com.ssafy.aitime.security.provider.JwtTokenProvider;
 import com.ssafy.aitime.security.repository.RefreshTokenRepository;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -146,7 +148,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    @Transactional()
+    @Transactional(readOnly = true)
     public IdDuplicateResponse checkIdDuplicate(String loginId) {
         return new IdDuplicateResponse(userRepository.existsByLoginId(loginId));
     }
@@ -188,6 +190,22 @@ public class UserServiceImpl implements UserService {
                 savedUser.getLoginId(),
                 savedUser.getName()
         );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public IdFindResponse getIdByPhone(String phoneNumber) {
+        // 1. Redis에서 인증 완료 여부 확인 (보안)
+        String verified = redisTemplate.opsForValue().get("AUTH_VERIFIED:" + phoneNumber);
+        if (verified == null || !verified.equals("true")) {
+            throw new PhoneVerificationRequiredException();
+        }
+
+        // 2. 유저 조회
+        User user = userRepository.findByPhoneNumberAndRecordStatus(phoneNumber, RecordStatus.ACTIVE)
+                .orElseThrow(UserNotFoundException::new);
+
+        return new IdFindResponse(user.getLoginId(), user.getCreatedAt());
     }
 
     private Authentication authenticate(String loginId, String password) {

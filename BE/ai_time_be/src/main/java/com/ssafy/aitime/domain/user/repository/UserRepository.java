@@ -14,4 +14,6 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     Optional<User> findByLoginIdAndRecordStatus(String loginId, RecordStatus recordStatus);
 
     boolean existsByLoginId(String loginId);
+    // 핸드폰 번호로 유저 검색
+    Optional<User> findByPhoneNumberAndRecordStatus(String phoneNumber, RecordStatus recordStatus);
 }
