@@ -4,6 +4,7 @@ import com.ssafy.aitime.common.enums.RecordStatus;
 import com.ssafy.aitime.domain.user.dto.request.PasswordResetRequest;
 import com.ssafy.aitime.domain.user.dto.request.UserJoinRequest;
 import com.ssafy.aitime.domain.user.dto.request.UserLoginRequest;
+import com.ssafy.aitime.domain.user.dto.request.UserUpdateRequest;
 import com.ssafy.aitime.domain.user.dto.response.*;
 import com.ssafy.aitime.domain.user.entity.User;
 import com.ssafy.aitime.domain.user.entity.enums.UserRole;
@@ -32,6 +33,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
@@ -309,5 +311,109 @@ class UserServiceImplTest {
         // when & then (getIdByPhone을 통해 private 메서드 검증)
         assertThatThrownBy(() -> userService.getIdByPhone(phoneNumber))
                 .isInstanceOf(PhoneVerificationRequiredException.class);
+    }
+
+    @Test
+    @DisplayName("내 정보 조회 시 유저가 존재하고 ACTIVE 상태면 정보를 반환한다")
+    void getUserInfo_Success() {
+        // given
+        UUID userId = UUID.randomUUID();
+        User user = User.builder()
+                .loginId("testId")
+                .name("홍길동")
+                .phoneNumber("01012345678")
+                .recordStatus(RecordStatus.ACTIVE)
+                .build();
+        ReflectionTestUtils.setField(user, "userId", userId);
+
+        when(userRepository.findByUserIdAndRecordStatus(userId, RecordStatus.ACTIVE))
+                .thenReturn(Optional.of(user));
+
+        // when
+        UserMeResponse response = userService.getUserInfo(userId);
+
+        // then
+        assertThat(response.userId()).isEqualTo(userId);
+        assertThat(response.name()).isEqualTo("홍길동");
+        assertThat(response.loginId()).isEqualTo("testId");
+        verify(userRepository).findByUserIdAndRecordStatus(userId, RecordStatus.ACTIVE);
+    }
+
+    @Test
+    @DisplayName("유저 정보 수정 시 도메인 메서드를 통해 정보를 업데이트하고 결과를 반환한다")
+    void updateUserInfo_Success() {
+        // given
+        UUID userId = UUID.randomUUID();
+        UserUpdateRequest request = new UserUpdateRequest("박싸피", "01099998888");
+        User user = spy(User.builder()
+                .name("홍길동")
+                .phoneNumber("01012345678")
+                .recordStatus(RecordStatus.ACTIVE)
+                .build());
+        ReflectionTestUtils.setField(user, "userId", userId);
+
+        when(userRepository.findByUserIdAndRecordStatus(userId, RecordStatus.ACTIVE))
+                .thenReturn(Optional.of(user));
+
+        // when
+        UserUpdateResponse response = userService.updateUserInfo(userId, request);
+
+        // then
+        assertThat(response.name()).isEqualTo("박싸피");
+        assertThat(response.phoneNumber()).isEqualTo("01099998888");
+        verify(user).updateProfile(request.name(), request.phoneNumber()); // 도메인 메서드 호출 검증
+    }
+
+    @Test
+    @DisplayName("회원 탈퇴 시 로그아웃을 수행하고 유저 데이터를 삭제(Soft Delete)한다")
+    void withdraw_Success() {
+        // given
+        UUID userId = UUID.randomUUID();
+        String accessToken = "access-token";
+        String refreshToken = "refresh-token";
+        String loginId = "testId";
+
+        User user = User.builder()
+                .loginId(loginId)
+                .recordStatus(RecordStatus.ACTIVE)
+                .build();
+        ReflectionTestUtils.setField(user, "userId", userId);
+
+        // 1. 유저 조회 Mock
+        when(userRepository.findByUserIdAndRecordStatus(userId, RecordStatus.ACTIVE))
+                .thenReturn(Optional.of(user));
+
+        // 2. 로그아웃 과정 Mock (validateToken, getLoginId, getExpiration 등)
+        when(jwtTokenProvider.validateToken(anyString())).thenReturn(true);
+        when(jwtTokenProvider.getLoginId(refreshToken)).thenReturn(loginId);
+        when(jwtTokenProvider.getExpiration(accessToken)).thenReturn(3600L);
+
+        // Redis ValueOperations Mock
+        ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+
+        // when
+        userService.withdraw(userId, accessToken, refreshToken);
+
+        // then
+        // 로그아웃 로직 수행 검증
+        verify(refreshTokenRepository).deleteById(loginId);
+        verify(valueOperations).set(eq("blacklist:" + accessToken), eq("logout"), anyLong(), eq(TimeUnit.MILLISECONDS));
+
+        // 유저 삭제 검증
+        verify(userRepository).delete(user);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 유저의 정보를 조회하면 UserNotFoundException이 발생한다")
+    void getUserInfo_Fail_UserNotFound() {
+        // given
+        UUID userId = UUID.randomUUID();
+        when(userRepository.findByUserIdAndRecordStatus(userId, RecordStatus.ACTIVE))
+                .thenReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> userService.getUserInfo(userId))
+                .isInstanceOf(UserNotFoundException.class);
     }
 }

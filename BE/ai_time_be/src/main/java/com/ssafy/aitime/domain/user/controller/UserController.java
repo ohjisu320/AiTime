@@ -93,7 +93,7 @@ public class UserController {
 
         return ResponseEntity.ok()
                 .header("Set-Cookie", cookie.toString())
-                .body(ApiResponse.ok("로그아웃 되었습니다."));
+                .body(ApiResponse.ok("로그아웃 되었습니다.", null));
     }
 
     @GetMapping("/duplicate-id")
