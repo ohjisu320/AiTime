@@ -40,13 +40,18 @@ public class Reservation extends AuditableEntity {
     @Column(name = "cancelled_at")
     private LocalDateTime cancelledAt;
 
+    @Column(name = "doctor_id", columnDefinition = "BINARY(16)")
+    private UUID doctorId;
+
     @Builder
     private Reservation(HospitalChildren hospitalChildren, LocalDateTime scheduledAt,
-                        ReservationStatus reservationStatus, LocalDateTime cancelledAt) {
+                        ReservationStatus reservationStatus, LocalDateTime cancelledAt,
+                        UUID doctorId) {
         this.hospitalChildren = hospitalChildren;
         this.scheduledAt = scheduledAt;
         this.reservationStatus = (reservationStatus == null) ? ReservationStatus.SCHEDULED : reservationStatus;
         this.cancelledAt = cancelledAt;
+        this.doctorId = doctorId;
     }
 
     public void cancel() {

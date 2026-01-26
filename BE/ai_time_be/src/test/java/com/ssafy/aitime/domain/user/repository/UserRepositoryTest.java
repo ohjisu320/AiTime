@@ -11,7 +11,6 @@ import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import java.util.Optional;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
-import static org.junit.jupiter.api.Assertions.*;
 
 @DataJpaTest
 class UserRepositoryTest {

@@ -6,7 +6,6 @@ import com.ssafy.aitime.domain.user.dto.request.UserJoinRequest;
 import com.ssafy.aitime.domain.user.dto.request.UserLoginRequest;
 import com.ssafy.aitime.domain.user.dto.response.*;
 import com.ssafy.aitime.domain.user.service.UserService;
-import com.ssafy.aitime.security.provider.JwtTokenProvider;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;

@@ -1,6 +1,5 @@
 package com.ssafy.aitime.domain.user.entity;
 
-import com.ssafy.aitime.common.entity.BaseEntity;
 import com.ssafy.aitime.common.entity.SoftDeletableEntity;
 import com.ssafy.aitime.common.enums.RecordStatus;
 import com.ssafy.aitime.domain.user.entity.enums.UserRole;

@@ -38,11 +38,15 @@ public class Hospital extends SoftDeletableEntity {
     @Column(name = "address", length = 255)
     private String address;
 
+    @Column(name = "phone_number", nullable = false, length = 20)
+    private String phoneNumber;
+
     @Builder
-    private Hospital(String hospitalCode, String name, String address, RecordStatus recordStatus) {
+    private Hospital(String hospitalCode, String name, String address, String phoneNumber, RecordStatus recordStatus) {
         this.hospitalCode = hospitalCode;
         this.name = name;
         this.address = address;
+        this.phoneNumber = phoneNumber;
         this.recordStatus = (recordStatus == null) ? RecordStatus.ACTIVE : recordStatus;
     }
 }
