@@ -1,6 +1,7 @@
 package com.ssafy.aitime.domain.user.service;
 
 import com.ssafy.aitime.common.enums.RecordStatus;
+import com.ssafy.aitime.domain.user.dto.request.PasswordResetRequest;
 import com.ssafy.aitime.domain.user.dto.request.UserJoinRequest;
 import com.ssafy.aitime.domain.user.dto.request.UserLoginRequest;
 import com.ssafy.aitime.domain.user.dto.response.*;
@@ -27,6 +28,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -206,6 +208,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public UserIdentityResponse verifyUserIdentity(String phoneNumber) {
 
         String isVerified = redisTemplate.opsForValue().get("AUTH_VERIFIED:" + phoneNumber);
@@ -218,6 +221,28 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(UserNotFoundException::new);
 
         return new UserIdentityResponse(true, user.getUserId());
+    }
+
+    @Override
+    @Transactional
+    public PasswordResetResponse resetPassword(PasswordResetRequest request) {
+        // 1. 유저 존재 확인
+        User user = userRepository.findByUserIdAndRecordStatus(request.userId(), RecordStatus.ACTIVE)
+                .orElseThrow(UserNotFoundException::new);
+
+        // 본인 확인 API(verify-identity)에서 생성된 AUTH_VERIFIED 마크를 검증합니다.
+        String isVerified = redisTemplate.opsForValue().get("AUTH_VERIFIED:" + user.getPhoneNumber());
+        if (isVerified == null || !isVerified.equals("true")) {
+            throw new PhoneVerificationRequiredException();
+        }
+
+        // 3. 비밀번호 암호화 및 업데이트
+        user.updatePassword(passwordEncoder.encode(request.password()));
+
+        // 4. [보안] 비밀번호 변경 성공 후 Redis 인증 마크 즉시 삭제 (재사용 방지)
+        redisTemplate.delete("AUTH_VERIFIED:" + user.getPhoneNumber());
+
+        return new PasswordResetResponse(user.getUserId(), LocalDateTime.now());
     }
 
     private Authentication authenticate(String loginId, String password) {
