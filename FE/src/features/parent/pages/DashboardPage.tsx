@@ -68,7 +68,7 @@ const DashboardPage = () => {
     if (isError || !data) return <div className="p-8 text-center">데이터를 불러오는 중 오류가 발생했습니다.</div>;
 
     return (
-        <div className="flex w-full min-h-screen bg-white overflow-hidden">
+        <div className="flex w-full min-h-screen bg-white items-start">
             <Sidebar
                 childName={data.name}
                 onCodeInputClick={() => setIsCodeModalOpen(true)}

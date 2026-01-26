@@ -8,8 +8,8 @@ interface SidebarProps {
 
 const Sidebar = ({ childName, onCodeInputClick }: SidebarProps) => {
   return (
-    <aside className="w-64 h-screen bg-white border-r border-gray-200 flex flex-none flex-col sticky top-0">
-      <div className="h-24 px-6 pt-6 border-b border-gray-200 flex flex-col justify-start items-start">
+    <aside className="w-64 flex flex-none flex-col sticky top-0 bg-white border-r border-gray-200 min-h-[800px]">
+      <div className="h-24 px-6 pt-6 border-b border-gray-200 flex flex-col justify-start items-start shrink-0">
         <div className="inline-flex justify-start items-center gap-3">
           <div className="w-10 h-10 bg-gradient-to-b from-violet-400 to-violet-300 rounded-2xl flex justify-center items-center text-white font-bold text-lg">Ai</div>
           <div className="flex flex-col">
