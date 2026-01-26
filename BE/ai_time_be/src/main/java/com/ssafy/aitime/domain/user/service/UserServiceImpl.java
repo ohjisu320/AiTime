@@ -195,10 +195,7 @@ public class UserServiceImpl implements UserService {
     @Transactional(readOnly = true)
     public IdFindResponse getIdByPhone(String phoneNumber) {
         // 1. Redis에서 인증 완료 여부 확인 (보안)
-        String verified = redisTemplate.opsForValue().get("AUTH_VERIFIED:" + phoneNumber);
-        if (verified == null || !verified.equals("true")) {
-            throw new PhoneVerificationRequiredException();
-        }
+        validatePhoneVerification(phoneNumber);
 
         // 2. 유저 조회
         User user = userRepository.findByPhoneNumberAndRecordStatus(phoneNumber, RecordStatus.ACTIVE)
@@ -211,10 +208,7 @@ public class UserServiceImpl implements UserService {
     @Transactional(readOnly = true)
     public UserIdentityResponse verifyUserIdentity(String phoneNumber) {
 
-        String isVerified = redisTemplate.opsForValue().get("AUTH_VERIFIED:" + phoneNumber);
-        if (isVerified == null || !isVerified.equals("true")) {
-            throw new PhoneVerificationRequiredException();
-        }
+        validatePhoneVerification(phoneNumber);
 
         // 해당 번호로 가입된 유저 찾기
         User user = userRepository.findByPhoneNumberAndRecordStatus(phoneNumber, RecordStatus.ACTIVE)
@@ -231,10 +225,7 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(UserNotFoundException::new);
 
         // 본인 확인 API(verify-identity)에서 생성된 AUTH_VERIFIED 마크를 검증합니다.
-        String isVerified = redisTemplate.opsForValue().get("AUTH_VERIFIED:" + user.getPhoneNumber());
-        if (isVerified == null || !isVerified.equals("true")) {
-            throw new PhoneVerificationRequiredException();
-        }
+        validatePhoneVerification(user.getPhoneNumber());
 
         // 3. 비밀번호 암호화 및 업데이트
         user.updatePassword(passwordEncoder.encode(request.password()));
@@ -253,6 +244,13 @@ public class UserServiceImpl implements UserService {
         } catch (BadCredentialsException e) {
             // 시큐리티 예외를 커스텀 예외로 전환하여 던짐
             throw new InvalidPasswordException();
+        }
+    }
+
+    private void validatePhoneVerification(String phoneNumber) {
+        String isVerified = redisTemplate.opsForValue().get("AUTH_VERIFIED:" + phoneNumber);
+        if (isVerified == null || !isVerified.equals("true")) {
+            throw new PhoneVerificationRequiredException();
         }
     }
 }
