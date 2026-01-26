@@ -1,14 +1,13 @@
-import type { RouteObject } from 'react-router';
+import type { RouteObject } from 'react-router-dom';
+import { lazy } from 'react';
 
-// import DashboardPage from '@/features/parent/pages/DashboardPage';
-// import ExamPage from '@/features/parent/pages/ExamPage';
+const MissionListPage = lazy(() => import('@/domains/exam/pages/MissionListPage'));
 
-// 본인 이름을 딴 상수를 export 합니다.
-export const jisuRoutes = [
-//   {
-//     path: "/parent",
-//     children: [
-//       { path: "dashboard", element: <DashboardPage /> },
-//     ],
-//   },
+export const jisuRoutes: RouteObject[] = [
+  {
+    path: "/exam",
+    children: [
+      { path: "mission", element: <MissionListPage /> }, // 태스크리스트 페이지
+    ],
+  },
 ];
