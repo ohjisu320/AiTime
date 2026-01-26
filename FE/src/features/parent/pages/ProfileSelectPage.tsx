@@ -1,23 +1,23 @@
 import { useNavigate } from "react-router-dom";
-import { Settings, Plus } from "lucide-react";
+import { Plus } from "lucide-react"; // Settings 아이콘 제거
 import { Button } from "@/components/ui/button";
 
-// 데이터 타입 정의
+// 데이터 타입 정의 (API 명세서: ChildListResponse > ChildDto 준수)
 interface ChildProfile {
-  id: number;
+  childId: string; // UUID (기존 id -> childId)
   name: string;
-  birthDate: string;
-  gender: "boy" | "girl";
+  months: number; // 개월 수 (기존 birthDate -> months)
+  gender: "MALE" | "FEMALE"; // 성별 (기존 "boy"|"girl" -> "MALE"|"FEMALE")
 }
 
 export default function ProfileSelectPage() {
   const navigate = useNavigate();
 
-  // ✅ UI 확인용 임시 데이터 (useState 제거 -> 단순 변수 사용으로 에러 방지)
+  // ✅ UI 확인용 임시 데이터 (API 응답 예시 구조 반영)
   const profiles: ChildProfile[] = [
-    { id: 1, name: "민준", birthDate: "18개월", gender: "boy" },
-    { id: 2, name: "서준", birthDate: "18개월", gender: "boy" },
-    { id: 3, name: "도윤", birthDate: "18개월", gender: "boy" },
+    { childId: "uuid-1", name: "민준", months: 18, gender: "MALE" },
+    { childId: "uuid-2", name: "서아", months: 22, gender: "FEMALE" },
+    { childId: "uuid-3", name: "도윤", months: 15, gender: "MALE" },
   ];
 
   // --- 단순 페이지 이동 핸들러 ---
@@ -25,10 +25,17 @@ export default function ProfileSelectPage() {
     navigate("/parent/dashboard");
   };
 
+  const handleEditProfile = () => {
+    // 회원정보 수정 페이지로 이동 (경로는 실제 라우터에 맞게 수정해주세요)
+    navigate("/mypage/edit");
+  };
+
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-[#f9f8fc] via-[#E6E6FA] to-[#d1c7ee] relative flex flex-col">
+      
       {/* 1. 헤더 */}
       <header className="w-full px-6 py-6 flex justify-between items-center">
+        {/* 로고 영역 */}
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-gradient-to-b from-[#9D8AD6] to-violet-500 rounded-lg flex items-center justify-center text-white font-bold text-xs">
             Ai
@@ -37,9 +44,14 @@ export default function ProfileSelectPage() {
             AiTime
           </span>
         </div>
-        <button className="p-2 text-gray-500 hover:text-gray-800 transition-colors">
-          <Settings className="w-6 h-6" />
-        </button>
+
+        {/* ✨ 회원정보 수정 버튼 (디자인 반영) */}
+        <Button 
+          onClick={handleEditProfile}
+          className="bg-[#5A55D6] hover:bg-[#4844b8] text-white font-bold px-4 py-2 rounded-lg text-sm shadow-md transition-colors"
+        >
+          회원정보 수정
+        </Button>
       </header>
 
       {/* 2. 메인 컨텐츠 */}
@@ -59,16 +71,16 @@ export default function ProfileSelectPage() {
           {/* 반복 렌더링: 아이 프로필 */}
           {profiles.map((profile) => (
             <div
-              key={profile.id}
+              key={profile.childId}
               onClick={handleProfileClick}
               className="flex flex-col items-center gap-3 cursor-pointer group"
             >
               {/* 아바타 */}
               <div
-                className={`w-24 h-24 md:w-28 md:h-28 rounded-full relative flex items-center justify-center shadow-lg transform transition-transform group-hover:scale-105 ring-4 ring-white ${profile.gender === "boy" ? "bg-blue-200" : "bg-pink-200"}`}
+                className={`w-24 h-24 md:w-28 md:h-28 rounded-full relative flex items-center justify-center shadow-lg transform transition-transform group-hover:scale-105 ring-4 ring-white ${profile.gender === "MALE" ? "bg-blue-200" : "bg-pink-200"}`}
               >
                 <span className="text-5xl md:text-6xl drop-shadow-md">
-                  {profile.gender === "boy" ? "👦" : "👧"}
+                  {profile.gender === "MALE" ? "👦" : "👧"}
                 </span>
               </div>
 
@@ -78,7 +90,7 @@ export default function ProfileSelectPage() {
                   {profile.name}
                 </div>
                 <div className="text-xs text-gray-500 font-medium">
-                  {profile.birthDate}
+                  {profile.months}개월
                 </div>
               </div>
             </div>
@@ -97,7 +109,7 @@ export default function ProfileSelectPage() {
           </div>
         </div>
 
-        {/* 3. 하단 관리 버튼 (기능 없음, UI만 존재) */}
+        {/* 3. 하단 관리 버튼 */}
         <Button
           variant="ghost"
           className="bg-purple-50 hover:bg-purple-100 text-[#9D8AD6] font-bold px-6 py-6 rounded-full text-base"
