@@ -1,16 +1,16 @@
 package com.ssafy.aitime.domain.user.service;
 
 import com.ssafy.aitime.common.enums.RecordStatus;
+import com.ssafy.aitime.domain.user.dto.request.PasswordResetRequest;
 import com.ssafy.aitime.domain.user.dto.request.UserJoinRequest;
 import com.ssafy.aitime.domain.user.dto.request.UserLoginRequest;
-import com.ssafy.aitime.domain.user.dto.response.IdDuplicateResponse;
-import com.ssafy.aitime.domain.user.dto.response.TokenResponse;
-import com.ssafy.aitime.domain.user.dto.response.UserJoinResponse;
+import com.ssafy.aitime.domain.user.dto.response.*;
 import com.ssafy.aitime.domain.user.entity.User;
 import com.ssafy.aitime.domain.user.entity.enums.UserRole;
 import com.ssafy.aitime.domain.user.exception.InvalidPasswordException;
 import com.ssafy.aitime.domain.user.exception.PhoneVerificationRequiredException;
 import com.ssafy.aitime.domain.user.exception.UserAlreadyExistException;
+import com.ssafy.aitime.domain.user.exception.UserNotFoundException;
 import com.ssafy.aitime.domain.user.repository.UserRepository;
 import com.ssafy.aitime.security.entity.RefreshToken;
 import com.ssafy.aitime.security.principal.UserPrincipal;
@@ -28,7 +28,9 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
@@ -97,7 +99,7 @@ class UserServiceImplTest {
         // when & then
         assertThatThrownBy(() -> userService.login(new UserLoginRequest("id", "wrong")))
                 .isInstanceOf(InvalidPasswordException.class)
-                .hasMessageContaining("아이디 또는 비밀번호가 일치하지 않습니다.");
+                .hasMessageContaining("비밀번호가 올바르지 않습니다.");
     }
 
     @Test
@@ -190,5 +192,122 @@ class UserServiceImplTest {
         assertThat(response.userId()).isEqualTo(generatedId);
         assertThat(response.loginId()).isEqualTo(request.loginId());
         verify(userRepository, times(1)).save(any(User.class));
+    }
+
+    @Test
+    @DisplayName("휴대폰 번호로 아이디 조회 시 성공하면 아이디를 반환한다")
+    void getIdByPhone_Success() {
+        // given
+        String phoneNumber = "01012345678";
+        User user = User.builder()
+                .loginId("findMe123")
+                .phoneNumber(phoneNumber)
+                .recordStatus(RecordStatus.ACTIVE)
+                .build();
+
+        // Redis 인증 완료 마크 설정
+        ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get("AUTH_VERIFIED:" + phoneNumber)).thenReturn("true");
+
+        when(userRepository.findByPhoneNumberAndRecordStatus(phoneNumber, RecordStatus.ACTIVE))
+                .thenReturn(Optional.of(user));
+
+        // when
+        IdFindResponse response = userService.getIdByPhone(phoneNumber);
+
+        // then
+        assertThat(response.loginId()).isEqualTo("findMe123");
+        verify(userRepository).findByPhoneNumberAndRecordStatus(phoneNumber, RecordStatus.ACTIVE);
+    }
+
+    @Test
+    @DisplayName("본인 확인 요청 시 인증이 완료된 상태면 유저 UUID를 반환한다")
+    void verifyUserIdentity_Success() {
+        // given
+        String phoneNumber = "01012345678";
+        UUID userId = UUID.randomUUID();
+        User user = mock(User.class);
+        when(user.getUserId()).thenReturn(userId);
+
+        ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get("AUTH_VERIFIED:" + phoneNumber)).thenReturn("true");
+
+        when(userRepository.findByPhoneNumberAndRecordStatus(phoneNumber, RecordStatus.ACTIVE))
+                .thenReturn(Optional.of(user));
+
+        // when
+        UserIdentityResponse response = userService.verifyUserIdentity(phoneNumber);
+
+        // then
+        assertThat(response.isVerified()).isTrue();
+        assertThat(response.userId()).isEqualTo(userId);
+    }
+
+    @Test
+    @DisplayName("비밀번호 재설정 시 유저를 찾지 못하면 UserNotFoundException이 발생한다")
+    void resetPassword_Fail_UserNotFound() {
+        // given
+        PasswordResetRequest request = new PasswordResetRequest(UUID.randomUUID(), "newPw123!");
+        when(userRepository.findByUserIdAndRecordStatus(any(), eq(RecordStatus.ACTIVE)))
+                .thenReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> userService.resetPassword(request))
+                .isInstanceOf(UserNotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("비밀번호 재설정 성공 시 비밀번호를 암호화하여 저장하고 Redis 마크를 삭제한다")
+    void resetPassword_Success() {
+// given
+        UUID userId = UUID.randomUUID();
+        String phoneNumber = "01012345678";
+        PasswordResetRequest request = new PasswordResetRequest(userId, "newPw123!");
+
+        // 1. 유저 객체 생성
+        User user = User.builder()
+                .phoneNumber(phoneNumber)
+                .recordStatus(RecordStatus.ACTIVE)
+                .build();
+
+        // 2. [핵심] 리플렉션을 통해 private 필드인 userId에 강제로 값을 주입합니다.
+        ReflectionTestUtils.setField(user, "userId", userId);
+
+        // 3. 필드가 채워진 객체를 spy로 감쌉니다.
+        User spyUser = spy(user);
+
+        when(userRepository.findByUserIdAndRecordStatus(userId, RecordStatus.ACTIVE))
+                .thenReturn(Optional.of(spyUser));
+
+        // Redis 설정
+        ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get("AUTH_VERIFIED:" + phoneNumber)).thenReturn("true");
+
+        when(passwordEncoder.encode(request.password())).thenReturn("hashed-new-password");
+
+        // when
+        PasswordResetResponse response = userService.resetPassword(request);
+
+        // then
+        assertThat(response.userId()).isEqualTo(userId); // 이제 null이 아닌 UUID가 나옵니다!
+        verify(spyUser).updatePassword("hashed-new-password");
+        verify(redisTemplate).delete("AUTH_VERIFIED:" + phoneNumber);
+    }
+
+    @Test
+    @DisplayName("인증 마크가 만료되거나 없을 경우 PhoneVerificationRequiredException이 발생한다")
+    void validatePhoneVerification_Fail() {
+        // given
+        String phoneNumber = "01012345678";
+        ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get("AUTH_VERIFIED:" + phoneNumber)).thenReturn(null); // 인증 마크 없음
+
+        // when & then (getIdByPhone을 통해 private 메서드 검증)
+        assertThatThrownBy(() -> userService.getIdByPhone(phoneNumber))
+                .isInstanceOf(PhoneVerificationRequiredException.class);
     }
 }

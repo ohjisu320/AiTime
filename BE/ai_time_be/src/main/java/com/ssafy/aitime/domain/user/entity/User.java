@@ -60,4 +60,11 @@ public class User extends SoftDeletableEntity {
         this.recordStatus = (recordStatus == null) ? RecordStatus.ACTIVE : recordStatus;
         this.privacyAgreed = privacyAgreed;
     }
+
+    public void updatePassword(String encryptedPassword) {
+        if (encryptedPassword == null || encryptedPassword.isBlank()) {
+            throw new IllegalArgumentException("새 비밀번호는 비어있을 수 없습니다.");
+        }
+        this.password = encryptedPassword;
+    }
 }

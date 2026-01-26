@@ -60,6 +60,9 @@ public class SecurityConfig {
                                 "/user/refresh",
                                 "/user/logout",
                                 "/user/duplicate-id",
+                                "/user/get-id",
+                                "/user/verify-identity",
+                                "/user/password",
                                 "/auth/**"
                         ).permitAll()
                         .requestMatchers("/error").permitAll()

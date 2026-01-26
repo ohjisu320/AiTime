@@ -1,12 +1,10 @@
 package com.ssafy.aitime.domain.user.controller;
 
 import com.ssafy.aitime.common.response.ApiResponse;
+import com.ssafy.aitime.domain.user.dto.request.PasswordResetRequest;
 import com.ssafy.aitime.domain.user.dto.request.UserJoinRequest;
 import com.ssafy.aitime.domain.user.dto.request.UserLoginRequest;
-import com.ssafy.aitime.domain.user.dto.response.IdDuplicateResponse;
-import com.ssafy.aitime.domain.user.dto.response.TokenResponse;
-import com.ssafy.aitime.domain.user.dto.response.UserJoinResponse;
-import com.ssafy.aitime.domain.user.dto.response.UserLoginResponse;
+import com.ssafy.aitime.domain.user.dto.response.*;
 import com.ssafy.aitime.domain.user.service.UserService;
 import com.ssafy.aitime.security.provider.JwtTokenProvider;
 import jakarta.validation.Valid;
@@ -110,5 +108,23 @@ public class UserController {
     ) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.created("회원가입이 성공적으로 완료되었습니다.", userService.join(request)));
+    }
+
+    @GetMapping("/get-id")
+    public ResponseEntity<ApiResponse<IdFindResponse>> getId(@RequestParam("phoneNumber") String phoneNumber) {
+        return ResponseEntity.ok(ApiResponse.ok("아이디 조회가 완료되었습니다.", userService.getIdByPhone(phoneNumber)));
+    }
+
+    @GetMapping("/verify-identity")
+    public ResponseEntity<ApiResponse<UserIdentityResponse>> verifyIdentity(
+            @RequestParam("phoneNumber") String phoneNumber) {
+        return ResponseEntity.ok(ApiResponse.ok("본인 확인에 성공하였습니다.", userService.verifyUserIdentity(phoneNumber)));
+    }
+
+    @PatchMapping("/password")
+    public ResponseEntity<ApiResponse<PasswordResetResponse>> resetPassword(
+            @Valid @RequestBody PasswordResetRequest request
+    ) {
+        return ResponseEntity.ok(ApiResponse.ok("비밀번호가 성공적으로 변경되었습니다.", userService.resetPassword(request)));
     }
 }

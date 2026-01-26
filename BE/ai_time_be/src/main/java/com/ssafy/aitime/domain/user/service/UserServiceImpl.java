@@ -1,23 +1,23 @@
 package com.ssafy.aitime.domain.user.service;
 
 import com.ssafy.aitime.common.enums.RecordStatus;
+import com.ssafy.aitime.domain.user.dto.request.PasswordResetRequest;
 import com.ssafy.aitime.domain.user.dto.request.UserJoinRequest;
 import com.ssafy.aitime.domain.user.dto.request.UserLoginRequest;
-import com.ssafy.aitime.domain.user.dto.response.IdDuplicateResponse;
-import com.ssafy.aitime.domain.user.dto.response.TokenResponse;
-import com.ssafy.aitime.domain.user.dto.response.UserJoinResponse;
+import com.ssafy.aitime.domain.user.dto.response.*;
 import com.ssafy.aitime.domain.user.entity.User;
 import com.ssafy.aitime.domain.user.entity.enums.UserRole;
 import com.ssafy.aitime.domain.user.exception.InvalidPasswordException;
 import com.ssafy.aitime.domain.user.exception.PhoneVerificationRequiredException;
 import com.ssafy.aitime.domain.user.exception.UserAlreadyExistException;
+import com.ssafy.aitime.domain.user.exception.UserNotFoundException;
 import com.ssafy.aitime.domain.user.repository.UserRepository;
 import com.ssafy.aitime.domain.user.service.dto.UserInfoDTO;
 import com.ssafy.aitime.security.entity.RefreshToken;
 import com.ssafy.aitime.security.principal.UserPrincipal;
 import com.ssafy.aitime.security.provider.JwtTokenProvider;
 import com.ssafy.aitime.security.repository.RefreshTokenRepository;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -28,6 +28,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -146,7 +147,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    @Transactional()
+    @Transactional(readOnly = true)
     public IdDuplicateResponse checkIdDuplicate(String loginId) {
         return new IdDuplicateResponse(userRepository.existsByLoginId(loginId));
     }
@@ -190,6 +191,51 @@ public class UserServiceImpl implements UserService {
         );
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public IdFindResponse getIdByPhone(String phoneNumber) {
+        // 1. Redis에서 인증 완료 여부 확인 (보안)
+        validatePhoneVerification(phoneNumber);
+
+        // 2. 유저 조회
+        User user = userRepository.findByPhoneNumberAndRecordStatus(phoneNumber, RecordStatus.ACTIVE)
+                .orElseThrow(UserNotFoundException::new);
+
+        return new IdFindResponse(user.getLoginId(), user.getCreatedAt());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public UserIdentityResponse verifyUserIdentity(String phoneNumber) {
+
+        validatePhoneVerification(phoneNumber);
+
+        // 해당 번호로 가입된 유저 찾기
+        User user = userRepository.findByPhoneNumberAndRecordStatus(phoneNumber, RecordStatus.ACTIVE)
+                .orElseThrow(UserNotFoundException::new);
+
+        return new UserIdentityResponse(true, user.getUserId());
+    }
+
+    @Override
+    @Transactional
+    public PasswordResetResponse resetPassword(PasswordResetRequest request) {
+        // 1. 유저 존재 확인
+        User user = userRepository.findByUserIdAndRecordStatus(request.userId(), RecordStatus.ACTIVE)
+                .orElseThrow(UserNotFoundException::new);
+
+        // 본인 확인 API(verify-identity)에서 생성된 AUTH_VERIFIED 마크를 검증합니다.
+        validatePhoneVerification(user.getPhoneNumber());
+
+        // 3. 비밀번호 암호화 및 업데이트
+        user.updatePassword(passwordEncoder.encode(request.password()));
+
+        // 4. [보안] 비밀번호 변경 성공 후 Redis 인증 마크 즉시 삭제 (재사용 방지)
+        redisTemplate.delete("AUTH_VERIFIED:" + user.getPhoneNumber());
+
+        return new PasswordResetResponse(user.getUserId(), LocalDateTime.now());
+    }
+
     private Authentication authenticate(String loginId, String password) {
         try {
             UsernamePasswordAuthenticationToken authToken =
@@ -197,7 +243,14 @@ public class UserServiceImpl implements UserService {
             return authenticationManager.authenticate(authToken);
         } catch (BadCredentialsException e) {
             // 시큐리티 예외를 커스텀 예외로 전환하여 던짐
-            throw new InvalidPasswordException("아이디 또는 비밀번호가 일치하지 않습니다.");
+            throw new InvalidPasswordException();
+        }
+    }
+
+    private void validatePhoneVerification(String phoneNumber) {
+        String isVerified = redisTemplate.opsForValue().get("AUTH_VERIFIED:" + phoneNumber);
+        if (isVerified == null || !isVerified.equals("true")) {
+            throw new PhoneVerificationRequiredException();
         }
     }
 }
