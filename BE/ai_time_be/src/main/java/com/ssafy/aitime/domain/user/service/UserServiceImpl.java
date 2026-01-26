@@ -1,11 +1,16 @@
 package com.ssafy.aitime.domain.user.service;
 
 import com.ssafy.aitime.common.enums.RecordStatus;
+import com.ssafy.aitime.domain.user.dto.request.UserJoinRequest;
 import com.ssafy.aitime.domain.user.dto.request.UserLoginRequest;
+import com.ssafy.aitime.domain.user.dto.response.IdDuplicateResponse;
 import com.ssafy.aitime.domain.user.dto.response.TokenResponse;
+import com.ssafy.aitime.domain.user.dto.response.UserJoinResponse;
 import com.ssafy.aitime.domain.user.entity.User;
 import com.ssafy.aitime.domain.user.entity.enums.UserRole;
 import com.ssafy.aitime.domain.user.exception.InvalidPasswordException;
+import com.ssafy.aitime.domain.user.exception.PhoneVerificationRequiredException;
+import com.ssafy.aitime.domain.user.exception.UserAlreadyExistException;
 import com.ssafy.aitime.domain.user.repository.UserRepository;
 import com.ssafy.aitime.domain.user.service.dto.UserInfoDTO;
 import com.ssafy.aitime.security.entity.RefreshToken;
@@ -20,6 +25,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;
@@ -32,6 +38,7 @@ public class UserServiceImpl implements UserService {
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider jwtTokenProvider;
     private final StringRedisTemplate redisTemplate;
+    private final PasswordEncoder passwordEncoder;
 
     private final RefreshTokenRepository refreshTokenRepository;
     private final UserRepository userRepository;
@@ -136,6 +143,51 @@ public class UserServiceImpl implements UserService {
                     TimeUnit.MILLISECONDS
             );
         }
+    }
+
+    @Override
+    @Transactional()
+    public IdDuplicateResponse checkIdDuplicate(String loginId) {
+        return new IdDuplicateResponse(userRepository.existsByLoginId(loginId));
+    }
+
+    @Override
+    @Transactional
+    public UserJoinResponse join(UserJoinRequest request) {
+        // 휴대폰 인증 여부 최종 확인 (Redis) - postman 테스트 용으로 주석
+        String isVerified = redisTemplate.opsForValue().get("AUTH_VERIFIED:" + request.phoneNumber());
+        if (isVerified == null || !isVerified.equals("true")) {
+            throw new PhoneVerificationRequiredException();
+        }
+
+        // 아이디 중복 최종 체크 (API 우회 방지)
+        if (userRepository.existsByLoginId(request.loginId())) {
+            throw new UserAlreadyExistException();
+        }
+
+        // 비밀번호 암호화 및 Entity 생성
+        String encodedPassword = passwordEncoder.encode(request.password());
+
+        User user = User.builder()
+                .loginId(request.loginId())
+                .password(encodedPassword)
+                .name(request.name())
+                .phoneNumber(request.phoneNumber())
+                .privacyAgreed(request.privacyAgreed())
+                .userRole(UserRole.USER)
+                .build();
+
+        // DB 저장
+        User savedUser = userRepository.save(user);
+
+        // 회원가입 성공 후 Redis의 인증 마크 삭제 (재사용 방지)  - postman 테스트 용으로 주석
+        redisTemplate.delete("AUTH_VERIFIED:" + request.phoneNumber());
+
+        return new UserJoinResponse(
+                savedUser.getUserId(),
+                savedUser.getLoginId(),
+                savedUser.getName()
+        );
     }
 
     private Authentication authenticate(String loginId, String password) {

@@ -4,10 +4,7 @@ import com.ssafy.aitime.common.exception.commonExceptions.DeleteFailedException;
 import com.ssafy.aitime.common.exception.commonExceptions.InsertFailedException;
 import com.ssafy.aitime.common.exception.commonExceptions.UpdateFailedException;
 import com.ssafy.aitime.common.response.ApiResponse;
-import com.ssafy.aitime.domain.user.exception.InvalidPasswordException;
-import com.ssafy.aitime.domain.user.exception.InvalidUserRoleException;
-import com.ssafy.aitime.domain.user.exception.UserAlreadyExistException;
-import com.ssafy.aitime.domain.user.exception.UserNotFoundException;
+import com.ssafy.aitime.domain.user.exception.*;
 import com.ssafy.aitime.security.exception.RefreshTokenInvalidException;
 import com.ssafy.aitime.security.exception.RefreshTokenMissingException;
 import org.springframework.http.HttpStatus;
@@ -101,7 +98,8 @@ public class GlobalExceptionHandler {
     /********************************************************************************/
 
     @ExceptionHandler({
-            InvalidUserRoleException.class
+            InvalidUserRoleException.class,
+            PhoneVerificationRequiredException.class
     })
     public ResponseEntity<ApiResponse<Object>> handleUserBadRequestException(RuntimeException e){
         return ResponseEntity
