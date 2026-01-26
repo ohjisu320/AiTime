@@ -1,14 +1,35 @@
+import { lazy } from 'react';
 import type { RouteObject } from 'react-router';
 
-// import DashboardPage from '@/features/parent/pages/DashboardPage';
-// import ExamPage from '@/features/parent/pages/ExamPage';
+// Lazy Loading을 사용하여 성능을 최적화
+const ConsentPage = lazy(() => import('@/domains/exam/pages/ConsentPage'));
+const ExamGuidePage = lazy(() => import('@/domains/exam/pages/ExamGuidePage'));
+// 추후 구현될 페이지들 예시
+// const ExamRecorderPage = lazy(() => import('@/domains/exam/pages/ExamRecorderPage'));
 
-// 본인 이름을 딴 상수를 export 합니다.
-export const jisuRoutes = [
-//   {
-//     path: "/parent",
-//     children: [
-//       { path: "dashboard", element: <DashboardPage /> },
-//     ],
-//   },
+export const jisuRoutes: RouteObject[] = [
+  {
+    path: "/exam",
+    children: [
+      { 
+        index: true, 
+        element: <ConsentPage /> // /exam 접속 시 바로 동의 페이지 노출
+      },
+      { 
+        path: "consent", 
+        element: <ConsentPage /> // /exam/consent
+      },
+      { 
+        path: "guide", 
+        element: <ExamGuidePage /> // /exam/guide
+      },
+
+   
+
+      // { 
+      //   path: "recorder", 
+      //   element: <ExamRecorderPage /> // /exam/recorder (실제 검사 녹화)
+      // },
+    ],
+  },
 ];
