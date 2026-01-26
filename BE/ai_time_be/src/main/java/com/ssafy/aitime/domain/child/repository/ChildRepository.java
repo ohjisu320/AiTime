@@ -14,4 +14,6 @@ public interface ChildRepository extends JpaRepository<Child, UUID> {
     List<Child> findByChildIdInAndRecordStatus(
             List<UUID> childIds,
             RecordStatus recordStatus);
+
+    List<Child> findByUser_UserIdAndRecordStatus(UUID userId, RecordStatus recordStatus);
 }
