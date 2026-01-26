@@ -6,6 +6,9 @@ from app.rtn.config import VADConfig
 
 @dataclass
 class _SileroState:
+    # 프로세스 단위 싱글톤 캐시:
+    # - torch.hub.load(모델 로딩/다운로드)가 비싸므로 1회만 로드해 재사용
+    # - 여러 SileroVAD 인스턴스가 생겨도 같은 모델을 공유
     loaded: bool = False
     model: Any | None = None
     get_speech_timestamps: Any | None = None
@@ -25,11 +28,16 @@ class SileroVAD:
         self._ensure_loaded()
 
     def _ensure_loaded(self) -> None:
+        # 이미 로드되어 있으면 재사용
+        # TODO: 동시 호출 문제 있을 수 있음
         if _STATE.loaded:
             return
 
         import torch  # noqa: PLC0415
 
+        # torch.hub.load는 로컬 캐시를 우선 사용, 없으면 다운로드
+        # force_reload=False로 매번 재다운로드/재로딩 False
+        # onnx로의 포맷 변경은 현재 필요 없음
         model, utils = torch.hub.load(
             repo_or_dir="snakers4/silero-vad",
             model="silero_vad",
@@ -52,20 +60,26 @@ class SileroVAD:
         import soundfile as sf  # noqa: PLC0415
         import torch  # noqa: PLC0415
 
+        # soundfile은 numpy(float32)로 읽어서 torch tensor로 변환
         audio, file_sr = sf.read(wav_path, dtype="float32")
+
+        # 입력을 mono로 강제
         if audio.ndim > 1:
             audio = audio.mean(axis=1)
 
+        # 샘플레이트 체크
         if file_sr != self.cfg.sr:
             raise RuntimeError(
                 f"WAV sample rate mismatch: expected {self.cfg.sr}, got {file_sr}"
             )
 
+        # 전역 캐시 상태 점검(초기화 누락 방지)
         if _STATE.model is None or _STATE.get_speech_timestamps is None:
             raise RuntimeError("SileroVAD not initialized properly.")
 
         wav = torch.from_numpy(audio).float()
 
+        # 초 변환은 밑에서 한번에 처리
         ts = _STATE.get_speech_timestamps(
             wav,
             _STATE.model,
