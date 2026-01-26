@@ -29,6 +29,9 @@ def build_engine(
     debug: bool = False,  # 로컬 cv2.imshow
     fps_override: float | None = None,
 ) -> tuple[RTNEngine, object | None]:
+    """
+    분석 엔진 + (선택) 디버그 스트림 라우터를 생성한다.
+    """
     broker = FrameBroker(jpeg_quality=jpeg_quality)
 
     analyzer = build_analyzer(
