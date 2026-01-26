@@ -236,6 +236,20 @@ public class UserServiceImpl implements UserService {
         return new PasswordResetResponse(user.getUserId(), LocalDateTime.now());
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public UserMeResponse getUserInfo(UUID userId) {
+        User user = userRepository.findByUserIdAndRecordStatus(userId, RecordStatus.ACTIVE)
+                .orElseThrow(UserNotFoundException::new);
+
+        return new UserMeResponse(
+                user.getUserId(),
+                user.getName(),
+                user.getPhoneNumber(),
+                user.getLoginId()
+        );
+    }
+
     private Authentication authenticate(String loginId, String password) {
         try {
             UsernamePasswordAuthenticationToken authToken =
