@@ -82,12 +82,9 @@ public class UserController {
             @RequestHeader(value = "Authorization", required = false) String authHeader,
             @CookieValue(name = "refreshToken", required = false) String refreshToken) {
 
-        String accessToken = authHeader.replace("Bearer ", "");
-        // 리프레시 토큰이 쿠키에 존재할 때만 서비스 호출
-        if (refreshToken != null) {
-            userService.logout(accessToken, refreshToken);
-        }
+        String accessToken = resolveBearerToken(authHeader);
 
+        userService.logout(accessToken, refreshToken);
         // 쿠키 삭제를 위해 만료시간을 0으로 설정한 쿠키 반환
         ResponseCookie cookie = ResponseCookie.from("refreshToken", "")
                 .maxAge(0)
