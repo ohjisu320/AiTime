@@ -1,4 +1,4 @@
-# AI/services/pose-estimation/app/vitpose.py
+# AI/services/pose-estimation/app/models/vitpose.py
 """
 VitPose 모델 로딩 및 추론 로직
 
