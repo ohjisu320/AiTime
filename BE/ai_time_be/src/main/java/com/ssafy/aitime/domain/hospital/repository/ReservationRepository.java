@@ -7,6 +7,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
@@ -16,4 +18,11 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
     List<Reservation> findByDoctorIdAndReservationStatusNot(
             UUID doctorId,
             ReservationStatus reservationStatus);
+
+
+    List<Reservation> findByDoctorIdAndReservationStatusNotAndScheduledAtBetween(
+            UUID doctorId,
+            ReservationStatus reservationStatus,
+            LocalDateTime startOfDay,
+            LocalDateTime endOfDay);
 }
