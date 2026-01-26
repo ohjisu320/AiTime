@@ -4,6 +4,7 @@ import com.ssafy.aitime.common.enums.RecordStatus;
 import com.ssafy.aitime.domain.user.dto.request.PasswordResetRequest;
 import com.ssafy.aitime.domain.user.dto.request.UserJoinRequest;
 import com.ssafy.aitime.domain.user.dto.request.UserLoginRequest;
+import com.ssafy.aitime.domain.user.dto.request.UserUpdateRequest;
 import com.ssafy.aitime.domain.user.dto.response.*;
 import com.ssafy.aitime.domain.user.entity.User;
 import com.ssafy.aitime.domain.user.entity.enums.UserRole;
@@ -247,6 +248,24 @@ public class UserServiceImpl implements UserService {
                 user.getName(),
                 user.getPhoneNumber(),
                 user.getLoginId()
+        );
+    }
+
+    @Override
+    @Transactional
+    public UserUpdateResponse updateUserInfo(UUID userId, UserUpdateRequest request) {
+        // 존재하는 유저인지 검사
+        User user = userRepository.findByUserIdAndRecordStatus(userId, RecordStatus.ACTIVE)
+                .orElseThrow(UserNotFoundException::new);
+
+        // 도메인 메서드로 정보 수정
+        user.updateProfile(request.name(), request.phoneNumber());
+
+        // 변경된 정보를 담아 반환 (Dirty Checking으로 자동 DB 반영)
+        return new UserUpdateResponse(
+                user.getName(),
+                user.getPhoneNumber(),
+                LocalDateTime.now()
         );
     }
 

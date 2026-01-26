@@ -4,6 +4,7 @@ import com.ssafy.aitime.common.response.ApiResponse;
 import com.ssafy.aitime.domain.user.dto.request.PasswordResetRequest;
 import com.ssafy.aitime.domain.user.dto.request.UserJoinRequest;
 import com.ssafy.aitime.domain.user.dto.request.UserLoginRequest;
+import com.ssafy.aitime.domain.user.dto.request.UserUpdateRequest;
 import com.ssafy.aitime.domain.user.dto.response.*;
 import com.ssafy.aitime.domain.user.service.UserService;
 import com.ssafy.aitime.security.principal.UserPrincipal;
@@ -135,5 +136,13 @@ public class UserController {
             @AuthenticationPrincipal UserPrincipal userPrincipal
     ) {
         return ResponseEntity.ok(ApiResponse.ok("사용자 정보 조회가 완료되었습니다.", userService.getUserInfo(userPrincipal.getUserId())));
+    }
+
+    @PatchMapping("/me")
+    public ResponseEntity<ApiResponse<UserUpdateResponse>> updateMyInfo(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @Valid @RequestBody UserUpdateRequest request
+    ) {
+        return ResponseEntity.ok(ApiResponse.ok("사용자 정보가 성공적으로 수정되었습니다.", userService.updateUserInfo(userPrincipal.getUserId(), request)));
     }
 }
