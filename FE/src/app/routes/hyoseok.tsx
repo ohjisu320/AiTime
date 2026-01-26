@@ -1,8 +1,11 @@
 import type { RouteObject } from "react-router-dom";
 import MobileLayout from "@/components/layout/MobileLayout";
 import DesktopLayout from "@/components/layout/DesktopLayout";
+
+//페이지
 import EditProfilePage from "@/features/auth/pages/EditProfilePage";
 import DashboardPage from "@/features/parent/pages/DashboardPage";
+import ProfileSelectPage from "@/features/parent/pages/ProfileSelectPage";
 
 // 페이지 컴포넌트 (추후 실제 파일 경로로 수정 가능)
 // const DashboardPage = () => <div>부모님 대시보드</div>;
@@ -14,8 +17,13 @@ export const hyoseokRoutes: RouteObject[] = [
     path: "/parent",
     element: <MobileLayout />,
     children: [
+      //parent접속 후 가장 먼저 페이지
+      { path: "home", element: <ProfileSelectPage /> },
+
       { path: "dashboard", element: <DashboardPage /> },
       { path: "exam", element: <div>아이 검사 페이지</div> },
+
+      //회원정보 수정 경로
       { path: "mypage/edit", element: <EditProfilePage /> },
     ],
   },

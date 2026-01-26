@@ -26,8 +26,8 @@ export default function ProfileSelectPage() {
   };
 
   const handleEditProfile = () => {
-    // 회원정보 수정 페이지로 이동 (경로는 실제 라우터에 맞게 수정해주세요)
-    navigate("/mypage/edit");
+    // 회원정보 수정 페이지로 이동 
+    navigate("/parent/mypage/edit");
   };
 
   return (
