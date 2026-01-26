@@ -12,10 +12,15 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
+
 interface CodeRegisterModalProps {
   isOpen: boolean;
   onClose: () => void;
-  childName: string;
+  onConfirm: (code: string) => void; 
+  title: string;
+  childName: string; //
+  description: string;
+  confirmText: string;
 }
 
 const CodeRegisterModal = ({ isOpen, onClose, childName }: CodeRegisterModalProps) => {
