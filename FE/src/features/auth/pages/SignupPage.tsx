@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState } from "react"; // useEffect 제거
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import { ArrowLeft } from "lucide-react";
@@ -8,13 +8,12 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 
-// 약관 내용
-const termsContent = `
-아이타임(Ai-Time) 서비스 이용약관
-
-[Part 1] 회원가입 시 필수 약관
-
-제1조 (목적)
+// 약관 데이터 분리
+const termsData = [
+  {
+    id: "term1",
+    title: "[Part 1] 회원가입 시 필수 약관",
+    content: `제1조 (목적)
 본 약관은 아이타임(Ai-Time)(이하 “회사”)이 제공하는 12~23개월 영유아 대상 행동 정량 분석 및 자폐 스펙트럼(ASD) 진단 보조 AI 서비스(이하 “서비스”)의 이용과 관련하여 회사와 회원 간의 권리·의무 및 책임사항을 규정함을 목적으로 합니다.
 
 제2조 (용어의 정의)
@@ -45,11 +44,12 @@ const termsContent = `
 제6조 (의료행위 아님에 대한 고지 및 책임의 한계)
 1. 본 서비스는 의료법상 의료행위에 해당하지 않으며, 의사의 진단, 처방, 치료를 대체하지 않습니다.
 2. AI 검사 결과는 의료진이 자폐 스펙트럼 등을 진단함에 있어 시간을 단축하고 정확도를 높이기 위한 **보조적 참고 자료(진단 지원 도구)**로만 제공됩니다.
-3. 회사는 가정 내 검사 환경, 촬영 조건, 아동의 일시적 컨디션 등에 따라 결과가 달라질 수 있음에 대해 책임을 지지 않습니다.
-
-[Part 2] 개인정보 수집 및 이용 동의 (회원가입 시)
-
-1. 수집·이용 목적
+3. 회사는 가정 내 검사 환경, 촬영 조건, 아동의 일시적 컨디션 등에 따라 결과가 달라질 수 있음에 대해 책임을 지지 않습니다.`
+  },
+  {
+    id: "term2",
+    title: "[Part 2] 개인정보 수집 및 이용 동의 (필수)",
+    content: `1. 수집·이용 목적
 - 회원 관리 및 본인 확인
 - 초대코드 기반 서비스 이용 자격(제휴 병원 환자 여부) 확인
 - 12~23개월 아동 행동 분석 AI 검사 수행 및 리포트 제공
@@ -63,10 +63,12 @@ const termsContent = `
 
 3. 보유 및 이용 기간
 - 회원 탈퇴 시 즉시 파기합니다.
-- 단, 관계 법령에 따라 보존이 필요한 경우 해당 기간 동안 보관합니다.
-
-[Part 3] 검사 시작 전 (영상 녹화 전) 필수 동의
-(※ 본 동의는 검사 시작 버튼 클릭 후, 카메라 활성화 이전에 진행됩니다.)
+- 단, 관계 법령에 따라 보존이 필요한 경우 해당 기간 동안 보관합니다.`
+  },
+  {
+    id: "term3",
+    title: "[Part 3] 검사 시작 전 영상·음성 정보 수집 및 이용 동의 (필수)",
+    content: `(※ 본 동의는 검사 시작 버튼 클릭 후, 카메라 활성화 이전에 진행됩니다.)
 
 1. 영상·음성 정보 수집 및 이용 동의 (필수)
 회사는 정밀한 행동 분석을 위해 다음과 같은 민감정보 및 생체정보를 수집·이용합니다.
@@ -86,15 +88,25 @@ const termsContent = `
 - 보유 및 이용 기간: 해당 의료기관의 관련 법령상 의무기록 보존 기간에 따름
 
 4. AI 분석의 한계 및 면책 동의
-본 서비스의 AI 분석 결과는 촬영 환경, 아동의 상태, 보호자의 상호작용 방식 등에 따라 차이가 발생할 수 있으며, 의학적 확진이나 치료 판단의 근거로 단독 사용될 수 없습니다. 회원은 위 사항을 충분히 인지하고 이에 동의합니다.
-`;
+본 서비스의 AI 분석 결과는 촬영 환경, 아동의 상태, 보호자의 상호작용 방식 등에 따라 차이가 발생할 수 있으며, 의학적 확진이나 치료 판단의 근거로 단독 사용될 수 없습니다. 회원은 위 사항을 충분히 인지하고 이에 동의합니다.`
+  }
+];
 
 export default function SignupPage() {
   const navigate = useNavigate();
 
   // 현재 단계: 1(약관동의) -> 2(정보입력)
   const [step, setStep] = useState<1 | 2>(1);
-  const [agreed, setAgreed] = useState(false);
+
+  // 약관 동의 상태 (객체로 관리)
+  const [agreements, setAgreements] = useState({
+    term1: false,
+    term2: false,
+    term3: false,
+  });
+
+  // 모든 약관 동의 여부 확인
+  const isAllAgreed = Object.values(agreements).every(Boolean);
 
   // 입력값 상태
   const [formData, setFormData] = useState({
@@ -116,16 +128,30 @@ export default function SignupPage() {
     authCode: "",
   });
 
+  // 개별 체크박스 핸들러
+  const handleAgreementChange = (key: string, checked: boolean) => {
+    setAgreements((prev) => ({ ...prev, [key]: checked }));
+  };
+
+  // 전체 동의 핸들러
+  const handleAllAgreeChange = (checked: boolean) => {
+    setAgreements({
+      term1: checked,
+      term2: checked,
+      term3: checked,
+    });
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleNextStep = () => {
-    if (!agreed) {
+    if (!isAllAgreed) {
       Swal.fire({
         icon: "warning",
-        text: "약관에 동의해주세요.",
+        text: "모든 필수 약관에 동의해주세요.",
         confirmButtonColor: "#9593D9",
       });
       return;
@@ -179,11 +205,11 @@ export default function SignupPage() {
     </div>
   );
 
-  // UI 컴포넌트: 단계 표시기 (Stepper) - 연결선 강화
+  // UI 컴포넌트: 단계 표시기 (Stepper)
   const Stepper = () => (
     <div className="w-full max-w-[400px] mb-6 flex flex-col items-center">
       <div className="relative flex items-center justify-between w-[200px] mb-2">
-        {/* 보라색 연결선 (항상 보라색) */}
+        {/* 보라색 연결선 */}
         <div className="absolute left-0 top-1/2 w-full h-[4px] bg-[#9593D9] -z-10 -translate-y-1/2"></div>
 
         {/* 1단계 원 */}
@@ -226,188 +252,189 @@ export default function SignupPage() {
   );
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center bg-[#E3E0F5] p-4 overflow-y-auto">
+    // ✨ 1. 전체 화면 고정 (h-screen, overflow-hidden)
+    <div className="h-screen w-full flex flex-col items-center bg-[#E3E0F5] p-4 overflow-hidden">
       <Header />
       <Stepper />
 
-      {/* 카드 컨테이너: 너비 줄임(max-w-[600px]), 패딩 줄임 */}
-      <div className="w-full max-w-[600px] bg-white rounded-[32px] shadow-[0_10px_30px_rgba(0,0,0,0.05)] p-8 mb-8">
-        {/* Step 1: 약관 동의 */}
-        {step === 1 && (
-          <div className="animate-fade-in">
-            <h2 className="text-xl font-bold text-gray-800 mb-4">
-              서비스 이용약관
-            </h2>
+      {/* ✨ 2. 카드 컨테이너 */}
+      {/* flex-1 (남은 공간 차지), min-h-0 (수축 허용), overflow-hidden (내부 스크롤이 둥근 모서리 안으로) */}
+      <div className="w-full max-w-[600px] bg-white rounded-[32px] shadow-[0_10px_30px_rgba(0,0,0,0.05)] mb-4 flex flex-col flex-1 min-h-0 overflow-hidden">
+        
+        {/* ✨ 3. 실제 스크롤 영역 */}
+        {/* overflow-y-auto (세로 스크롤), p-8 (패딩을 이 안으로 이동) */}
+        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+          
+          {/* Step 1: 약관 동의 */}
+          {step === 1 && (
+            <div className="animate-fade-in">
+              <h2 className="text-xl font-bold text-gray-800 mb-6 border-b pb-2">
+                서비스 이용약관 동의
+              </h2>
 
-            <div className="w-full h-[400px] bg-gray-50 rounded-xl border border-gray-100 p-5 mb-6 overflow-y-auto custom-scrollbar">
-              <pre className="whitespace-pre-wrap font-sans text-sm text-gray-600 leading-relaxed">
-                {termsContent}
-              </pre>
-            </div>
+              <div className="space-y-8 mb-8">
+                {termsData.map((term) => {
+                  const termKey = term.id as keyof typeof agreements;
+                  return (
+                    <div key={term.id} className="flex flex-col gap-2">
+                      <div className="flex justify-between items-center px-1">
+                        <span className="text-sm font-bold text-gray-700">
+                          {term.title}
+                        </span>
+                      </div>
+                      <div className="w-full h-32 bg-gray-50 rounded-xl border border-gray-100 p-4 overflow-y-auto custom-scrollbar">
+                        <pre className="whitespace-pre-wrap font-sans text-xs text-gray-600 leading-relaxed">
+                          {term.content}
+                        </pre>
+                      </div>
+                      <div
+                        className="flex items-center space-x-2 p-2 cursor-pointer hover:bg-gray-50 rounded-lg transition-colors"
+                        onClick={() => handleAgreementChange(termKey, !agreements[termKey])}
+                      >
+                        <Checkbox
+                          id={term.id}
+                          checked={agreements[termKey]}
+                          onCheckedChange={(checked) => handleAgreementChange(termKey, checked as boolean)}
+                          className="w-4 h-4 border-gray-300 data-[state=checked]:bg-[#9593D9] data-[state=checked]:border-[#9593D9]"
+                        />
+                        <Label htmlFor={term.id} className="text-sm text-gray-600 cursor-pointer select-none">
+                          {term.title}에 동의합니다.
+                        </Label>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
 
-            <div
-              className="flex items-center space-x-3 mb-6 p-3 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors border border-transparent hover:border-gray-200"
-              onClick={() => setAgreed(!agreed)}
-            >
-              <Checkbox
-                id="terms"
-                checked={agreed}
-                onCheckedChange={(checked) => setAgreed(checked as boolean)}
-                className="w-5 h-5 border-2 data-[state=checked]:bg-[#9593D9] data-[state=checked]:border-[#9593D9]"
-              />
-              <Label
-                htmlFor="terms"
-                className="text-base text-gray-700 font-bold cursor-pointer select-none"
-              >
-                위 약관을 확인하였으며, 이에 동의합니다.
-              </Label>
-            </div>
-
-            <Button
-              onClick={handleNextStep}
-              className={cn(
-                "w-full h-14 text-lg font-bold rounded-xl transition-all",
-                agreed
-                  ? "bg-[#9593D9] hover:bg-[#8381c9] text-white shadow-md shadow-[#9593D9]/20"
-                  : "bg-gray-300 text-gray-500 cursor-not-allowed",
-              )}
-            >
-              다음으로 넘어가기
-            </Button>
-          </div>
-        )}
-
-        {/* Step 2: 회원정보 입력 (컴팩트 버전) */}
-        {step === 2 && (
-          <div className="animate-fade-in">
-            <h2 className="text-xl font-bold text-[#1A1A1A] mb-6 border-b pb-2">
-              회원정보 입력
-            </h2>
-
-            {/* space-y를 줄여서 간격을 좁힘 */}
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* 아이디 */}
-              <div className="space-y-1">
-                <Label className="text-sm font-bold text-[#333]">아이디</Label>
-                <div className="flex gap-2">
-                  <Input
-                    name="id"
-                    value={formData.id}
-                    onChange={handleChange}
-                    placeholder="아이디 입력"
-                    className="flex-1 h-11 bg-white border border-gray-200 rounded-lg text-sm px-3 focus:border-[#9593D9] focus:ring-1 focus:ring-[#9593D9]"
+              <div className="border-t border-gray-100 pt-6 mb-6">
+                <div
+                  className="flex items-center space-x-3 p-4 bg-[#F5F4FF] rounded-xl cursor-pointer hover:bg-[#EBE9FF] transition-colors border border-[#9593D9]/20"
+                  onClick={() => handleAllAgreeChange(!isAllAgreed)}
+                >
+                  <Checkbox
+                    id="all-agree"
+                    checked={isAllAgreed}
+                    onCheckedChange={(checked) => handleAllAgreeChange(checked as boolean)}
+                    className="w-5 h-5 border-2 border-[#9593D9] data-[state=checked]:bg-[#9593D9] data-[state=checked]:text-white"
                   />
-                  <Button
-                    type="button"
-                    className="h-11 w-[90px] bg-[#D6D3F0] hover:bg-[#c2bde6] text-[#5A5880] font-bold rounded-lg text-sm shadow-none"
-                  >
-                    중복확인
-                  </Button>
-                </div>
-                <p className="text-[11px] text-red-500 pl-1 h-3">{errors.id}</p>
-              </div>
-
-              {/* 비밀번호 & 확인 (가로 배치 고려 or 세로 간격 좁힘) */}
-              <div className="space-y-1">
-                <Label className="text-sm font-bold text-[#333]">
-                  비밀번호
-                </Label>
-                <Input
-                  type="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  placeholder="비밀번호 입력"
-                  className="h-11 bg-white border border-gray-200 rounded-lg text-sm px-3 focus:border-[#9593D9] focus:ring-1 focus:ring-[#9593D9]"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-sm font-bold text-[#333]">
-                  비밀번호 확인
-                </Label>
-                <Input
-                  type="password"
-                  name="confirmPassword"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  placeholder="비밀번호 재입력"
-                  className="h-11 bg-white border border-gray-200 rounded-lg text-sm px-3 focus:border-[#9593D9] focus:ring-1 focus:ring-[#9593D9]"
-                />
-                <p className="text-[11px] text-red-500 pl-1 h-3">
-                  {errors.confirmPassword}
-                </p>
-              </div>
-
-              {/* 보호자 이름 */}
-              <div className="space-y-1">
-                <Label className="text-sm font-bold text-[#333]">
-                  보호자 이름
-                </Label>
-                <Input
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  placeholder="이름 입력"
-                  className="h-11 bg-white border border-gray-200 rounded-lg text-sm px-3 focus:border-[#9593D9] focus:ring-1 focus:ring-[#9593D9]"
-                />
-              </div>
-
-              {/* 휴대전화번호 & 인증 */}
-              <div className="space-y-1 pt-1">
-                <div className="flex justify-between items-end mb-1">
-                  <Label className="text-sm font-bold text-[#333]">
-                    휴대전화번호
+                  <Label htmlFor="all-agree" className="text-base font-bold text-[#5A5880] cursor-pointer select-none">
+                    위의 모든 필수 약관을 확인하였으며, 이에 모두 동의합니다.
                   </Label>
                 </div>
-
-                {/* 1. 번호 입력 + 인증 요청 */}
-                <div className="flex gap-2">
-                  <Input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    placeholder="010-1234-5678"
-                    className="flex-1 h-11 bg-white border border-gray-200 rounded-lg text-sm px-3 focus:border-[#9593D9] focus:ring-1 focus:ring-[#9593D9]"
-                  />
-                  <Button
-                    type="button"
-                    className="h-11 w-[90px] bg-[#D6D3F0] hover:bg-[#c2bde6] text-[#5A5880] font-bold rounded-lg text-sm shadow-none"
-                  >
-                    인증요청
-                  </Button>
-                </div>
-
-                {/* 2. 인증번호 입력 + 확인 */}
-                <div className="flex gap-2 mt-2">
-                  <Input
-                    type="text"
-                    name="authCode"
-                    value={formData.authCode}
-                    onChange={handleChange}
-                    placeholder="인증번호"
-                    className="flex-1 h-11 bg-white border border-gray-200 rounded-lg text-sm px-3 focus:border-[#9593D9] focus:ring-1 focus:ring-[#9593D9]"
-                  />
-                  <Button
-                    type="button"
-                    className="h-11 w-[90px] bg-[#D6D3F0] hover:bg-[#c2bde6] text-[#5A5880] font-bold rounded-lg text-sm shadow-none"
-                  >
-                    확인
-                  </Button>
-                </div>
               </div>
 
-              {/* 회원가입 완료 버튼 */}
               <Button
-                type="submit"
-                className="w-full h-14 bg-[#9593D9] hover:bg-[#8381c9] text-white text-lg font-bold rounded-xl shadow-md mt-6"
+                onClick={handleNextStep}
+                className={cn(
+                  "w-full h-14 text-lg font-bold rounded-xl transition-all",
+                  isAllAgreed
+                    ? "bg-[#9593D9] hover:bg-[#8381c9] text-white shadow-md shadow-[#9593D9]/20"
+                    : "bg-gray-300 text-gray-500 cursor-not-allowed",
+                )}
               >
-                회원가입 완료
+                다음으로 넘어가기
               </Button>
-            </form>
-          </div>
-        )}
+            </div>
+          )}
+
+          {/* Step 2: 회원정보 입력 */}
+          {step === 2 && (
+            <div className="animate-fade-in">
+              <h2 className="text-xl font-bold text-[#1A1A1A] mb-6 border-b pb-2">
+                회원정보 입력
+              </h2>
+
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-1">
+                  <Label className="text-sm font-bold text-[#333]">아이디</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      name="id"
+                      value={formData.id}
+                      onChange={handleChange}
+                      placeholder="아이디 입력"
+                      className="flex-1 h-11 bg-white border border-gray-200 rounded-lg text-sm px-3 focus:border-[#9593D9] focus:ring-1 focus:ring-[#9593D9]"
+                    />
+                    <Button type="button" className="h-11 w-[90px] bg-[#D6D3F0] hover:bg-[#c2bde6] text-[#5A5880] font-bold rounded-lg text-sm shadow-none">
+                      중복확인
+                    </Button>
+                  </div>
+                  <p className="text-[11px] text-red-500 pl-1 h-3">{errors.id}</p>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-sm font-bold text-[#333]">비밀번호</Label>
+                  <Input
+                    type="password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    placeholder="비밀번호 입력"
+                    className="h-11 bg-white border border-gray-200 rounded-lg text-sm px-3 focus:border-[#9593D9] focus:ring-1 focus:ring-[#9593D9]"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-sm font-bold text-[#333]">비밀번호 확인</Label>
+                  <Input
+                    type="password"
+                    name="confirmPassword"
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    placeholder="비밀번호 재입력"
+                    className="h-11 bg-white border border-gray-200 rounded-lg text-sm px-3 focus:border-[#9593D9] focus:ring-1 focus:ring-[#9593D9]"
+                  />
+                  <p className="text-[11px] text-red-500 pl-1 h-3">{errors.confirmPassword}</p>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-sm font-bold text-[#333]">보호자 이름</Label>
+                  <Input
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    placeholder="이름 입력"
+                    className="h-11 bg-white border border-gray-200 rounded-lg text-sm px-3 focus:border-[#9593D9] focus:ring-1 focus:ring-[#9593D9]"
+                  />
+                </div>
+
+                <div className="space-y-1 pt-1">
+                  <Label className="text-sm font-bold text-[#333]">휴대전화번호</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="tel"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleChange}
+                      placeholder="010-1234-5678"
+                      className="flex-1 h-11 bg-white border border-gray-200 rounded-lg text-sm px-3 focus:border-[#9593D9] focus:ring-1 focus:ring-[#9593D9]"
+                    />
+                    <Button type="button" className="h-11 w-[90px] bg-[#D6D3F0] hover:bg-[#c2bde6] text-[#5A5880] font-bold rounded-lg text-sm shadow-none">
+                      인증요청
+                    </Button>
+                  </div>
+                  <div className="flex gap-2 mt-2">
+                    <Input
+                      type="text"
+                      name="authCode"
+                      value={formData.authCode}
+                      onChange={handleChange}
+                      placeholder="인증번호"
+                      className="flex-1 h-11 bg-white border border-gray-200 rounded-lg text-sm px-3 focus:border-[#9593D9] focus:ring-1 focus:ring-[#9593D9]"
+                    />
+                    <Button type="button" className="h-11 w-[90px] bg-[#D6D3F0] hover:bg-[#c2bde6] text-[#5A5880] font-bold rounded-lg text-sm shadow-none">
+                      확인
+                    </Button>
+                  </div>
+                </div>
+
+                <Button type="submit" className="w-full h-14 bg-[#9593D9] hover:bg-[#8381c9] text-white text-lg font-bold rounded-xl shadow-md mt-6">
+                  회원가입 완료
+                </Button>
+              </form>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
