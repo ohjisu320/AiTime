@@ -63,6 +63,19 @@ class VideoAnalyzer:
         )
 
     def analyze(self, video_path: str) -> dict[str, Any]:
+        """
+        비디오 1개를 분석해 결과를 dict로 반환한다.
+
+        파이프라인
+        - VAD로 '호명 구간(세그먼트)'을 검출
+        - 각 세그먼트마다 window_analyzer로 반응(성공/지연/유지)을 계산
+        - summary/per_call/params 형태로 집계
+
+        계약/주의
+        - VAD 과정에서 임시 wav 추출을 위해 디스크 I/O가 발생(tmp_dir 사용).
+        - segs가 0개일 수 있으며, 이때 per_call은 빈 리스트이고 avg_latency_s는 None.
+        - 오래 걸리는 작업으로 서비스에서 event loop 블로킹 방지를 위해 threadpool 실행
+        """
         t0 = time.perf_counter()
         logger.info("analyze start video_path=%s", video_path)
 
@@ -84,6 +97,9 @@ class VideoAnalyzer:
         results: list[CallResult] = []
         for i, (s, e) in enumerate(segs, start=1):
             t_call = time.perf_counter()
+
+            # 각 호명 구간의 (끝 시점 e) 이후 일정 window를 분석해
+            # 반응 여부/지연(latency)/유지(gaze_duration)를 계산한다.
             r = self.window_analyzer.analyze_call(
                 video_path,
                 call_idx=i,
@@ -105,6 +121,9 @@ class VideoAnalyzer:
                 time.perf_counter() - t_call,
             )
 
+        # segs가 0개일 수 있다:
+        # - success_count=0, total_call_count=0
+        # - latencies가 비어 avg_latency=None
         total_calls = len(results)
         success_calls = sum(1 for r in results if r.success)
         total_gaze = sum(r.gaze_duration_s for r in results)
