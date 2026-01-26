@@ -1,9 +1,10 @@
 import type { RouteObject } from "react-router-dom";
 import MobileLayout from "@/components/layout/MobileLayout";
 import DesktopLayout from "@/components/layout/DesktopLayout";
+import DashboardPage from "@/features/parent/pages/DashboardPage";
 
 // 페이지 컴포넌트 (추후 실제 파일 경로로 수정 가능)
-const DashboardPage = () => <div>부모님 대시보드</div>;
+// const DashboardPage = () => <div>부모님 대시보드</div>;
 const DoctorDashboard = () => <div>의사 대시보드</div>;
 
 export const hyoseokRoutes: RouteObject[] = [
