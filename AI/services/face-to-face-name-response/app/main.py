@@ -60,6 +60,12 @@ def health() -> dict[str, str]:
 
 
 def _analyze_sync(video_path: str) -> dict[str, Any]:
+    """
+    동기 분석 래퍼
+
+    - CPU 바운드/장시간 작업을 run_in_threadpool로 실행하기 위해 sync 함수로 분리
+    - analyzer 인스턴스는 프로세스 전역(engine)로 재사용
+    """
     analyzer = engine.analyzer
     return analyzer.analyze(video_path)
 
@@ -136,6 +142,7 @@ async def analyze_upload(file: UploadFile = UPLOAD_FILE_DEFAULT) -> dict[str, An
 
     try:
         # 임시 파일로 스트리밍 저장 (큰 파일도 안전)
+        # - delete=False: 파일 핸들을 닫은 뒤에도 경로로 다시 열어 분석 가능
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
             tmp_path = tmp.name
 
