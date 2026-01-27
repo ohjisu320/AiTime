@@ -45,9 +45,7 @@ public class DoctorServiceImpl implements DoctorService{
                 );
 
         if (!exists) {
-            throw new DoctorNotFoundException(
-                    String.format("존재하지 않거나 활성화되지 않은 의사입니다. (ID: %s)", doctorId)
-            );
+            throw new DoctorNotFoundException();
         }
     }
 

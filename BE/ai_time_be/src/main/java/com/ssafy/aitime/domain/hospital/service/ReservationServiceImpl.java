@@ -4,6 +4,7 @@ import com.ssafy.aitime.domain.hospital.dto.request.CalendarRequest;
 import com.ssafy.aitime.domain.hospital.dto.response.CalendarReservationResponse;
 import com.ssafy.aitime.domain.hospital.entity.Reservation;
 import com.ssafy.aitime.domain.hospital.entity.enums.ReservationStatus;
+import com.ssafy.aitime.domain.hospital.exception.DoctorNotFoundException;
 import com.ssafy.aitime.domain.hospital.repository.ReservationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -71,18 +72,7 @@ public class ReservationServiceImpl implements ReservationService {
     private void validateInput(UUID doctorId, CalendarRequest calendarRequest) {
         // 1️⃣ null 체크를 먼저! (NPE 방지)
         if (doctorId == null) {
-            throw new IllegalArgumentException("Doctor ID cannot be null");
-        }
-        if (calendarRequest == null) {  // ✅ 추가!
-            throw new IllegalArgumentException("Calendar request cannot be null");
-        }
-
-        // 2️⃣ 그 다음 필드 검증 (이미 null이 아님을 확인)
-        if (calendarRequest.year() < 2000 || calendarRequest.year() > 2100) {
-            throw new IllegalArgumentException("Year must be between 2000 and 2100");
-        }
-        if (calendarRequest.month() < 1 || calendarRequest.month() > 12) {
-            throw new IllegalArgumentException("Month must be between 1 and 12");
+            throw new DoctorNotFoundException();
         }
     }
 }
