@@ -86,19 +86,23 @@ const MissionListPage: React.FC = () => {
         </div>
       </main>
 
-      {/* ⚠️ 재촬영 확인 모달 (통합된 ConfirmModal 사용) [cite: 2026-01-27] */}
+      {/* 1. 재촬영 확인 모달 */}
       <ConfirmModal
         isOpen={recheckModal.isOpen}
         title={<>{recheckModal.title} 검사를<br />다시 진행하시겠습니까?</>}
+        description="재촬영 시 이전 영상은 삭제됩니다." // 👈 추가
+        confirmText="재촬영" // 👈 추가
         confirmVariant="slate"
         onConfirm={handleRecheckConfirm}
         onClose={() => setRecheckModal({ ...recheckModal, isOpen: false })}
       />
 
-      {/* 🚀 최종 리포트 제출 모달 (통합된 ConfirmModal 사용) [cite: 2026-01-27] */}
+      {/* 2. 최종 리포트 제출 모달 */}
       <ConfirmModal
         isOpen={submitModalOpen}
         title={<>완료된 검사리포트를<br />제출합니다.</>}
+        description="제출 후에는 수정이 불가능합니다." // 👈 추가
+        confirmText="제출하기" // 👈 추가
         confirmVariant="violet"
         onConfirm={() => navigate('/exam/success')}
         onClose={() => setSubmitModalOpen(false)}

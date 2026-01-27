@@ -1,3 +1,4 @@
+import React from 'react'; // ReactNode 사용을 위해 추가
 import {
   Dialog,
   DialogContent,
@@ -8,36 +9,51 @@ import {
   DialogOverlay,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils"; 
 
 interface ConfirmModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onConfirm: () => void;
-  title: string;
-  description: string | React.ReactNode;
-  confirmText: string;
-  isDestructive?: boolean; // 빨간색 강조가 필요한 경우
+    isOpen: boolean;
+    onClose: () => void;
+    onConfirm: () => void;
+    title: React.ReactNode;
+    description?: string | React.ReactNode; // 👈 ? 추가 (선택 사항)
+    confirmText?: string; // 👈 ? 추가 (선택 사항)
+    confirmVariant?: 'violet' | 'rose' | 'slate';
 }
 
 const ConfirmModal = ({ 
-  isOpen, 
-  onClose, 
-  onConfirm, 
-  title, 
-  description, 
-  confirmText, 
-  isDestructive 
+    isOpen, 
+    onClose, 
+    onConfirm, 
+    title, 
+    description, 
+    confirmText = "확인", 
+    confirmVariant = 'violet' 
 }: ConfirmModalProps) => {
+
+  const variantStyles = {
+    violet: 'bg-[#6366F1] hover:bg-[#4F46E5] shadow-indigo-100',
+    rose: 'bg-rose-500 hover:bg-rose-600 shadow-rose-100',
+    slate: 'bg-slate-500 hover:bg-slate-600 shadow-slate-100'
+  };
+
+  const titleStyles = {
+    violet: 'text-[#6366F1]',
+    rose: 'text-rose-500',
+    slate: 'text-slate-600'
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      {/* 1. 배경 오버레이: CodeRegisterModal과 동일하게 적용 */}
       <DialogOverlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" /> 
       
-      <DialogContent className={`fixed left-[50%] top-[50%] z-50 w-full max-w-[420px] translate-x-[-50%] translate-y-[-50%] rounded-3xl p-8 bg-white shadow-2xl border-none outline-none ${isDestructive ? 'border-t-8 border-rose-500' : ''}`}>
+      <DialogContent className={cn(
+        "fixed left-[50%] top-[50%] z-50 w-full max-w-[420px] translate-x-[-50%] translate-y-[-50%] rounded-3xl p-8 bg-white shadow-2xl border-none outline-none",
+        confirmVariant === 'rose' && "border-t-8 border-rose-500"
+      )}>
         
         <DialogHeader className="space-y-4 text-center">
-          {/* 2. 타이틀 스타일: isDestructive일 경우 로즈 색상으로 강조 */}
-          <DialogTitle className={`text-2xl font-bold ${isDestructive ? 'text-rose-500' : 'text-[#6366F1]'}`}>
+          <DialogTitle className={cn("text-2xl font-bold whitespace-pre-wrap", titleStyles[confirmVariant])}>
             {title}
           </DialogTitle>
           <DialogDescription className="text-gray-500 text-base leading-relaxed">
@@ -45,7 +61,6 @@ const ConfirmModal = ({
           </DialogDescription>
         </DialogHeader>
 
-        {/* 3. 푸터 버튼 구성: 닫기와 확인 버튼 가로 배치 */}
         <DialogFooter className="flex flex-row gap-3 mt-8">
           <Button
             variant="ghost"
@@ -55,11 +70,10 @@ const ConfirmModal = ({
             닫기
           </Button>
           <Button
-            className={`flex-1 h-14 text-white text-lg font-bold rounded-2xl shadow-lg transition-all ${
-              isDestructive 
-                ? 'bg-rose-500 hover:bg-rose-600 shadow-rose-100' 
-                : 'bg-[#6366F1] hover:bg-[#4F46E5] shadow-indigo-100'
-            }`}
+            className={cn(
+              "flex-1 h-14 text-white text-lg font-bold rounded-2xl shadow-lg transition-all",
+              variantStyles[confirmVariant]
+            )}
             onClick={() => {
               onConfirm();
               onClose();

@@ -40,7 +40,7 @@ const DashboardPage = () => {
         }
 
         if (data.isExamEligible && data.examProgress === 0) {
-            navigate('/parent/exam');
+            navigate('/exam/consent');
             return;
         }
 
