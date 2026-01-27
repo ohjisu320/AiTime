@@ -1,26 +1,26 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useNavigate, useParams } from 'react-router-dom'; // useParams 위치 수정 
+import { useNavigate, useParams } from 'react-router-dom';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import ExamBaseLayout from '../components/layout/ExamBaseLayout';
 import ScreeningGuide from '../components/Screening/ScreeningGuide';
 import { useWebRTCScreening } from '../hooks/useWebRTCScreening';
+import { SCREENING_CONTENT } from '../constants/missionData';
 
 const ExamRecordingPage: React.FC = () => {
   const navigate = useNavigate();
-  // ✅ 훅은 컴포넌트 시작 직후에 선언해야 합니다 
   const { missionId } = useParams<{ missionId: string }>(); 
   
   const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
   const [isPassModalOpen, setIsPassModalOpen] = useState(false);
 
-  // 다음 태스크로 이동하는 함수 
-  const handleGoToNextTask = useCallback(() => {
-    // URL에 missionId가 없을 경우를 대비해 기본값 1을 설정하거나 예외처리를 합니다 
-    const id = missionId || '1';
-    navigate(`/exam/screening/${missionId}`);
-  }, [navigate, missionId]);
+  const currentMissionId = missionId || "1";
+  const content = SCREENING_CONTENT[currentMissionId] || SCREENING_CONTENT["1"];
 
-  // 1. WebRTC 스크리닝 훅 사용 
+  const handleGoToNextTask = useCallback(() => {
+    navigate(`/exam/task${currentMissionId}`);
+  }, [navigate, currentMissionId]);
+
+  // 1. WebRTC 스크리닝 훅에서 필요한 상태들 추출
   const { 
     videoRef, 
     isAligned, 
@@ -36,11 +36,8 @@ const ExamRecordingPage: React.FC = () => {
     };
   }, [startWebRTC, stopWebRTC]);
 
-  // [기능] 검사 시작 버튼 클릭 시 최종 스크리닝 판정 
   const handleStartExam = useCallback(() => {
     if (!isAligned || volume > 30) {
-      // 버튼이 활성화된 상태에서 클릭했을 때만 실행되므로, 
-      // 만약 미흡하다면 알림 모달을 띄워줍니다 
       setIsAlertModalOpen(true);
       return;
     }
@@ -57,13 +54,24 @@ const ExamRecordingPage: React.FC = () => {
         volume={volume}
         onBack={() => navigate('/exam/mission')}
         sidebarContent={
-          <ScreeningGuide onStart={handleStartExam} isReady={isAligned && volume <= 30} />
+          content ? (
+            <ScreeningGuide 
+              onStart={handleStartExam} 
+              isReady={isAligned && volume <= 30} 
+              // ✅ [수정 포인트] 새로 추가된 Props들을 자식에게 전달합니다.
+              isAligned={isAligned}
+              volume={volume}
+              missionData={content}
+            />
+          ) : (
+            <div className="p-8 text-center text-gray-400">가이드 데이터를 찾을 수 없습니다.</div>
+          )
         }
       >
-        {/* 필요한 오버레이 UI가 있다면 여기에 추가  */}
+        {/* 필요한 오버레이 UI 추가 가능 */}
       </ExamBaseLayout>
 
-      {/* 🛠️ 준비 미흡 안내 모달  */}
+      {/* 준비 미흡 안내 모달 */}
       <ConfirmModal
         isOpen={isAlertModalOpen}
         onClose={() => setIsAlertModalOpen(false)}
@@ -78,14 +86,14 @@ const ExamRecordingPage: React.FC = () => {
         confirmText="확인"
       />
 
-      {/* 🛠️ 스크리닝 성공 확인 모달  */}
+      {/* 스크리닝 성공 확인 모달 */}
       <ConfirmModal
         isOpen={isPassModalOpen}
         onClose={() => setIsPassModalOpen(false)}
-        onConfirm={handleGoToNextTask} // ✅ 수정된 함수 연결 
+        onConfirm={handleGoToNextTask}
         title="테스트 통과!"
         description="위치와 소음도 측정이 완료되었습니다. 이제 검사가 가능합니다."
-        confirmText="검사 시작하기" // 목록보다는 시작하기가 자연스러워요 
+        confirmText="검사 시작하기"
       />
     </>
   );
