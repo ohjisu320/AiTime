@@ -10,7 +10,7 @@ interface MissionCardProps {
   description: string;
   status: 'PENDING' | 'UPLOADED';
   variant: 'pink' | 'purple' | 'blue' | 'emerald' | 'amber' | 'violet';
-  onClick: () => void; // 부모로부터 전달받는 함수 [cite: 2026-01-26]
+  onClick: () => void; // 부모로부터 전달받는 함수 
 }
 
 const MissionCard: React.FC<MissionCardProps> = ({ 
@@ -25,7 +25,7 @@ const MissionCard: React.FC<MissionCardProps> = ({
 
   return (
     <div 
-      onClick={onClick} // 👈 이 줄이 빠져있으면 부모의 로그가 찍히지 않습니다! [cite: 2026-01-26]
+      onClick={onClick} // 👈 이 줄이 빠져있으면 부모의 로그가 찍히지 않습니다! 
       className={cn(
         "relative w-full p-8 rounded-[32px] flex items-center justify-between transition-all duration-300 border-2 shadow-xl cursor-pointer group",
         isCompleted 
