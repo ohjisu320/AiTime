@@ -4,8 +4,7 @@ import type { RouteObject } from 'react-router';
 // Lazy Loading을 사용하여 성능을 최적화
 const ConsentPage = lazy(() => import('@/domains/exam/pages/ConsentPage'));
 const ExamGuidePage = lazy(() => import('@/domains/exam/pages/ExamGuidePage'));
-// 추후 구현될 페이지들 예시
-// const ExamRecorderPage = lazy(() => import('@/domains/exam/pages/ExamRecorderPage'));
+const MissionListPage = lazy(() => import('@/domains/exam/pages/MissionListPage'));
 
 export const jisuRoutes: RouteObject[] = [
   {
@@ -23,8 +22,11 @@ export const jisuRoutes: RouteObject[] = [
         path: "guide", 
         element: <ExamGuidePage /> // /exam/guide
       },
+      { 
+        path: "mission", 
+        element: <MissionListPage />  // 태스크리스트 페이지
+      },
 
-   
 
       // { 
       //   path: "recorder", 
