@@ -268,6 +268,13 @@ public class UserServiceImpl implements UserService {
         userRepository.delete(user);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public User getById(UUID userId) {
+        return userRepository.findByUserIdAndRecordStatus(userId, RecordStatus.ACTIVE)
+                .orElseThrow(UserNotFoundException::new);
+    }
+
     private Authentication authenticate(String loginId, String password) {
         try {
             UsernamePasswordAuthenticationToken authToken =

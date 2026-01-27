@@ -5,6 +5,7 @@ import com.ssafy.aitime.domain.user.dto.request.UserJoinRequest;
 import com.ssafy.aitime.domain.user.dto.request.UserLoginRequest;
 import com.ssafy.aitime.domain.user.dto.request.UserUpdateRequest;
 import com.ssafy.aitime.domain.user.dto.response.*;
+import com.ssafy.aitime.domain.user.entity.User;
 
 import java.util.UUID;
 
@@ -20,4 +21,5 @@ public interface UserService {
     UserMeResponse getUserInfo(UUID userId);
     UserUpdateResponse updateUserInfo(UUID userId, UserUpdateRequest request);
     void withdraw(UUID userId, String accessToken, String refreshToken);
+    User getById(UUID userId);
 }
