@@ -1,8 +1,8 @@
 import React from 'react';
 import { Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import CardIcon from '../MissionCard/CardIcon';
-import CardBadge from '../MissionCard/CardBadge';
+import CardIcon from '../../../../components/common/CardIcon';
+import CardBadge from '../../../../components/common/CardBadge';
 
 interface MissionCardProps {
   title: string;
