@@ -22,6 +22,8 @@ requests>=2.31.0
 pydantic>=2.0.0
 pydantic-settings>=2.0.0
 
+# DTW (Optional - C 가속으로 성능 향상, 없으면 native 백엔드 사용)
+dtw-python>=1.3.0
 
 # Huggingface Transfer
 hf-transfer>=0.1.9 
