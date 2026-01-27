@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.util.List;
 
 @Getter
@@ -24,7 +25,7 @@ public class AnalysisResultMessage {
     private String status;  // "success" or "failed"
 
     @JsonProperty("analyzed_at")
-    private LocalDateTime analyzedAt;
+    private ZonedDateTime analyzedAt;
 
     @JsonProperty("metrics")
     private Metrics metrics;

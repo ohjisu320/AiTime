@@ -60,6 +60,9 @@ public class AnalysisResultConsumer {
                 handleFailure(video, result);
             }
 
+            // 명시적 flush 추가
+            videoRepository.flush();
+
         } catch (Exception e) {
             log.error("❌ 분석 결과 처리 실패", e);
             // TODO: Dead Letter Queue로 이동 또는 재시도 로직
