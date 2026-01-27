@@ -4,7 +4,6 @@ import com.ssafy.aitime.domain.child.dto.response.HospitalInfo;
 import com.ssafy.aitime.domain.hospital.entity.HospitalChildren;
 import com.ssafy.aitime.domain.hospital.entity.enums.LinkStatus;
 import com.ssafy.aitime.domain.hospital.repository.HospitalChildrenRepository;
-import com.ssafy.aitime.domain.hospital.repository.HospitalRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
