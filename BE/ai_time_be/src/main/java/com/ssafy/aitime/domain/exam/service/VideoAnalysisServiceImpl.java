@@ -5,5 +5,5 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-public class AnalysisServiceImpl implements AnalysisService {
+public class VideoAnalysisServiceImpl implements VideoAnalysisService {
 }
