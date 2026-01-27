@@ -1,3 +1,14 @@
+"""
+간단한 SORT(SIMPLE ONLINE AND REALTIME TRACKING) 구현.
+
+- Kalman Filter로 bbox 상태를 예측/갱신하고,
+- detection ↔ prediction 매칭은 IoU 기반으로 수행한다.
+- SciPy가 있으면 Hungarian(최적 할당), 없으면 greedy(근사)로 fallback한다.
+
+주의:
+- appearance(feature) 없이 IoU만 쓰므로 두 객체가 겹치거나 교차하면 ID-switch 발생 가능
+"""
+
 import math
 
 import numpy as np
@@ -19,7 +30,13 @@ except Exception:
 class KalmanBoxTracker:
     """
     state: [cx, cy, s, r, vx, vy, vs]^T
-    where s=area, r=aspect ratio
+    - cx, cy: 중심
+    - s: area(면적)
+    - r: aspect ratio(가로/세로 비)
+    - vx, vy, vs: 속도(면적 변화까지 포함)
+
+    w, h를 쓰지 않고 s, r 사용하는 이유는
+    객체의 scale variation을 안정적으로 추적 가능해서
     """
 
     count: int = 0
@@ -40,6 +57,11 @@ class KalmanBoxTracker:
             [[cx], [cy], [s], [r], [0.0], [0.0], [0.0]],
             dtype=np.float32,
         )
+
+        # 칼만 필터 기본 행렬들
+        # P(초기 불확실성), Q(프로세스 노이즈), R(측정 노이즈)
+        #   -> 트래킹 안정성/민감도에 큰 영향
+        # 현재 값은 단순한 기본값
         self.P: npt.NDArray[np.float32] = np.eye(7, dtype=np.float32) * 10.0
 
         self.F: npt.NDArray[np.float32] = np.eye(7, dtype=np.float32)
@@ -65,6 +87,8 @@ class KalmanBoxTracker:
         self._ensure_x_colvec()
 
     def _ensure_x_colvec(self) -> None:
+        # numpy 연산/브로드캐스팅으로 state 벡터 shape이 (7,)일 때,
+        # 행렬 곱이 깨질 수 있어 항상 (7,1) 컬럼 벡터로 강제한다.
         self.x = np.asarray(self.x, dtype=np.float32)
         if self.x.shape == (7,):
             self.x = self.x.reshape(7, 1)
@@ -136,6 +160,14 @@ class SortTracker:
         self.frame_count: int = 0
 
     def update(self, dets_xyxy: list[BBox]) -> list[Track]:
+        """
+        한 프레임의 detection(bbox list)을 받아 SORT 트랙을 갱신, (x1,y1,x2,y2,id) 반환
+
+        cfg 의미
+        - iou_threshold: detection<->prediction 매칭 최소 IoU(엄격할수록 ID 유지 보수적)
+        - max_age: 업데이트 못 받은 트랙을 몇 프레임까지 유지할지(가림/미검출 대비)
+        - min_hits: 트랙 확정까지 필요한 히트 수(초기 오탐 억제 <-> 초기 지연)
+        """
         self.frame_count += 1
         preds = [trk.predict() for trk in self.trackers]
         matched, unmatched_dets, _unmatched_trks = self._associate(dets_xyxy, preds)
@@ -150,6 +182,8 @@ class SortTracker:
             t for t in self.trackers if t.time_since_update <= self.cfg.max_age
         ]
 
+        # min_hits를 만족한 트랙만 출력하여 초기 1~2프레임 오탐 감소
+        # 단, 초기 프레임에서는 트랙이 아직 충분하지 않아 frame_count로 예외 처리
         outputs: list[Track] = []
         for trk in self.trackers:
             if trk.hits >= self.cfg.min_hits or self.frame_count <= self.cfg.min_hits:
@@ -162,6 +196,10 @@ class SortTracker:
         dets: list[BBox],
         preds: list[BBox],
     ) -> tuple[list[tuple[int, int]], list[int], list[int]]:
+        # IoU matrix: det(row) <-> pred(col)
+        # - Hungarian: 비용(1-IoU) 최소화로 전역 최적 매칭
+        # - Greedy: IoU 큰 순서대로 매칭(근사)
+        # iou_threshold 미만은 매칭 불가로 처리해 잘못된 연결 줄임.
         if len(preds) == 0:
             return [], list(range(len(dets))), []
         if len(dets) == 0:
