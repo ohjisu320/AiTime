@@ -1,18 +1,52 @@
-import type { RouteObject } from 'react-router-dom';
+import { lazy } from 'react';
+import type { RouteObject } from 'react-router';
 
-// import ExamPage from '@/features/parent/pages/ExamPage'; // 파일이 준비되면 주석 해제
+// Lazy Loading을 사용하여 성능을 최적화
+const ConsentPage = lazy(() => import('@/domains/exam/pages/ConsentPage'));
+const ExamGuidePage = lazy(() => import('@/domains/exam/pages/ExamGuidePage'));
+const MissionListPage = lazy(() => import('@/domains/exam/pages/MissionListPage'));
+const ExamScreeningPage = lazy(() => import('@/domains/exam/pages/ExamRecordingPage'));
+const ExamGuideVideoPage = lazy(() => import('@/domains/exam/pages/ExamGuideVideoPage'));
+const ExamPage = lazy(() => import('@/domains/exam/pages/ExamPage'));
 
 export const jisuRoutes: RouteObject[] = [
-//   {
-//     // 주의: index.tsx나 hyoseok.tsx에서 이미 "/parent"를 부모로 잡고 있다면 
-//     // 여기서는 하위 경로만 적거나, 부모 경로를 중복되지 않게 맞춰야 합니다.
-//     path: "/parent",
-//     children: [
-//       { 
-//         path: "dashboard", 
-//         element: <DashboardPage /> 
-//       },
-//       // { path: "exam", element: <ExamPage /> },
-//     ],
-//   },
+  {
+    path: "/exam",
+    children: [
+      {
+        index: true,
+        element: <ConsentPage /> // /exam 접속 시 바로 동의 페이지 노출
+      },
+      {
+        path: "consent",
+        element: <ConsentPage /> // /exam/consent
+      },
+      {
+        path: "guide",
+        children: [
+          {
+            index: true,
+            element: <ExamGuidePage /> // 👈 /exam/guide (전체 가이드 목록 등) 
+          },
+          {
+            path: ":missionId",
+            element: <ExamGuideVideoPage /> // 👈 /exam/guide/1, /exam/guide/2 등 
+          }
+        ]
+      },
+      {
+        path: "mission",
+        element: <MissionListPage />  // 태스크리스트 페이지
+      },
+      {
+        path: "screening/:missionId",
+        element: <ExamScreeningPage />
+      },
+
+      { 
+        path: "task/:missionId", 
+        element: <ExamPage /> // /exam/recorder (실제 검사 진행)
+      },
+    ],
+  },
 ];

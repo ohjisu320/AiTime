@@ -1,40 +1,15 @@
+// src/components/common/LoadingSpinner.tsx 
 import React from 'react';
-import { Loader2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils'; // cn 유틸리티가 있다면 사용하세요
 
 interface LoadingSpinnerProps {
-  className?: string;
-  size?: number;
-  fullScreen?: boolean;
+  className?: string; // 👈 className을 받을 수 있도록 타입을 추가합니다. 
 }
 
-const LoadingSpinner = ({ 
-  className, 
-  size = 40, 
-  fullScreen = false 
-}: LoadingSpinnerProps) => {
-  const spinnerContent = (
-    <div className={cn("flex flex-col items-center justify-center gap-3", className)}>
-      {/* Lucide의 Loader2 아이콘에 animate-spin을 적용해 회전시킵니다 */}
-      <Loader2 
-        className="animate-spin text-indigo-600" 
-        size={size} 
-      />
-      <p className="text-gray-500 text-sm font-medium">데이터를 불러오는 중입니다...</p>
-    </div>
-  );
-
-  if (fullScreen) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-sm">
-        {spinnerContent}
-      </div>
-    );
-  }
-
+const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ className }) => {
   return (
-    <div className="w-full h-full flex items-center justify-center min-h-[200px]">
-      {spinnerContent}
+    <div className={cn("animate-spin rounded-full border-4 border-t-transparent border-indigo-500", className)}>
+      {/* 스피너 아이콘 또는 스타일 정의 */}
     </div>
   );
 };

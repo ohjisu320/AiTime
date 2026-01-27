@@ -21,11 +21,8 @@ export const router = createBrowserRouter([
     path: "/signup",
     element: <SignupPage />,
   },
-  { 
-    path: "/find-account", 
-    element: <FindAccountPage /> 
-  },
-
+  { path: "/find-account", element: <FindAccountPage /> },
+  
   // 2. 팀원별 경로 합치기
   ...hyoseokRoutes,
   ...jisuRoutes,
