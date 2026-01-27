@@ -1,7 +1,6 @@
 package com.ssafy.aitime.domain.hospital.service;
 
 import com.ssafy.aitime.domain.child.dto.response.HospitalInfo;
-import com.ssafy.aitime.domain.hospital.entity.Hospital;
 import com.ssafy.aitime.domain.hospital.entity.HospitalChildren;
 import com.ssafy.aitime.domain.hospital.entity.enums.LinkStatus;
 import com.ssafy.aitime.domain.hospital.repository.HospitalChildrenRepository;
@@ -17,7 +16,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class HospitalServiceImpl implements HospitalService {
 
-    private final HospitalRepository hospitalRepository;
     private final HospitalChildrenRepository hospitalChildrenRepository;
 
     @Override

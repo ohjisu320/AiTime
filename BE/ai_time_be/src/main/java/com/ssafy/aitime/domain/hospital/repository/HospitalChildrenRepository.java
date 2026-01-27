@@ -2,7 +2,6 @@ package com.ssafy.aitime.domain.hospital.repository;
 
 import com.ssafy.aitime.domain.hospital.entity.HospitalChildren;
 import com.ssafy.aitime.domain.hospital.entity.enums.LinkStatus;
-import io.swagger.v3.oas.models.links.Link;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
