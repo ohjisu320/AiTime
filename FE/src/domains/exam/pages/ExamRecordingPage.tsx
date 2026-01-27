@@ -17,7 +17,7 @@ const ExamRecordingPage: React.FC = () => {
   const content = SCREENING_CONTENT[currentMissionId] || SCREENING_CONTENT["1"];
 
   const handleGoToNextTask = useCallback(() => {
-    navigate(`/exam/task${currentMissionId}`);
+    navigate(`/exam/task/${currentMissionId}`);
   }, [navigate, currentMissionId]);
 
   // 1. WebRTC 스크리닝 훅에서 필요한 상태들 추출
