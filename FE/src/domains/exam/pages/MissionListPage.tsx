@@ -3,17 +3,28 @@ import { useNavigate } from 'react-router-dom';
 import MissionCard from '../components/MissionCard';
 import MissionInfoBox from '../components/MissionSide/MissionInfoBox';
 import ReportButton from '../components/MissionSide/ReportButton';
-import RecheckModal from '../components/MissionCard/RecheckModal';
-import ReportSubmitModal from '../components/MissionSide/ReportSubmitModal';
+import ConfirmModal from '@/components/common/ConfirmModal';
 
 const MissionListPage: React.FC = () => {
     const navigate = useNavigate();
 
-    // 1. 재촬영 모달 상태
-    const [recheckModal, setRecheckModal] = useState({ isOpen: false, title: '', type: '' });
-    // 2. 최종 제출 모달 상태 (피그마 마지막 스크린샷 대응)
-    const [submitModalOpen, setSubmitModalOpen] = useState(false);
+// 1. 재촬영 모달 상태
+  const [recheckModal, setRecheckModal] = useState({ isOpen: false, title: '', type: '' });
+  // 2. 최종 제출 모달 상태
+  const [submitModalOpen, setSubmitModalOpen] = useState(false);
 
+  // 재촬영 '예' 눌렀을 때 실행될 함수 ConfirmModal
+  const handleRecheckConfirm = () => {
+    const missionNumber = recheckModal.type.replace('TASK', '');
+    setRecheckModal({ ...recheckModal, isOpen: false });
+    navigate(`/exam/guide/${missionNumber}`); // 가이드로 이동 ConfirmModal
+  };
+
+  // 리포트 제출 '네' 눌렀을 때 실행될 함수 ConfirmModal
+  const handleReportSubmit = () => {
+    setSubmitModalOpen(false);
+    navigate('/exam/success'); // 성공 페이지로 이동 ConfirmModal
+  };
     // API 명세 Mock 데이터 (모두 UPLOADED로 설정하여 테스트 가능)
     const videoTasks = [
         { type: 'TASK1', title: '이름 부르기 반응', subTitle: 'Name Response', desc: '아이의 이름을 불러 눈맞춤과 반응을 관찰합니다', variant: 'pink', status: 'UPLOADED' },
@@ -72,18 +83,21 @@ const MissionListPage: React.FC = () => {
             </main>
 
             {/* ⚠️ 재촬영 확인 모달 */}
-            <RecheckModal
+            <ConfirmModal
                 isOpen={recheckModal.isOpen}
-                missionTitle={recheckModal.title}
+                title={<>{recheckModal.title} 검사를<br />다시 진행하시겠습니까?</>}
+                confirmVariant="slate" // 재촬영은 조금 차분한 색으로 ConfirmModal
+                onConfirm={handleRecheckConfirm}
                 onClose={() => setRecheckModal({ ...recheckModal, isOpen: false })}
-                onConfirm={() => navigate(`/exam/recorder/${recheckModal.type.toLowerCase()}`)}
             />
 
-            {/* 🚀 최종 리포트 제출 모달 (분리 완료) [cite: 2026-01-26] */}
-            <ReportSubmitModal
+            {/* 🚀 최종 리포트 제출 모달 (분리 완료) ConfirmModal */}
+            <ConfirmModal
                 isOpen={submitModalOpen}
+                title={<>완료된 검사리포트를<br />제출합니다.</>}
+                confirmVariant="violet" // 제출은 강조되는 보라색으로 ConfirmModal
+                onConfirm={handleReportSubmit}
                 onClose={() => setSubmitModalOpen(false)}
-                onConfirm={() => navigate('/exam/success')} // 완료 페이지로 이동
             />
         </div>
     );
