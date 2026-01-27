@@ -3,11 +3,14 @@ package com.ssafy.aitime.domain.child.controller;
 import com.ssafy.aitime.common.response.ApiResponse;
 import com.ssafy.aitime.domain.child.dto.request.ChildCreateRequest;
 import com.ssafy.aitime.domain.child.dto.request.ChildDeleteResponse;
+import com.ssafy.aitime.domain.child.dto.request.ChildHospitalLinkRequest;
+import com.ssafy.aitime.domain.child.dto.response.ChildHomeResponse;
 import com.ssafy.aitime.domain.child.dto.response.ChildInfoResponse;
 import com.ssafy.aitime.domain.child.service.ChildService;
 import com.ssafy.aitime.security.principal.UserPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -49,5 +52,25 @@ public class ChildController {
         return ResponseEntity.ok(
                 ApiResponse.ok("아이 정보가 성공적으로 삭제되었습니다.", childService.deleteChild(principal.getUserId(), childId))
         );
+    }
+
+    @GetMapping("/{childId}")
+    public ResponseEntity<ApiResponse<ChildHomeResponse>> getChildHome(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable @NotNull UUID childId // null 체크
+    ) {
+        return ResponseEntity.ok(
+                ApiResponse.ok("아이 홈 정보가 성공적으로 조회되었습니다.",childService.getChildHomeInfo(principal.getUserId(),childId)));
+    }
+
+    @PostMapping("/{childId}/hospital-link")
+    public ResponseEntity<ApiResponse<Void>> registerInviteCode(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable @NotNull UUID childId, // null 체크
+            @Valid @RequestBody ChildHospitalLinkRequest request
+    ) {
+        childService.registerInviteCode(childId, request.inviteCode(), principal.getUserId());
+        return ResponseEntity.ok(
+                ApiResponse.ok("병원 연동이 성공적으로 완료되었습니다.", null));
     }
 }

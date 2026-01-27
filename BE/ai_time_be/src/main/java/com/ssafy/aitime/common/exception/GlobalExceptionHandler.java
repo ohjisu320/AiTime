@@ -6,6 +6,10 @@ import com.ssafy.aitime.common.exception.commonExceptions.UpdateFailedException;
 import com.ssafy.aitime.common.response.ApiResponse;
 import com.ssafy.aitime.domain.child.exception.ChildAccessDeniedException;
 import com.ssafy.aitime.domain.child.exception.ChildNotFoundException;
+import com.ssafy.aitime.domain.hospital.exception.HospitalAlreadyLinkedException;
+import com.ssafy.aitime.domain.hospital.exception.HospitalNotFoundException;
+import com.ssafy.aitime.domain.invite.exception.InviteCodeAlreadyUsedException;
+import com.ssafy.aitime.domain.invite.exception.InviteCodeNotFoundException;
 import com.ssafy.aitime.domain.user.exception.*;
 import com.ssafy.aitime.security.exception.RefreshTokenInvalidException;
 import com.ssafy.aitime.security.exception.RefreshTokenMissingException;
@@ -158,6 +162,8 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.FORBIDDEN).body(ApiResponse.of(HttpStatus.FORBIDDEN, e.getMessage(), null));
     }
 
+
+
     /********************************************************************************/
     /*                        Security CustomException                              */
     /********************************************************************************/
@@ -177,12 +183,58 @@ public class GlobalExceptionHandler {
     /********************************************************************************/
 
     /**
-     * 의사를 찾을 수 없을 때 (404)
+     * 병원 관련 BAD_REQUEST (400)
+     * - 이미 연동된 병원
      */
     @ExceptionHandler({
-            DoctorNotFoundException.class
+            HospitalAlreadyLinkedException.class
+    })
+    public ResponseEntity<ApiResponse<Object>> handleHospitalBadRequestException(RuntimeException e){
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.of(HttpStatus.BAD_REQUEST, e.getMessage(), null));
+    }
+
+    /**
+     * 병원 관련 NOT_FOUND (404)
+     * - 의사를 찾을 수 없음
+     * - 병원을 찾을 수 없음
+     */
+    @ExceptionHandler({
+            DoctorNotFoundException.class,
+            HospitalNotFoundException.class
     })
     public ResponseEntity<ApiResponse<Object>> handleHospitalNotFoundException(RuntimeException e){
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.of(HttpStatus.NOT_FOUND, e.getMessage(), null));
+    }
+
+    /********************************************************************************/
+    /*                        InviteCode CustomException                            */
+    /********************************************************************************/
+
+    /**
+     * 초대코드 관련 BAD_REQUEST (400)
+     * - 이미 사용된 초대 코드
+     */
+    @ExceptionHandler({
+            InviteCodeAlreadyUsedException.class
+    })
+    public ResponseEntity<ApiResponse<Object>> handleInviteCodeBadRequestException(RuntimeException e){
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.of(HttpStatus.BAD_REQUEST, e.getMessage(), null));
+    }
+
+    /**
+     * 초대코드 관련 NOT_FOUND (404)
+     * - 존재하지 않는 초대 코드
+     */
+    @ExceptionHandler({
+            InviteCodeNotFoundException.class
+    })
+    public ResponseEntity<ApiResponse<Object>> handleInviteCodeNotFoundException(RuntimeException e){
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
                 .body(ApiResponse.of(HttpStatus.NOT_FOUND, e.getMessage(), null));
