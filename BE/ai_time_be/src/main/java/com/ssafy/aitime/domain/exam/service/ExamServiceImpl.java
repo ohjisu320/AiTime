@@ -1,6 +1,5 @@
 package com.ssafy.aitime.domain.exam.service;
 
-import com.ssafy.aitime.domain.child.entity.Child;
 import com.ssafy.aitime.domain.exam.dto.response.ExamSummaryResponse;
 import com.ssafy.aitime.domain.exam.entity.Exam;
 import com.ssafy.aitime.domain.exam.entity.enums.ExamStatus;

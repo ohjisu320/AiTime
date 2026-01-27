@@ -6,7 +6,6 @@ import com.ssafy.aitime.domain.child.dto.response.ChildHomeResponse;
 import com.ssafy.aitime.domain.child.dto.response.ChildInfoResponse;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 public interface ChildService {

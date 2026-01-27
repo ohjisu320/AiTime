@@ -11,7 +11,6 @@ import com.ssafy.aitime.domain.child.exception.ChildAccessDeniedException;
 import com.ssafy.aitime.domain.child.exception.ChildNotFoundException;
 import com.ssafy.aitime.domain.child.repository.ChildRepository;
 import com.ssafy.aitime.domain.exam.dto.response.ExamSummaryResponse;
-import com.ssafy.aitime.domain.exam.entity.Exam;
 import com.ssafy.aitime.domain.exam.service.ExamService;
 import com.ssafy.aitime.domain.hospital.service.HospitalService;
 import com.ssafy.aitime.domain.user.entity.User;
@@ -24,7 +23,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 @Service
