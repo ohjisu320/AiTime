@@ -9,17 +9,13 @@ import com.ssafy.aitime.domain.hospital.service.DoctorService;
 import com.ssafy.aitime.domain.hospital.service.ReservationService;
 import com.ssafy.aitime.security.principal.UserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 
@@ -38,7 +34,6 @@ public class DoctorController {
     @GetMapping("/patients")
     public ResponseEntity<ApiResponse<PatientSearchResponse>> getSearchPatientList(
             @AuthenticationPrincipal UserPrincipal user,
-            UUID doctorId,
             @ModelAttribute @Valid PatientSearchRequest patientSearchRequest
     ) {
         return ResponseEntity.ok(
