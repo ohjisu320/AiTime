@@ -41,7 +41,7 @@ const LoginPage = () => {
       setIsLoading(false);
 
       // 탭에 따라 페이지 이동 분기
-      if (activeTab === "PARENT") navigate("/parent/home");
+      if (activeTab === "PARENT") navigate("/parent/select-profile");
       else if (activeTab === "DOCTOR") navigate("/doctor/dashboard");
       else navigate("/reception/dashboard");
     }, 1500);
