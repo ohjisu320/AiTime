@@ -2,9 +2,12 @@ package com.ssafy.aitime.domain.exam.repository;
 
 import com.ssafy.aitime.domain.exam.entity.Exam;
 import com.ssafy.aitime.domain.exam.entity.Video;
+import com.ssafy.aitime.domain.exam.entity.enums.VideoType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
