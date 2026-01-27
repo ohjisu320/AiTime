@@ -3,7 +3,6 @@ package com.ssafy.aitime.domain.hospital.service;
 import com.ssafy.aitime.domain.hospital.dto.request.CalendarRequest;
 import com.ssafy.aitime.domain.hospital.dto.response.CalendarReservationResponse;
 
-import java.util.List;
 import java.util.UUID;
 
 public interface ReservationService {
