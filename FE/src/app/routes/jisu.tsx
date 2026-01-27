@@ -5,28 +5,32 @@ import type { RouteObject } from 'react-router';
 const ConsentPage = lazy(() => import('@/domains/exam/pages/ConsentPage'));
 const ExamGuidePage = lazy(() => import('@/domains/exam/pages/ExamGuidePage'));
 const MissionListPage = lazy(() => import('@/domains/exam/pages/MissionListPage'));
+const ExamScreeningPage = lazy(() => import('@/domains/exam/pages/ExamRecordingPage'));
 
 export const jisuRoutes: RouteObject[] = [
   {
     path: "/exam",
     children: [
-      { 
-        index: true, 
+      {
+        index: true,
         element: <ConsentPage /> // /exam 접속 시 바로 동의 페이지 노출
       },
-      { 
-        path: "consent", 
+      {
+        path: "consent",
         element: <ConsentPage /> // /exam/consent
       },
-      { 
-        path: "guide", 
+      {
+        path: "guide",
         element: <ExamGuidePage /> // /exam/guide
       },
-      { 
-        path: "mission", 
+      {
+        path: "mission",
         element: <MissionListPage />  // 태스크리스트 페이지
       },
-
+      {
+        path: "screening/:missionId",
+        element: <ExamScreeningPage />
+      },
 
       // { 
       //   path: "recorder", 
