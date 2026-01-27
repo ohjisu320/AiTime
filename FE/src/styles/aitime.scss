@@ -1,0 +1,22 @@
+@import "tailwindcss";
+
+/* 애니메이션 정의 */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+/* 커스텀 컴포넌트 스타일 (Layer로 감싸야 Tailwind와 충돌 안 함) */
+@layer components {
+  .aitime-card {
+    @apply bg-white p-8 rounded-[20px] shadow-xl w-full border border-gray-100;
+  }
+
+  .aitime-input {
+    @apply w-full py-3 rounded-xl border border-gray-200 focus:border-[#9d8ad6] focus:ring-2 focus:ring-[#9d8ad6]/20 transition-all outline-none bg-gray-50/50 focus:bg-white text-gray-800;
+  }
+}
