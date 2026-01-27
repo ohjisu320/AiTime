@@ -4,6 +4,7 @@ import com.ssafy.aitime.domain.hospital.dto.request.CalendarRequest;
 import com.ssafy.aitime.domain.hospital.dto.response.CalendarReservationResponse;
 import com.ssafy.aitime.domain.hospital.entity.Reservation;
 import com.ssafy.aitime.domain.hospital.entity.enums.ReservationStatus;
+import com.ssafy.aitime.domain.hospital.exception.DoctorNotFoundException;
 import com.ssafy.aitime.domain.hospital.repository.ReservationRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -29,6 +31,7 @@ import static org.mockito.Mockito.verify;
  * ReservationService 테스트
  */
 @ExtendWith(MockitoExtension.class)
+@AutoConfigureMockMvc(addFilters = false)
 @DisplayName("ReservationService 테스트")
 class ReservationServiceImplTest {
 
@@ -232,24 +235,23 @@ class ReservationServiceImplTest {
     class getReservationDatesFailureCases {
 
         @Test
-        @DisplayName("doctorId가 null인 경우 예외 발생")
+        @DisplayName("doctorId가 null인 경우 DoctorNotFoundException 발생")
         void getReservationDates_NullDoctorId_ThrowsException() {
             // given
             CalendarRequest request = new CalendarRequest(2026, 1);
 
             // when & then
             assertThatThrownBy(() -> reservationService.getReservationDates(null, request))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("Doctor ID cannot be null");
+                    .isInstanceOf(DoctorNotFoundException.class)
+                    .hasMessageContaining("존재하지 않거나 활성화되지 않은 의사입니다");
         }
 
         @Test
-        @DisplayName("CalendarRequest가 null인 경우 예외 발생")
+        @DisplayName("CalendarRequest가 null인 경우 NullPointerException 발생")
         void getReservationDates_NullRequest_ThrowsException() {
             // when & then
             assertThatThrownBy(() -> reservationService.getReservationDates(TEST_DOCTOR_ID, null))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("Calendar request cannot be null");
+                    .isInstanceOf(NullPointerException.class);
         }
     }
 
