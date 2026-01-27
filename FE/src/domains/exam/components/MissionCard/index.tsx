@@ -20,7 +20,7 @@ const MissionCard: React.FC<MissionCardProps> = ({
 
     return (
         <div 
-          onClick={onClick} // 👈 이 이벤트 연결이 로그 실행의 핵심입니다. [cite: 2026-01-26]
+          onClick={onClick} 
           className={cn(
             "relative w-full p-8 rounded-[32px] flex items-center justify-between cursor-pointer transition-all border-2",
             isCompleted ? "border-green-400 bg-green-50/50" : "border-gray-50 bg-white"

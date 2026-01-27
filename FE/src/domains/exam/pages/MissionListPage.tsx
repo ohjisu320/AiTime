@@ -28,11 +28,12 @@ const MissionListPage: React.FC = () => {
     // MissionListPage.tsx의 로직 확인
     const handleCardClick = (task: typeof videoTasks[0]) => {
         if (task.status === 'UPLOADED') {
-            // 이 로그가 터미널이나 콘솔에 찍히는지 확인해보세요.
-            console.log("모달 오픈 대상:", task.title);
             setRecheckModal({ isOpen: true, title: task.title, type: task.type });
         } else {
-            navigate(`/exam/recorder/${task.type.toLowerCase()}`);
+            // ✅ 바로 녹화로 가지 않고, 미션 번호를 붙여 스크리닝 페이지로 보냅니다. 
+            // task.type이 'TASK1'이라면 '1'만 추출하거나 소문자로 넘깁니다.
+            const missionNumber = task.type.replace('TASK', '');
+            navigate(`/exam/guide/${missionNumber}`);
         }
     };
     const handleSubmit = () => {
@@ -76,10 +77,14 @@ const MissionListPage: React.FC = () => {
                 isOpen={recheckModal.isOpen}
                 missionTitle={recheckModal.title}
                 onClose={() => setRecheckModal({ ...recheckModal, isOpen: false })}
-                onConfirm={() => navigate(`/exam/recorder/${recheckModal.type.toLowerCase()}`)}
+                onConfirm={() => {
+                    // ✅ 재촬영 시에도 스크리닝(위치/소음 체크)을 다시 해야 하므로 경로 수정 
+                    const missionNumber = recheckModal.type.replace('TASK', '');
+                    navigate(`/exam/screening/${missionNumber}`);
+                }}
             />
 
-            {/* 🚀 최종 리포트 제출 모달 (분리 완료) [cite: 2026-01-26] */}
+            {/* 🚀 최종 리포트 제출 모달 (분리 완료)  */}
             <ReportSubmitModal
                 isOpen={submitModalOpen}
                 onClose={() => setSubmitModalOpen(false)}
