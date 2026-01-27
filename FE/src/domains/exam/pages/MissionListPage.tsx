@@ -8,16 +8,16 @@ import { useMissions } from '../hooks/useMissions';
 
 const MissionListPage: React.FC = () => {
   const navigate = useNavigate();
-  const { missions, isLoading } = useMissions(); // 커스텀 훅을 통한 데이터 로드 [cite: 2026-01-27]
+  const { missions, isLoading } = useMissions(); // 커스텀 훅을 통한 데이터 로드 
 
   const [recheckModal, setRecheckModal] = useState({ isOpen: false, title: '', type: '' });
   const [submitModalOpen, setSubmitModalOpen] = useState(false);
 
-  // 진행도 계산: 모든 미션이 UPLOADED 상태인지 확인 [cite: 2026-01-27]
+  // 진행도 계산: 모든 미션이 UPLOADED 상태인지 확인 
   const completedCount = missions.filter(t => t.status === 'UPLOADED').length;
   const isAllDone = missions.length > 0 && completedCount === missions.length;
 
-  // 카드 클릭 핸들러 (업로드 상태면 재촬영 모달, 아니면 가이드로 이동) [cite: 2026-01-27]
+  // 카드 클릭 핸들러 (업로드 상태면 재촬영 모달, 아니면 가이드로 이동) 
   const handleCardClick = (task: any) => {
     const missionNumber = task.videoType.replace('TASK', '');
     if (task.status === 'UPLOADED') {
@@ -27,7 +27,7 @@ const MissionListPage: React.FC = () => {
     }
   };
 
-  // 재촬영 확정 핸들러 [cite: 2026-01-27]
+  // 재촬영 확정 핸들러 
   const handleRecheckConfirm = () => {
     const missionNumber = recheckModal.type.replace('TASK', '');
     setRecheckModal({ ...recheckModal, isOpen: false });
@@ -35,7 +35,7 @@ const MissionListPage: React.FC = () => {
     navigate(`/exam/guide/${missionNumber}`);
   };
 
-  // 로딩 상태 UI [cite: 2026-01-27]
+  // 로딩 상태 UI 
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -58,7 +58,7 @@ const MissionListPage: React.FC = () => {
               <MissionCard
                 key={task.videoType}
                 {...task}
-                // 타입 안정성 확보: 서버 응답값을 컴포넌트 규격에 맞게 캐스팅 [cite: 2026-01-27]
+                // 타입 안정성 확보: 서버 응답값을 컴포넌트 규격에 맞게 캐스팅 
                 status={task.status as 'UPLOADED' | 'PENDING'}
                 variant={task.variant as any}
                 onClick={() => handleCardClick(task)}

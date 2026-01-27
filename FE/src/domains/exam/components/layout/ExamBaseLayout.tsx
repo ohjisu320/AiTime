@@ -1,4 +1,4 @@
-// src/domains/exam/components/layout/ExamBaseLayout.tsx
+// src/domains/exam/components/layout/ExamBaseLayout.tsx 
 import React from 'react';
 import VideoPreview from '../common/VideoPreview';
 
@@ -7,15 +7,17 @@ interface ExamBaseLayoutProps {
   videoStream: MediaStream | null;
   isRecording: boolean;
   onBack: () => void;
-  // ✅ 추가된 인터페이스 
   isAligned: boolean;
   volume: number;
   videoRef: React.RefObject<HTMLVideoElement>;
   children?: React.ReactNode;
+  // ✅ 시각적 가이드(점선, 게이지) 표시 여부 추가 
+  showVisualGuide?: boolean; 
 }
 
 const ExamBaseLayout: React.FC<ExamBaseLayoutProps> = ({ 
   sidebarContent, isRecording, onBack, isAligned, volume, videoRef, children, 
+  showVisualGuide = true // 👈 기본값은 true로 설정 
 }) => {
   return (
     <div className="flex w-full h-screen bg-black overflow-hidden">
@@ -23,8 +25,10 @@ const ExamBaseLayout: React.FC<ExamBaseLayoutProps> = ({
         <VideoPreview 
           videoRef={videoRef}
           stream={null} 
-          isAligned={isAligned}
-          volume={volume}
+          // ✅ showVisualGuide가 false이면 가이드 관련 값을 무효화하거나 
+          // VideoPreview 내부에서 이를 처리하도록 넘겨줍니다. 
+          isAligned={showVisualGuide ? isAligned : true} // false면 정렬된 것으로 간주 
+          volume={showVisualGuide ? volume : 0}          // false면 볼륨 0으로 처리 
           isRecording={isRecording}
           onBack={onBack} 
         />

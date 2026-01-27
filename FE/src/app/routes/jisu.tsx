@@ -7,6 +7,7 @@ const ExamGuidePage = lazy(() => import('@/domains/exam/pages/ExamGuidePage'));
 const MissionListPage = lazy(() => import('@/domains/exam/pages/MissionListPage'));
 const ExamScreeningPage = lazy(() => import('@/domains/exam/pages/ExamRecordingPage'));
 const ExamGuideVideoPage = lazy(() => import('@/domains/exam/pages/ExamGuideVideoPage'));
+const ExamPage = lazy(() => import('@/domains/exam/pages/ExamPage'));
 
 export const jisuRoutes: RouteObject[] = [
   {
@@ -25,11 +26,11 @@ export const jisuRoutes: RouteObject[] = [
         children: [
           {
             index: true,
-            element: <ExamGuidePage /> // 👈 /exam/guide (전체 가이드 목록 등) [cite: 2026-01-27]
+            element: <ExamGuidePage /> // 👈 /exam/guide (전체 가이드 목록 등) 
           },
           {
             path: ":missionId",
-            element: <ExamGuideVideoPage /> // 👈 /exam/guide/1, /exam/guide/2 등 [cite: 2026-01-27]
+            element: <ExamGuideVideoPage /> // 👈 /exam/guide/1, /exam/guide/2 등 
           }
         ]
       },
@@ -42,10 +43,10 @@ export const jisuRoutes: RouteObject[] = [
         element: <ExamScreeningPage />
       },
 
-      // { 
-      //   path: "recorder", 
-      //   element: <ExamRecorderPage /> // /exam/recorder (실제 검사 녹화)
-      // },
+      { 
+        path: "task/:missionId", 
+        element: <ExamPage /> // /exam/recorder (실제 검사 진행)
+      },
     ],
   },
 ];
