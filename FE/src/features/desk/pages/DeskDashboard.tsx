@@ -16,6 +16,11 @@ import DeskRegisteredList, {
   type ReservationChildItem,
 } from "../components/DeskRegisteredList";
 
+// 모달 컴포넌트 import (경로 확인 필요)
+import InviteCodeModal, {
+  type InviteCodeFormData,
+} from "../components/modal/InviteCodeModal";
+
 // UI 컴포넌트
 import { Button } from "@/components/ui/button";
 
@@ -27,6 +32,9 @@ export default function DeskDashboard() {
     new Date("2026-01-19"),
   );
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // 모달 열림 상태 관리
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // 검색 필터 상태
   const [filters, setFilters] = useState({
@@ -177,6 +185,35 @@ export default function DeskDashboard() {
     setSelectedIds(newSelected);
   };
 
+  // --- Modal Logic (데이터 추가) ---
+  const handleCreateInviteCode = (data: InviteCodeFormData) => {
+    // 1. 임시 데이터 생성 (실제 API 연동 시 서버 응답값 사용)
+    const newItem: InviteCodePatientItem = {
+      inviteCodeId: `inv-${Date.now()}`, // 임시 ID
+      childName: data.childName,
+      childMonths: 0, // 생년월일 기반 계산 로직 필요 (임시 0)
+      parentPhone: data.parentPhone,
+      // 예약 시간은 현재 선택된 날짜의 현재 시간으로 가정 (혹은 모달에서 입력받아야 함)
+      scheduledAt: new Date(
+        selectedDate.setHours(new Date().getHours()),
+      ).toISOString(),
+      status: "ISSUED", // 발급 상태
+      inviteCode: Math.random().toString(36).substring(2, 10).toUpperCase(), // 랜덤 코드
+    };
+
+    // 2. 리스트 상태 업데이트 (최신순 추가)
+    setUnregisteredList((prev) => [newItem, ...prev]);
+
+    // 3. 탭을 '미등록자'로 전환하여 추가된 항목 확인
+    setActiveTab("UNREGISTERED");
+
+    // 4. 모달 닫기
+    setIsModalOpen(false);
+
+    // 5. 알림 (선택 사항)
+    // alert(`${data.childName} 환자의 초대코드가 발급되었습니다.`);
+  };
+
   // --- Filtering Logic ---
   const isSameDay = (dateStr: string, dateObj: Date) => {
     const d1 = new Date(dateStr);
@@ -266,7 +303,11 @@ export default function DeskDashboard() {
           activeTab={activeTab}
           onTabChange={handleTabChange}
         >
-          <Button className="bg-white hover:bg-gray-50 text-[#5A55D6] border border-[#5A55D6] font-bold h-10 gap-2 shadow-sm">
+          {/* 버튼 클릭 시 모달 Open */}
+          <Button
+            onClick={() => setIsModalOpen(true)}
+            className="bg-white hover:bg-gray-50 text-[#5A55D6] border border-[#5A55D6] font-bold h-10 gap-2 shadow-sm"
+          >
             <Plus className="w-4 h-4" /> 초대 코드 발급
           </Button>
         </DashboardHeader>
@@ -303,6 +344,13 @@ export default function DeskDashboard() {
           )}
         </div>
       </main>
+
+      {/* 5. 모달 컴포넌트 연결 */}
+      <InviteCodeModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onConfirm={handleCreateInviteCode}
+      />
     </div>
   );
 }
