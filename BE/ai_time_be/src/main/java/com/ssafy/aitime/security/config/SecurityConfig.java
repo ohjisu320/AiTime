@@ -2,11 +2,16 @@ package com.ssafy.aitime.security.config;
 
 import com.ssafy.aitime.security.filter.JwtAuthenticationFilter;
 import com.ssafy.aitime.security.provider.JwtTokenProvider;
+import com.ssafy.aitime.security.service.CustomHospitalStaffDetailsService;
+import com.ssafy.aitime.security.service.CustomUserDetailsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.ProviderManager;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -23,22 +28,41 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 
 @Configuration
 @RequiredArgsConstructor
 public class SecurityConfig {
 
     private final StringRedisTemplate redisTemplate;
+
+    // 두 개의 전용 서비스 주입
+    private final CustomUserDetailsService userDetailsService;
+    private final CustomHospitalStaffDetailsService staffDetailsService;
     // 비밀번호 암호화
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
-    // 스프링 시큐리티 내 로그인 관련 객체
-    @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
-        return configuration.getAuthenticationManager();
+
+    // User 전용 AuthenticationManager -> 만약 주입될 빈이 없는 경우 이걸 기본으로 사용하도록 명시
+    @Primary
+    @Bean(name = "userAuthenticationManager")
+    public AuthenticationManager userAuthenticationManager() {
+        // Spring Security 6.x: 생성자에 UserDetailsService 전달
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider(userDetailsService);
+        provider.setPasswordEncoder(passwordEncoder());
+        return new ProviderManager(provider);
+    }
+
+    // HospitalStaff 전용 AuthenticationManager
+    @Bean(name = "staffAuthenticationManager")
+    public AuthenticationManager staffAuthenticationManager() {
+        // Spring Security 6.x: 생성자에 UserDetailsService 전달
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider(staffDetailsService);
+        provider.setPasswordEncoder(passwordEncoder());
+        return new ProviderManager(provider);
     }
 
     @Bean

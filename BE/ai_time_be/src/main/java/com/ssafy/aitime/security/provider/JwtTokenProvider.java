@@ -1,5 +1,6 @@
 package com.ssafy.aitime.security.provider;
 
+import com.ssafy.aitime.security.service.CustomHospitalStaffDetailsService;
 import com.ssafy.aitime.security.service.CustomUserDetailsService;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
@@ -22,6 +23,7 @@ import java.util.Date;
 public class JwtTokenProvider {
 
     private final CustomUserDetailsService userDetailsService;
+    private final CustomHospitalStaffDetailsService staffDetailsService;
 
     @Value("${jwt.secret}")
     private String secretKey;
@@ -107,15 +109,25 @@ public class JwtTokenProvider {
         return parseClaims(token).getSubject();
     }
 
+    // 타입 추출 메서드
+    public String getUserType(String token) {
+        return parseClaims(token).get("type", String.class);
+    }
     /**
      * 토큰 → Authentication (스프링 시큐리티에서 인증객체로 사용)
      */
     public Authentication getAuthentication(String token) {
         Claims claims = parseClaims(token);
         String loginId = claims.getSubject();
-        String type = claims.get("type", String.class); // 타입 추출
+        String type = claims.get("type", String.class);
 
-        UserDetails userDetails = userDetailsService.loadUserByLoginIdAndType(loginId, type);
+        // type에 따라 적절한 UserDetailsService 선택
+        UserDetails userDetails;
+        if ("STAFF".equals(type)) {
+            userDetails = staffDetailsService.loadUserByUsername(loginId);
+        } else {
+            userDetails = userDetailsService.loadUserByUsername(loginId);
+        }
 
         return new UsernamePasswordAuthenticationToken(
                 userDetails,

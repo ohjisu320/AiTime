@@ -18,6 +18,7 @@ import com.ssafy.aitime.security.entity.RefreshToken;
 import com.ssafy.aitime.security.principal.UserPrincipal;
 import com.ssafy.aitime.security.provider.JwtTokenProvider;
 import com.ssafy.aitime.security.repository.RefreshTokenRepository;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -37,7 +38,9 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
 
-    private final AuthenticationManager authenticationManager;
+    @Qualifier("userAuthenticationManager")
+    private final AuthenticationManager userAuthenticationManager;
+
     private final JwtTokenProvider jwtTokenProvider;
     private final StringRedisTemplate redisTemplate;
     private final PasswordEncoder passwordEncoder;
@@ -279,7 +282,7 @@ public class UserServiceImpl implements UserService {
         try {
             UsernamePasswordAuthenticationToken authToken =
                     new UsernamePasswordAuthenticationToken(loginId, password);
-            return authenticationManager.authenticate(authToken);
+            return userAuthenticationManager.authenticate(authToken);
         } catch (BadCredentialsException e) {
             // 시큐리티 예외를 커스텀 예외로 전환하여 던짐
             throw new InvalidPasswordException();
