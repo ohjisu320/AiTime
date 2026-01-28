@@ -4,6 +4,7 @@ import com.ssafy.aitime.common.response.ApiResponse;
 import com.ssafy.aitime.domain.invite.dto.request.InviteCodeRequest;
 import com.ssafy.aitime.domain.invite.dto.response.InviteCodeResponse;
 import com.ssafy.aitime.domain.invite.dto.response.InviteCodeRevokeResponse;
+import com.ssafy.aitime.domain.invite.dto.response.InviteCodeStatusResponse;
 import com.ssafy.aitime.domain.invite.service.InviteCodeService;
 import com.ssafy.aitime.security.principal.HospitalStaffPrincipal;
 import jakarta.validation.Valid;
@@ -38,5 +39,11 @@ public class InviteCodeController {
     ) {
         InviteCodeRevokeResponse response = inviteCodeService.revokeInviteCode(inviteCodeId, principal.getHospitalStaffId());
         return ApiResponse.ok("초대코드가 성공적으로 삭제(취소)되었습니다.", response);
+    }
+
+    @GetMapping("/{inviteCodeId}/status")
+    public ApiResponse<InviteCodeStatusResponse> getStatus(@PathVariable UUID inviteCodeId) {
+        InviteCodeStatusResponse response = inviteCodeService.getInviteCodeStatus(inviteCodeId);
+        return ApiResponse.ok("초대코드 상태 조회가 완료되었습니다.", response);
     }
 }

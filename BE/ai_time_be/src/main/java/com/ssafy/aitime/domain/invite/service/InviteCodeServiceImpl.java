@@ -8,6 +8,7 @@ import com.ssafy.aitime.domain.hospital.service.HospitalStaffService;
 import com.ssafy.aitime.domain.invite.dto.request.InviteCodeRequest;
 import com.ssafy.aitime.domain.invite.dto.response.InviteCodeResponse;
 import com.ssafy.aitime.domain.invite.dto.response.InviteCodeRevokeResponse;
+import com.ssafy.aitime.domain.invite.dto.response.InviteCodeStatusResponse;
 import com.ssafy.aitime.domain.invite.dto.response.InviteCodeValidationDto;
 import com.ssafy.aitime.domain.invite.entity.InviteCode;
 import com.ssafy.aitime.domain.invite.entity.enums.InviteCodeStatus;
@@ -154,6 +155,21 @@ public class InviteCodeServiceImpl implements InviteCodeService {
                 updated.getInviteCodeId(),
                 updated.getInviteCodeStatus(),
                 updated.getUpdatedAt()
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public InviteCodeStatusResponse getInviteCodeStatus(UUID inviteCodeId) {
+// 1. 초대코드 엔티티 조회
+        InviteCode inviteCode = inviteCodeRepository.findById(inviteCodeId)
+                .orElseThrow(InviteCodeNotFoundException::new);
+
+        // 2. DTO 변환 및 반환
+        return new InviteCodeStatusResponse(
+                inviteCode.getInviteCodeId(),
+                inviteCode.getInviteCodeStatus(),
+                inviteCode.getChildName()
         );
     }
 
