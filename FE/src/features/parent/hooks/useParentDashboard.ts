@@ -5,7 +5,8 @@ import {
   MOCK_CASE_AVAILABLE,
   MOCK_CASE_NEED_HOSPITAL,
   MOCK_CASE_COOLDOWN,
-  MOCK_CASE_COOLDOWN_BEFORE
+  MOCK_CASE_COOLDOWN_BEFORE,
+  MOCK_CASE_IN_PROGRESS
 } from '../api/dashboardApi';
 
 // ==========================================
