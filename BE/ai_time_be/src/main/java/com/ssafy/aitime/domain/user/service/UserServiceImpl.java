@@ -61,8 +61,8 @@ public class UserServiceImpl implements UserService {
         String name = userPrincipal.getName();
         UserRole role = userPrincipal.getUserRole();
 
-        String accessToken = jwtTokenProvider.createAccessToken(loginId, role.toString());
-        String refreshToken = jwtTokenProvider.createRefreshToken(loginId);
+        String accessToken = jwtTokenProvider.createAccessToken(loginId, role.toString(), "USER");
+        String refreshToken = jwtTokenProvider.createRefreshToken(loginId, "USER");
 
         // 레디스에 id와
         RefreshToken rf = RefreshToken.builder()
@@ -106,8 +106,8 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findByLoginIdAndRecordStatus(loginId, RecordStatus.ACTIVE)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
 
-        String newAccessToken = jwtTokenProvider.createAccessToken(loginId, user.getUserRole().toString());
-        String newRefreshToken = jwtTokenProvider.createRefreshToken(loginId);
+        String newAccessToken = jwtTokenProvider.createAccessToken(loginId, user.getUserRole().toString(), "USER");
+        String newRefreshToken = jwtTokenProvider.createRefreshToken(loginId, "USER");
 
         // Redis 정보 갱신 (RTR 적용)
         RefreshToken updatedRf = RefreshToken.builder()
