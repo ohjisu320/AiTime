@@ -2,6 +2,7 @@ package com.ssafy.aitime.domain.invite.service;
 
 import com.ssafy.aitime.domain.invite.dto.request.InviteCodeRequest;
 import com.ssafy.aitime.domain.invite.dto.response.InviteCodeResponse;
+import com.ssafy.aitime.domain.invite.dto.response.InviteCodeRevokeResponse;
 import com.ssafy.aitime.domain.invite.dto.response.InviteCodeValidationDto;
 import com.ssafy.aitime.security.principal.HospitalStaffPrincipal;
 
@@ -24,4 +25,5 @@ public interface InviteCodeService {
     void markAsUsed(String inviteCode);
 
     InviteCodeResponse generateInviteCode(InviteCodeRequest request, UUID hospitalStaffId);
+    InviteCodeRevokeResponse revokeInviteCode(UUID inviteCodeId, UUID hospitalStaffId);
 }

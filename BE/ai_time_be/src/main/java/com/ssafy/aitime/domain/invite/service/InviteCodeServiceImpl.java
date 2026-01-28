@@ -7,6 +7,7 @@ import com.ssafy.aitime.domain.hospital.exception.InvalidDoctorSelectionExceptio
 import com.ssafy.aitime.domain.hospital.service.HospitalStaffService;
 import com.ssafy.aitime.domain.invite.dto.request.InviteCodeRequest;
 import com.ssafy.aitime.domain.invite.dto.response.InviteCodeResponse;
+import com.ssafy.aitime.domain.invite.dto.response.InviteCodeRevokeResponse;
 import com.ssafy.aitime.domain.invite.dto.response.InviteCodeValidationDto;
 import com.ssafy.aitime.domain.invite.entity.InviteCode;
 import com.ssafy.aitime.domain.invite.entity.enums.InviteCodeStatus;
@@ -122,6 +123,37 @@ public class InviteCodeServiceImpl implements InviteCodeService {
                 saved.getParentPhone(),
                 saved.getInviteCodeStatus(),
                 saved.getCreatedAt()
+        );
+    }
+
+    @Override
+    @Transactional
+    public InviteCodeRevokeResponse revokeInviteCode(UUID inviteCodeId, UUID hospitalStaffId) {
+        // 1. 발급자(Staff) 권한 체크 (선택 사항이나 보안상 권장)
+        HospitalStaff staff = hospitalStaffService.getHospitalStaffById(hospitalStaffId);
+        if (staff.getStaffRole() != StaffRole.DESK) {
+            throw new HospitalStaffAccessDeniedException();
+        }
+
+        // 2. 초대코드 존재 여부 확인
+        InviteCode inviteCode = inviteCodeRepository.findById(inviteCodeId)
+                .orElseThrow(InviteCodeNotFoundException::new);
+
+        // 3. 이미 사용된 코드인지 확인 (사용된 코드는 취소 불가)
+        if (inviteCode.isAlreadyUsed()) {
+            throw new InviteCodeAlreadyUsedException();
+        }
+
+        // 4. 상태 변경 (REVOKED)
+        inviteCode.updateStatus(InviteCodeStatus.REVOKED);
+
+        // Dirty Checking으로 자동 업데이트되지만, 명확성을 위해 save 호출 가능
+        InviteCode updated = inviteCodeRepository.save(inviteCode);
+
+        return new InviteCodeRevokeResponse(
+                updated.getInviteCodeId(),
+                updated.getInviteCodeStatus(),
+                updated.getUpdatedAt()
         );
     }
 
