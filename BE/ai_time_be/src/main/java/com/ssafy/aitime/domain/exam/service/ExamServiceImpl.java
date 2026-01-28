@@ -8,7 +8,6 @@ import com.ssafy.aitime.domain.exam.entity.enums.ExamStatus;
 import com.ssafy.aitime.domain.exam.entity.enums.VideoStatus;
 import com.ssafy.aitime.domain.exam.repository.ExamRepository;
 import com.ssafy.aitime.domain.exam.repository.VideoRepository;
-import com.ssafy.aitime.domain.hospital.repository.HospitalChildrenRepository;
 import com.ssafy.aitime.domain.hospital.service.HospitalService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

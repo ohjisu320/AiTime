@@ -6,12 +6,12 @@ import com.ssafy.aitime.domain.child.dto.request.ChildDeleteResponse;
 import com.ssafy.aitime.domain.child.dto.response.ChildHomeResponse;
 import com.ssafy.aitime.domain.child.dto.response.ChildHospitalListResponse;
 import com.ssafy.aitime.domain.child.dto.response.ChildInfoResponse;
+import com.ssafy.aitime.domain.exam.dto.response.ExamSummaryDTO;
 import com.ssafy.aitime.domain.hospital.dto.response.HospitalInfoDTO;
 import com.ssafy.aitime.domain.child.entity.Child;
 import com.ssafy.aitime.domain.child.exception.ChildAccessDeniedException;
 import com.ssafy.aitime.domain.child.exception.ChildNotFoundException;
 import com.ssafy.aitime.domain.child.repository.ChildRepository;
-import com.ssafy.aitime.domain.exam.dto.response.ExamSummaryResponse;
 import com.ssafy.aitime.domain.exam.service.ExamService;
 import com.ssafy.aitime.domain.hospital.dto.response.HospitalResponseDto;
 import com.ssafy.aitime.domain.hospital.service.HospitalChildrenService;
@@ -25,7 +25,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
@@ -104,27 +103,26 @@ public class ChildServiceImpl implements ChildService{
         return new ChildDeleteResponse(childId, RecordStatus.DELETED);
     }
 
+    /**
+     * 아이 홈 정보 조회 - API 명세서에 맞게 수정
+     * ExamService에서 검사 상태를 계산한 DTO를 받아서 조립
+     */
     @Override
     @Transactional(readOnly = true)
     public ChildHomeResponse getChildHomeInfo(UUID userId, UUID childId) {
-        // 아이 주체(부모)가 유효한지 확인
+        // 1. 권한 검증
         userService.getById(userId);
-
-        // 조회할 아이가 존재하는지 확인 (ACTIVE 상태만)
         Child child = childRepository.findByChildIdAndRecordStatus(childId, RecordStatus.ACTIVE)
                 .orElseThrow(ChildNotFoundException::new);
 
-        // 권한 체크: 아이의 부모 ID와 현재 로그인한 유저 ID 비교
         if (!child.getUser().getUserId().equals(userId)) {
-            // 본인의 아이가 아니면 에러 발생
             throw new ChildAccessDeniedException();
         }
 
-        // 아이 홈 정보 조회 수행
-        // - ExamService를 통해 검사 정보 가져오기(isExamEligible, hasPreviousExam, hasPreviousExam, nextEligibleAt)
-        ExamSummaryResponse examSummary = examService.getExamSummaryForChild(childId)
-                .orElseGet(() -> new ExamSummaryResponse(false, 0, false, LocalDateTime.now()));
-        // - HospitalService를 통해 병원 정보 가져오기(linkedHospitals)
+        // 2. ExamService에서 검사 요약 정보 조회 (상태 계산 포함)
+        ExamSummaryDTO examSummary = examService.getExamSummaryForChild(childId);
+
+        // 3. HospitalService에서 연동된 병원 목록 조회
         List<HospitalInfoDTO> linkedHospitals = hospitalService.getLinkedHospitalsByChild(childId);
 
         // 4. DTO 조립 및 반환
@@ -132,10 +130,11 @@ public class ChildServiceImpl implements ChildService{
                 child.getChildId(),
                 child.getName(),
                 child.getGender(),
-                examSummary.isExamEligible(), // record 필드명이 isExamEligible이면 맞음
-                examSummary.examProgress(),   // examProgress() 로 호출
-                examSummary.hasPreviousExam(),// hasPreviousExam() 로 호출
-                examSummary.nextEligibleAt().toLocalDate(), // nextEligibleAt() 로 호출
+                examSummary.examStatus(),
+                examSummary.examProgress(),
+                examSummary.examStartedAt(),
+                examSummary.nextEligibleAt(),
+                examSummary.draftExpiresAt(),
                 linkedHospitals
         );
     }

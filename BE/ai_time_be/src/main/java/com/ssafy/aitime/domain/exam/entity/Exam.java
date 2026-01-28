@@ -1,7 +1,6 @@
 package com.ssafy.aitime.domain.exam.entity;
 
 import com.ssafy.aitime.common.entity.AuditableEntity;
-import com.ssafy.aitime.common.entity.BaseEntity;
 import com.ssafy.aitime.domain.child.entity.Child;
 import com.ssafy.aitime.domain.exam.entity.enums.ExamStatus;
 import jakarta.persistence.*;
