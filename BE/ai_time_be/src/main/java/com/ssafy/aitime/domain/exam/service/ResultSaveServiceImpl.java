@@ -35,9 +35,9 @@ public class ResultSaveServiceImpl implements ResultSaveService {
         List<AnalysisResultMessage.TrialMetric> metrics = result.getMetrics().getPerTrial();
 
         switch (taskNo) {
-            case 1 -> saveNameFacingResult(video, metrics);
+            case 1 -> savePoseImitationResult(video, metrics);
             case 2 -> saveSpeechImitationResult(video, metrics);
-            case 3 -> savePoseImitationResult(video, metrics);
+            case 3 -> saveNameFacingResult(video, metrics);
             case 4 -> saveNameNonFacingResult(video, metrics);
             default -> throw new IllegalArgumentException("Invalid taskNo: " + taskNo);
         }

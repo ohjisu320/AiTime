@@ -78,10 +78,10 @@ public class AnalysisResultConsumer {
 
     private com.ssafy.aitime.domain.exam.entity.enums.VideoType mapTaskNoToVideoType(Integer taskNo) {
         return switch (taskNo) {
-            case 1 -> VideoType.TASK1;//NAME_FACING;
-            case 2 -> VideoType.TASK2;//SPEECH_IMITATION;
-            case 3 -> VideoType.TASK3;//POSE_IMITATION;
-            case 4 -> VideoType.TASK4;//NAME_NON_FACING;
+            case 1 -> VideoType.POSE_IMITATION;      // task1: 동작 모방행동
+            case 2 -> VideoType.SPEECH_IMITATION;    // task2: 발화 모방행동
+            case 3 -> VideoType.NAME_FACING;         // task3: 대면 호명반응
+            case 4 -> VideoType.NAME_NON_FACING;     // task4: 비대면 호명반응
             default -> throw new IllegalArgumentException("Invalid taskNo: " + taskNo);
         };
     }

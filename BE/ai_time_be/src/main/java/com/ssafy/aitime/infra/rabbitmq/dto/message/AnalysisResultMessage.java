@@ -43,15 +43,9 @@ public class AnalysisResultMessage {
     @Getter
     @NoArgsConstructor
     public static class TrialMetric {
+        // ========== 공통 필드 ==========
         @JsonProperty("trial_index")
         private Integer trialIndex;
-
-        // ========== 대면 호명반응 (task1) ==========
-        @JsonProperty("trial_start_s")
-        private Double trialStartS;
-
-        @JsonProperty("trial_end_s")
-        private Double trialEndS;
 
         @JsonProperty("success")
         private Boolean success;
@@ -59,10 +53,17 @@ public class AnalysisResultMessage {
         @JsonProperty("latency_s")
         private Double latencyS;
 
-        @JsonProperty("gaze_duration_s")
-        private Double gazeDurationS;
+        // ========== task1: 동작 모방행동 (POSE_IMITATION) ==========
+        @JsonProperty("similarity_score")
+        private Double similarityScore;
 
-        // ========== 발화 모방행동 (task2) ==========
+        @JsonProperty("duration_s")
+        private Double durationS;
+
+        @JsonProperty("attention_ratio")
+        private Double attentionRatio;
+
+        // ========== task2: 발화 모방행동 (SPEECH_IMITATION) ==========
         @JsonProperty("stimulus_id")
         private String stimulusId;
 
@@ -75,17 +76,17 @@ public class AnalysisResultMessage {
         @JsonProperty("failure_reason")
         private String failureReason;
 
-        // ========== 동작 모방행동 (task3) ==========
-        @JsonProperty("similarity_score")
-        private Double similarityScore;
+        // ========== task3: 대면 호명반응 (NAME_FACING) ==========
+        @JsonProperty("trial_start_s")
+        private Double trialStartS;
 
-        @JsonProperty("duration_s")
-        private Double durationS;
+        @JsonProperty("trial_end_s")
+        private Double trialEndS;
 
-        @JsonProperty("attention_ratio")
-        private Double attentionRatio;
+        @JsonProperty("gaze_duration_s")
+        private Double gazeDurationS;
 
-        // ========== 비대면 호명반응 (task4) ==========
+        // ========== task4: 비대면 호명반응 (NAME_NON_FACING) ==========
         @JsonProperty("head_yaw_deg")
         private Double headYawDeg;
 
