@@ -20,12 +20,14 @@ interface DoctorPatientListProps {
   patients: DoctorPatientItem[];
   emptyMessage: string;
   dateLabel?: string;
+  onViewAnalysis: (id: string) => void;
 }
 
 export default function DoctorPatientList({
   patients,
   emptyMessage,
   dateLabel,
+  onViewAnalysis,
 }: DoctorPatientListProps) {
   const formatTime = (isoString: string) => {
     const date = new Date(isoString);
@@ -98,13 +100,16 @@ export default function DoctorPatientList({
               {/* 액션 */}
               <div className="w-[20%] flex justify-end">
                 {patient.examStatus === "COMPLETED" ? (
-                  <Button className="bg-sky-500 hover:bg-sky-600 text-white h-9 px-4 rounded-lg gap-2 shadow-sm transition-all">
+                  <Button
+                    onClick={() => onViewAnalysis(patient.hospitalChildrenId)}
+                    className="bg-sky-500 hover:bg-sky-600 text-white h-9 px-4 rounded-lg gap-2 shadow-sm transition-all"
+                  >
                     <Eye className="w-4 h-4" />
                     <span className="text-xs font-bold">분석 보기</span>
                   </Button>
                 ) : (
                   <Button
-                    disabled
+                    onClick={() => onViewAnalysis(patient.hospitalChildrenId)}
                     className="bg-gray-400 h-9 px-4 rounded-lg gap-2 text-white opacity-50 cursor-not-allowed"
                   >
                     <Eye className="w-4 h-4" />

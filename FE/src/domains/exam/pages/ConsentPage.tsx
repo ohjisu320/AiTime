@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, Database, Hospital, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/common/Button';
@@ -30,10 +30,10 @@ const ConsentPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-slate-100 flex flex-col items-center">
+    <div className="flex flex-col items-center w-full">
       <ConsentHeader currentStep={1} totalSteps={3} />
 
-      <main className="w-full max-w-[1187px] mt-32 mb-20 px-4">
+      <main className="w-full max-w-[1187px] mt-10 mb-20">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-800 mb-3">검사 시작 전 동의</h1>
           <p className="text-xl text-gray-600">안전하고 정밀한 분석을 위해 아래 필수 동의를 진행해주세요.</p>

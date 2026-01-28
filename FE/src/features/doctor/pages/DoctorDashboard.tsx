@@ -18,10 +18,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-// ❌ [삭제] 사용하지 않는 Button 컴포넌트 제거
-// import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
+
 
 export default function DoctorDashboard() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<"DAILY" | "ALL">("DAILY");
   const [selectedDate, setSelectedDate] = useState<Date>(
     new Date("2026-01-19"),
@@ -173,6 +174,11 @@ export default function DoctorDashboard() {
     { value: "ALL", label: "전체 조회" },
   ];
 
+  //  리포트 페이지 이동 핸들러
+  const handleViewAnalysis = (hospitalChildrenId: string) => {
+    navigate(`/doctor/report/${hospitalChildrenId}`);
+  };
+
   return (
     <div className="flex min-h-screen bg-[#F9FAFB] font-['Pretendard',sans-serif]">
       <AppSidebar
@@ -233,6 +239,7 @@ export default function DoctorDashboard() {
                 ? "검색 조건을 입력하여 환자를 조회해주세요."
                 : "조건에 맞는 환자가 없습니다."
             }
+            onViewAnalysis={handleViewAnalysis}
           />
         </div>
       </main>

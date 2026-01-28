@@ -1,5 +1,6 @@
-import { lazy } from 'react';
+import { lazy, Suspense } from 'react';
 import type { RouteObject } from 'react-router';
+import MobileLayout from '@/components/layout/MobileLayout';
 
 // Lazy Loading을 사용하여 성능을 최적화
 const ConsentPage = lazy(() => import('@/domains/exam/pages/ConsentPage'));
@@ -9,9 +10,18 @@ const ExamScreeningPage = lazy(() => import('@/domains/exam/pages/ExamRecordingP
 const ExamGuideVideoPage = lazy(() => import('@/domains/exam/pages/ExamGuideVideoPage'));
 const ExamPage = lazy(() => import('@/domains/exam/pages/ExamPage'));
 
+const ExamLayout = () => {
+  return (
+    <Suspense fallback={<div className="flex justify-center items-center h-full">Loading...</div>}>
+      <MobileLayout />
+    </Suspense>
+  );
+};
+
 export const jisuRoutes: RouteObject[] = [
   {
     path: "/exam",
+    element: <ExamLayout />, // 최상위에서 MobileLayout 적용
     children: [
       {
         index: true,
@@ -43,8 +53,8 @@ export const jisuRoutes: RouteObject[] = [
         element: <ExamScreeningPage />
       },
 
-      { 
-        path: "task/:missionId", 
+      {
+        path: "task/:missionId",
         element: <ExamPage /> // /exam/recorder (실제 검사 진행)
       },
     ],

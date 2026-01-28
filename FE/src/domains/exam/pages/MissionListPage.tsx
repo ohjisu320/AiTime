@@ -45,8 +45,8 @@ const MissionListPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-slate-100 pb-20">
-      <main className="max-w-[1240px] mx-auto mt-32 px-6">
+    <div className="pb-20 w-full">
+      <main className="max-w-[1240px] mx-auto mt-10 px-6">
         <div className="text-center mb-16">
           <h1 className="text-4xl font-extrabold text-gray-900 mb-4 tracking-tight">검사 미션 선택</h1>
           <p className="text-xl text-gray-500 font-medium">촬영할 미션을 선택해주세요 (총 {missions.length}개 미션을 완료해야 합니다)</p>
