@@ -351,14 +351,14 @@ TriggerStage
     └─ audio_data → transcription → name_call_events[]
     └─ → trials[] 생성
 
-ChildAnalysisStage ★ (통합)
+ChildAnalysisStage 
     ├─ [Vision Path]
     │   └─ frames + face_detections → landmarks → head_poses → gaze_events[]
     │
-    └─ [Audio Path] ★
+    └─ [Audio Path]
         └─ audio_data + speaker_mapping → vad → child_voice_events[]
 
-ReactionDetectStage ★ (신규)
+ReactionDetectStage
     └─ gaze_events + voice_events → ReactionDetector.detect()
     └─ → trial_reactions[] (통합 결과)
 
@@ -368,4 +368,88 @@ ResultStage
 
 
 
-# 
+# 작업 내역
+## 1. 오디오
+### 1.1. 아키텍쳐
+```
+┌──────────────────────────────────────────────────────────────┐
+│                   ChildVoiceAnalyzer                         │
+│  (VAD + SpeakerDiarizer + SpeechRecognizer 통합)              │
+├──────────────────────────────────────────────────────────────┤
+│  VoiceActivityDetector  │  SpeakerDiarizer │ SpeechRecognizer│
+│   (Silero VAD)          │  (pyannote)      │ (faster-whisper)│
+├──────────────────────────────────────────────────────────────┤
+│                     BaseModel (Singleton)                    │
+├──────────────────────────────────────────────────────────────┤
+│                     Settings (config.py)                     │
+└──────────────────────────────────────────────────────────────┘
+```
+### 1.2. 오디오 파이프라인 구조
+```
+Input Audio
+    │
+    ▼
+┌─────────────────────────────────────────────────────────────┐
+│  1. Silero VAD (음성 활동 탐지)                              │
+│     - 무음 구간 제거                                         │
+│     - Speech Segment 추출                                    │
+│     - 30ms 청크 단위 처리 (초저지연)                          │
+└─────────────────────────────────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────────────────────────────────┐
+│  2. pyannote-audio (화자 분리)                               │
+│     - Speaker A/B 분리                                       │
+│     - 부모/아이 식별                                         │
+└─────────────────────────────────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────────────────────────────────┐
+│  3. OpenAI Whisper (음성 인식)                               │
+│     - STT (Speech-to-Text)                                   │
+│     - 호명 트리거 탐지                                       │
+│     - 아이 발화 내용 분석                                    │
+└─────────────────────────────────────────────────────────────┘
+    │
+    ▼
+Output: 화자별 발화 구간 + 텍스트 + 타임스탬프
+```
+
+### 시스템 아키텍쳐
+```
+비디오/오디오 입력
+    ↓
+┌─────────────────────────────────────────┐
+│  1. Audio Extraction (FFmpeg)           │
+│     - 비디오에서 오디오 추출              │
+│     - 16kHz mono WAV 변환                │
+└─────────────────────────────────────────┘
+    ↓
+┌─────────────────────────────────────────┐
+│  2. Voice Activity Detection (VAD)      │
+│     - Silero VAD 모델                    │
+│     - 음성 구간 감지 (0.32-3.77s 등)     │
+└─────────────────────────────────────────┘
+    ↓
+┌─────────────────────────────────────────┐
+│  3. Speech Recognition                  │
+│     - faster-whisper (large-v3)         │
+│     - 한국어 음성 인식                    │
+│     - 호명 이벤트 감지 ("정현" 등)        │
+└─────────────────────────────────────────┘
+    ↓
+┌─────────────────────────────────────────┐
+│  4. Speaker Diarization                 │
+│     - pyannote-audio 3.1                │
+│     - 화자별 구간 분리 (SPEAKER_00 등)   │
+└─────────────────────────────────────────┘
+    ↓
+┌─────────────────────────────────────────┐
+│  5. Child Voice Analysis                │
+│     - 호명 후 아이 음성 반응 구간 추출    │
+│     - Latency 계산 (호명 끝 ~ 반응 시작)  │
+│     - Duration 계산 (반응 지속 시간)      │
+└─────────────────────────────────────────┘
+    ↓
+반응 구간 결과 (ChildVoiceReaction)
+```
