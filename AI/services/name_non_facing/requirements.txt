@@ -1,0 +1,42 @@
+# Web Framework
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+
+# Task Queue
+celery>=5.3.0
+kombu>=5.3.0
+
+# AI/ML - Vision
+mediapipe>=0.10.9
+opencv-python>=4.9.0
+
+# AI/ML - Audio
+# faster-whisper: OpenAI Whisper의 CTranslate2 최적화 버전 (4배 빠름)
+# https://github.com/guillaumekln/faster-whisper
+faster-whisper>=1.0.0
+pyannote.audio>=3.1.0
+torch>=2.1.0
+torchaudio>=2.1.0
+# Note: silero-vad는 torch.hub로 로드됨 (별도 패키지 불필요)
+
+# Audio Processing
+librosa>=0.10.0
+pydub>=0.25.0
+soundfile>=0.12.0
+
+# Video Processing
+ffmpeg-python>=0.2.0
+
+# Utilities
+numpy>=1.26.0
+scipy>=1.12.0
+structlog>=24.1.0
+httpx>=0.26.0
+aiofiles>=23.2.0
+
+# Testing
+pytest>=7.4.0
+pytest-asyncio>=0.23.0
+pytest-cov>=4.1.0
