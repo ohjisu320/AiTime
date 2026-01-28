@@ -26,7 +26,11 @@ const ExamGuidePage = () => {
   return (
     <div className="flex flex-col items-center w-full">
       {/* 🚦 Step 1 완료(체크표시), Step 2 활성화 상태의 헤더 */}
-      <ConsentHeader currentStep={2} totalSteps={3} />
+      <ConsentHeader
+        currentStep={2}
+        totalSteps={3}
+        onBack={() => navigate('/exam/consent')}
+      />
 
       <main className="w-full max-w-[1187px] mt-10 mb-20 px-4 flex flex-col items-center">
         {/* 헤더 섹션 */}

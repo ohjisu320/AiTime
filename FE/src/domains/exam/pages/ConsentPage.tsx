@@ -31,7 +31,11 @@ const ConsentPage = () => {
 
   return (
     <div className="flex flex-col items-center w-full">
-      <ConsentHeader currentStep={1} totalSteps={3} />
+      <ConsentHeader
+        currentStep={1}
+        totalSteps={3}
+        onBack={() => navigate('/parent/dashboard')}
+      />
 
       <main className="w-full max-w-[1187px] mt-10 mb-20">
         <div className="text-center mb-12">

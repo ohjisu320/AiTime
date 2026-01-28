@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MissionCard from '../components/MissionCard';
+import ConsentHeader from '../components/ConsentHeader';
 import InfoNoticeBox from '@/components/common/InfoNoticeBox';
 import BigActionButton from '@/components/common/BigActionButton';
 import ConfirmModal from '@/components/common/ConfirmModal';
@@ -45,10 +46,18 @@ const MissionListPage: React.FC = () => {
   }
 
   return (
-    <div className="pb-20 w-full">
-      <main className="max-w-[1240px] mx-auto mt-10 px-6">
+    <div className="w-full flex flex-col items-center pb-20">
+      {/* 🚦 공통 헤더 컴포넌트 사용 */}
+      <ConsentHeader
+        currentStep={3}
+        totalSteps={3}
+        onBack={() => navigate('/exam/guide')}
+      />
+
+      {/* 헤더 높이만큼 여백 확보 (mt-24) */}
+      <main className="w-full max-w-[1240px] mt-24 px-6">
         <div className="text-center mb-16">
-          <h1 className="text-4xl font-extrabold text-gray-900 mb-4 tracking-tight">검사 미션 선택</h1>
+          <h2 className="text-4xl font-extrabold text-gray-900 mb-4 tracking-tight">검사 미션 선택</h2>
           <p className="text-xl text-gray-500 font-medium">촬영할 미션을 선택해주세요 (총 {missions.length}개 미션을 완료해야 합니다)</p>
         </div>
 
@@ -90,8 +99,8 @@ const MissionListPage: React.FC = () => {
       <ConfirmModal
         isOpen={recheckModal.isOpen}
         title={<>{recheckModal.title} 검사를<br />다시 진행하시겠습니까?</>}
-        description="재촬영 시 이전 영상은 삭제됩니다." // 👈 추가
-        confirmText="재촬영" // 👈 추가
+        description="재촬영 시 이전 영상은 삭제됩니다."
+        confirmText="재촬영"
         confirmVariant="slate"
         onConfirm={handleRecheckConfirm}
         onClose={() => setRecheckModal({ ...recheckModal, isOpen: false })}
@@ -101,8 +110,8 @@ const MissionListPage: React.FC = () => {
       <ConfirmModal
         isOpen={submitModalOpen}
         title={<>완료된 검사리포트를<br />제출합니다.</>}
-        description="제출 후에는 수정이 불가능합니다." // 👈 추가
-        confirmText="제출하기" // 👈 추가
+        description="제출 후에는 수정이 불가능합니다." // 
+        confirmText="제출하기"
         confirmVariant="violet"
         onConfirm={() => navigate('/exam/success')}
         onClose={() => setSubmitModalOpen(false)}
