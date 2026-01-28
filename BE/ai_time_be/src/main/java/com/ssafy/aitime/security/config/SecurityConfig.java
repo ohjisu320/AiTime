@@ -63,6 +63,8 @@ public class SecurityConfig {
                                 "/user/get-id",
                                 "/user/verify-identity",
                                 "/user/password",
+                                "/hospital-staff/login",
+                                "/hospital-staff/refresh",
                                 "/auth/**",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
