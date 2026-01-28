@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react'; // useMemo 추가
+// import { useState, useMemo } from 'react'; // useMemo 추가
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 // 컴포넌트 임포트
@@ -12,12 +13,13 @@ import ConfirmModal from '../components/ConfirmModal';
 
 // 데이터 및 훅 임포트
 import { useParentDashboard } from '../hooks/useParentDashboard';
+import { registerInviteCode } from '@/features/parent/api/dashboardApi'; // Direct import for action
 
 const DashboardPage = () => {
     const navigate = useNavigate();
 
     // Swagger 데이터를 가져오는 커스텀 훅
-    const { data, isLoading, isError } = useParentDashboard();
+    const { data, isLoading, isError, refetch } = useParentDashboard();
 
     // 모달 상태 관리
     const [isModifyModalOpen, setIsModifyModalOpen] = useState(false);
@@ -68,25 +70,41 @@ const DashboardPage = () => {
     if (isLoading) return <LoadingSpinner />;
     if (isError || !data) return <div className="p-8 text-center">데이터를 불러오는 중 오류가 발생했습니다.</div>;
 
+    // 초대 코드 등록 핸들러
+    const handleCodeRegister = async (code: string) => {
+        try {
+            // TODO: childId should be dynamic
+            const response = await registerInviteCode("child-001", code);
+            if (response.code === 200) {
+                setIsCodeModalOpen(false);
+                // 중요: 연동 후 데이터 새로고침 (Soft Refresh)
+                await refetch();
+            } else {
+                alert("병원 연동 실패: " + response.message);
+            }
+        } catch (error) {
+            console.error("Error registering invite code", error);
+            alert("병원 연동 중 오류가 발생했습니다.");
+        }
+    };
+
     return (
         <div className="flex w-full min-h-[1000px] bg-white overflow-hidden">
             <Sidebar
-                childName={data.name}
+                childName={data?.name || "어린이"}
                 onCodeInputClick={() => setIsCodeModalOpen(true)}
             />
 
             <main className="flex-1 h-screen overflow-y-auto p-8 flex flex-col gap-8">
-                {/* bannerProps가 있을 때만 렌더링 */}
                 {bannerProps && <HeroBanner {...bannerProps} />}
 
                 <section className="flex flex-col xl:flex-row gap-6 w-full max-w-[1350px]">
-                    {/* flex-1을 주어 HospitalTimeline(너비 고정) 외의 남은 공간을 모두 차지하게 함 */}
                     <div className="flex-1 min-h-[500px]">
                         <GuideVideo />
                     </div>
 
                     <aside className="w-full xl:w-96 flex-none">
-                        <HospitalTimeline hospitals={data.linkedHospitals} childName={data.name} />
+                        {data && <HospitalTimeline hospitals={data.linkedHospitals} childName={data.name} onAddClick={() => setIsCodeModalOpen(true)} />}
                     </aside>
                 </section>
             </main>
@@ -95,7 +113,7 @@ const DashboardPage = () => {
             <ConfirmModal
                 isOpen={isModifyModalOpen}
                 title="검사 영상을 수정하시겠습니까?"
-                description={`현재 ${data.examProgress}/4 단계 진행 중입니다. 수정 시 기존 분석 데이터는 초기화될 수 있습니다.`}
+                description={`현재 ${data?.examProgress}/4 단계 진행 중입니다. 수정 시 기존 분석 데이터는 초기화될 수 있습니다.`}
                 confirmText="수정하기"
                 onConfirm={() => {
                     setIsModifyModalOpen(false);
@@ -104,7 +122,7 @@ const DashboardPage = () => {
                 onClose={() => setIsModifyModalOpen(false)}
             />
 
-            {/* 영상 확인 모달 (4단계) - 누락된 모달 추가 */}
+            {/* 영상 확인 모달 (4단계) */}
             <ConfirmModal
                 isOpen={isViewModalOpen}
                 title="제출된 영상을 확인하시겠습니까?"
@@ -117,16 +135,14 @@ const DashboardPage = () => {
                 }}
                 onClose={() => setIsViewModalOpen(false)}
             />
-            {/* 초대 코드 등록 모달 추가 */}
+
+            {/* 초대 코드 등록 모달 */}
             <CodeRegisterModal
                 isOpen={isCodeModalOpen}
                 onClose={() => setIsCodeModalOpen(false)}
-                onConfirm={(code) => {
-                    console.log("서버로 전송할 코드:", code); // Swagger { "inviteCode": code }
-                    setIsCodeModalOpen(false);
-                }}
+                onConfirm={handleCodeRegister}
                 title="병원 초대 코드 등록"
-                childName={data.name} // 반드시 추가
+                childName={data?.name || "어린이"}
                 description="어린이의 검사 결과를 공유받을 병원 초대 코드를 입력해 주세요."
                 confirmText="병원 연결하기"
             />
