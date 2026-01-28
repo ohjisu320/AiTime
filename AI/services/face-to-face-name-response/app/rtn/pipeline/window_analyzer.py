@@ -97,7 +97,11 @@ class WindowAnalyzer:
         fps = cap.get(cv2.CAP_PROP_FPS)
         if self.analysis_cfg.fps_override and self.analysis_cfg.fps_override > 0:
             fps = self.analysis_cfg.fps_override
-        fps = fps if fps and fps > 1e-3 else 30.0
+        fps = (
+            fps
+            if fps and fps > self.analysis_cfg.fps_min_valid
+            else self.analysis_cfg.fallback_fps
+        )
         dt = 1.0 / fps
 
         # 호명 이후를 보니까 분석을 call_end부터 시작
@@ -275,13 +279,13 @@ class WindowAnalyzer:
                     continue
 
                 # crop
-                # - parent는 상대적으로 안정적이라 조금 덜 줌(0.25)
-                # - child는 얼굴이 더 작고 움직임이 커서 여유를 더 줌(0.40)
+                # - parent_margin: 부모는 상대적으로 안정적이라 조금 덜 줌
+                # - child_margin: 아이는 얼굴이 더 작고 움직임이 커서 여유를 더 줌
                 parent_crop, (pox, poy) = crop_face_square(
-                    frame, parent_bbox, margin=0.25
+                    frame, parent_bbox, margin=self.crop_cfg.parent_margin
                 )
                 child_crop, (cox, coy) = crop_face_square(
-                    frame, child_bbox, margin=0.40
+                    frame, child_bbox, margin=self.crop_cfg.child_margin
                 )
 
                 # =========================================================
