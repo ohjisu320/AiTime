@@ -1,7 +1,4 @@
-from __future__ import annotations
-
-import warnings
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 
 from app.rtn.debug.broker import FrameBroker
 from app.rtn.factory import build_analyzer
@@ -19,14 +16,6 @@ class RTNEngine:
 def build_engine(
     settings: RTNSettings = DEFAULT_SETTINGS,
 ) -> tuple[RTNEngine, object | None]:
-    """Build engine from a single settings object (PR-3).
-
-    This is the new canonical API:
-        engine, router = build_engine(DEFAULT_SETTINGS)
-
-    All hyperparameters should be adjusted through `RTNSettings` / `RTNConfig`.
-    """
-
     broker = FrameBroker(jpeg_quality=settings.engine.jpeg_quality)
 
     analyzer = build_analyzer(
