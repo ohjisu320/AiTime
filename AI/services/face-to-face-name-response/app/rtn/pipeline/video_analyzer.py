@@ -3,6 +3,7 @@ import os
 import tempfile
 import time
 from collections.abc import Callable
+from dataclasses import asdict
 from typing import Any
 
 import numpy as np
@@ -12,7 +13,9 @@ from app.rtn.audio.vad_silero import SileroVAD
 from app.rtn.config import (
     AnalysisConfig,
     ContactConfig,
+    CropConfig,
     FaceDetConfig,
+    FaceMeshConfig,
     GazeSmoothConfig,
     ROIConfig,
     RoleAssignConfig,
@@ -40,6 +43,8 @@ class VideoAnalyzer:
         contact_cfg: ContactConfig,
         analysis_cfg: AnalysisConfig,
         conf_th: float,
+        face_mesh_cfg: FaceMeshConfig | None = None,
+        crop_cfg: CropConfig | None = None,
         debug_publish: Callable[[FrameBGR], None] | None = None,
     ) -> None:
         self.vad_cfg = vad_cfg
@@ -47,7 +52,9 @@ class VideoAnalyzer:
 
         self.vad = SileroVAD(vad_cfg)
         self.detector = FaceDetectorMP(face_cfg)
-        self.facemesh = FaceMeshMP()
+        self.face_mesh_cfg = face_mesh_cfg or FaceMeshConfig()
+        self.crop_cfg = crop_cfg or CropConfig()
+        self.facemesh = FaceMeshMP(**asdict(self.face_mesh_cfg))
 
         self.window_analyzer = WindowAnalyzer(
             detector=self.detector,
@@ -58,6 +65,7 @@ class VideoAnalyzer:
             gaze_cfg=gaze_cfg,
             contact_cfg=contact_cfg,
             analysis_cfg=analysis_cfg,
+            crop_cfg=self.crop_cfg,
             conf_th=conf_th,
             debug_publish=debug_publish,
         )

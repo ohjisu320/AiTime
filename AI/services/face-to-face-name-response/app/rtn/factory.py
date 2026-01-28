@@ -3,7 +3,9 @@ from collections.abc import Callable
 from app.rtn.config import (
     AnalysisConfig,
     ContactConfig,
+    CropConfig,
     FaceDetConfig,
+    FaceMeshConfig,
     GazeSmoothConfig,
     ROIConfig,
     RoleAssignConfig,
@@ -35,9 +37,9 @@ def build_analyzer(
     )
     # face mesh:
     # - 얼굴 검출 신뢰도 임계값(conf)은 downstream(트래킹/역할/ROI) 안정성에 관여
-    # - model_selection=0/1은 mediapipe 옵션(거리/정확도 트레이드오프)
-    #   -> 0은 2meter, 1은 5meter
-    face_cfg = FaceDetConfig(min_conf=conf, model_selection=0)
+    # - model_selection은 MediaPipe FaceDetection 옵션(거리/정확도 트레이드오프)
+    #   -> cfg.face_det.model_selection 값으로 제어
+    face_cfg = FaceDetConfig(min_conf=conf)
 
     # SORT/트래킹:
     # - max_age: 잠깐 놓친 트랙을 얼마나 유지할지(가림/회전 대비) ↔ 오탐 유지 위험
@@ -74,6 +76,8 @@ def build_analyzer(
     return VideoAnalyzer(
         vad_cfg=vad_cfg,
         face_cfg=face_cfg,
+        face_mesh_cfg=FaceMeshConfig(),
+        crop_cfg=CropConfig(),
         track_cfg=track_cfg,
         role_cfg=role_cfg,
         roi_cfg=roi_cfg,
@@ -91,11 +95,21 @@ def build_analyzer_from_cfg(
     debug_publish: Callable[[FrameBGR], None] | None = None,
     conf_th: float | None = None,
 ) -> VideoAnalyzer:
+    """New settings-based constructor (PR-1).
+
+    - Does not modify the legacy `build_analyzer(...)` behavior.
+    - Default settings (DEFAULT_SETTINGS) are chosen to match current defaults.
+    - In PR-2, `cfg.face_mesh` / `cfg.crop` are wired into VideoAnalyzer/WindowAnalyzer.
+    """
+
+    # legacy behavior: use the same threshold for detector config + downstream filtering
     th = float(conf_th) if conf_th is not None else float(cfg.face_det.min_conf)
 
     return VideoAnalyzer(
         vad_cfg=cfg.vad,
         face_cfg=cfg.face_det,
+        face_mesh_cfg=cfg.face_mesh,
+        crop_cfg=cfg.crop,
         track_cfg=cfg.track,
         role_cfg=cfg.role,
         roi_cfg=cfg.roi,
