@@ -36,7 +36,8 @@ const HospitalTimeline = ({ hospitals, childName, onAddClick }: HospitalTimeline
           /* 1. 병원 목록이 있을 때: 타임라인 디자인 적용 */
           <div className={`relative flex-1 transition-all duration-500 ease-in-out ${isExpanded ? 'max-h-[1000px]' : 'max-h-[400px] overflow-hidden'}`}>
             <div className="space-y-8 mt-4 pb-4">
-              {hospitals.map((h, i) => (
+              {/* 배열을 역순으로 복사하여 렌더링 (최신순 정렬) */}
+              {[...hospitals].reverse().map((h, i) => (
                 <div key={h.hospitalId} className="relative flex gap-4">
                   {/* 타임라인 수직 선 */}
                   {i !== hospitals.length - 1 && (

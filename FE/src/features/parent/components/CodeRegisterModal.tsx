@@ -18,16 +18,17 @@ interface CodeRegisterModalProps {
   onClose: () => void;
   onConfirm: (code: string) => void;
   title: string;
-  childName: string; //
+  childName: string;
   description: string;
   confirmText: string;
+  isLoading?: boolean; // Add isLoading prop
 }
 
-const CodeRegisterModal = ({ isOpen, onClose, childName, onConfirm, confirmText = "병원 연결하기" }: CodeRegisterModalProps) => {
+const CodeRegisterModal = ({ isOpen, onClose, childName, onConfirm, confirmText = "병원 연결하기", isLoading = false }: CodeRegisterModalProps) => {
   const [inviteCode, setInviteCode] = useState("");
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={isLoading ? undefined : onClose}>
       {/* 2. 배경 오버레이 설정: 반투명 블랙 배경 적용 */}
       <DialogOverlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" />
 
@@ -47,23 +48,26 @@ const CodeRegisterModal = ({ isOpen, onClose, childName, onConfirm, confirmText 
             placeholder="초대 코드 입력"
             value={inviteCode}
             onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-            className="h-16 text-center text-xl font-mono tracking-widest rounded-2xl border-2 border-indigo-100 bg-white focus-visible:ring-[#6366F1]"
+            disabled={isLoading}
+            className="h-16 text-center text-xl font-mono tracking-widest rounded-2xl border-2 border-indigo-100 bg-white focus-visible:ring-[#6366F1] disabled:opacity-50"
           />
         </div>
 
         <DialogFooter>
           <Button
-            className="w-full h-16 bg-[#6366F1] hover:bg-[#4F46E5] text-white text-lg font-bold rounded-2xl shadow-lg transition-all"
+            className="w-full h-16 bg-[#6366F1] hover:bg-[#4F46E5] text-white text-lg font-bold rounded-2xl shadow-lg transition-all disabled:opacity-70"
+            disabled={isLoading}
             onClick={() => {
               if (inviteCode.trim().length === 0) {
                 toast.error("초대 코드를 입력해주세요.");
                 return;
               }
               onConfirm(inviteCode);
-              setInviteCode(""); // Reset input
+              // Do not clear immediately if loading, but usually we clear on success. 
+              // For now, let parent handle close.
             }}
           >
-            {confirmText}
+            {isLoading ? "연결 중..." : confirmText}
           </Button>
         </DialogFooter>
       </DialogContent>
