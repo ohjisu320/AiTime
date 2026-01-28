@@ -6,14 +6,13 @@ import com.ssafy.aitime.common.exception.commonExceptions.UpdateFailedException;
 import com.ssafy.aitime.common.response.ApiResponse;
 import com.ssafy.aitime.domain.child.exception.ChildAccessDeniedException;
 import com.ssafy.aitime.domain.child.exception.ChildNotFoundException;
-import com.ssafy.aitime.domain.hospital.exception.HospitalAlreadyLinkedException;
-import com.ssafy.aitime.domain.hospital.exception.HospitalNotFoundException;
+import com.ssafy.aitime.domain.hospital.exception.*;
+import com.ssafy.aitime.domain.invite.exception.AlreadyIssuedInviteCodeException;
 import com.ssafy.aitime.domain.invite.exception.InviteCodeAlreadyUsedException;
 import com.ssafy.aitime.domain.invite.exception.InviteCodeNotFoundException;
 import com.ssafy.aitime.domain.user.exception.*;
 import com.ssafy.aitime.security.exception.RefreshTokenInvalidException;
 import com.ssafy.aitime.security.exception.RefreshTokenMissingException;
-import com.ssafy.aitime.domain.hospital.exception.DoctorNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -187,7 +186,8 @@ public class GlobalExceptionHandler {
      * - 이미 연동된 병원
      */
     @ExceptionHandler({
-            HospitalAlreadyLinkedException.class
+            HospitalAlreadyLinkedException.class,
+            InvalidDoctorSelectionException.class
     })
     public ResponseEntity<ApiResponse<Object>> handleHospitalBadRequestException(RuntimeException e){
         return ResponseEntity
@@ -202,7 +202,8 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler({
             DoctorNotFoundException.class,
-            HospitalNotFoundException.class
+            HospitalNotFoundException.class,
+            HospitalStaffNotFoundException.class
     })
     public ResponseEntity<ApiResponse<Object>> handleHospitalNotFoundException(RuntimeException e){
         return ResponseEntity
@@ -210,6 +211,13 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.of(HttpStatus.NOT_FOUND, e.getMessage(), null));
     }
 
+    @ExceptionHandler({
+            HospitalStaffAccessDeniedException.class
+    })
+    public ResponseEntity<ApiResponse<Object>> handleHospitalForbiddenException(RuntimeException e){
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN).body(ApiResponse.of(HttpStatus.FORBIDDEN, e.getMessage(), null));
+    }
     /********************************************************************************/
     /*                        InviteCode CustomException                            */
     /********************************************************************************/
@@ -238,5 +246,15 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
                 .body(ApiResponse.of(HttpStatus.NOT_FOUND, e.getMessage(), null));
+    }
+
+    @ExceptionHandler({
+            AlreadyIssuedInviteCodeException.class
+    })
+    public ResponseEntity<ApiResponse<Object>> handleInviteCodeConflictException(RuntimeException e){
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(ApiResponse.of(HttpStatus.CONFLICT, e.getMessage(), null));
+
     }
 }

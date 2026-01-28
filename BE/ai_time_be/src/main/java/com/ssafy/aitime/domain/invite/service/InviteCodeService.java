@@ -1,6 +1,11 @@
 package com.ssafy.aitime.domain.invite.service;
 
+import com.ssafy.aitime.domain.invite.dto.request.InviteCodeRequest;
+import com.ssafy.aitime.domain.invite.dto.response.InviteCodeResponse;
 import com.ssafy.aitime.domain.invite.dto.response.InviteCodeValidationDto;
+import com.ssafy.aitime.security.principal.HospitalStaffPrincipal;
+
+import java.util.UUID;
 
 public interface InviteCodeService {
     /**
@@ -17,4 +22,6 @@ public interface InviteCodeService {
      * @param inviteCode 사용 처리할 초대 코드 문자열
      */
     void markAsUsed(String inviteCode);
+
+    InviteCodeResponse generateInviteCode(InviteCodeRequest request, UUID hospitalStaffId);
 }
