@@ -67,7 +67,7 @@ export default function BalanceChartSection() {
       </div>
 
       <div className="text-center text-base text-gray-500 bg-gray-50 py-4 rounded-xl mt-4">
-        * <span className="font-bold text-[#5A55D6]">발화모방</span> 영역이 평균
+        * <span className="font-bold text-[#5A55D6]">발화모방</span> 영역이 타영역
         대비 낮게 측정되었습니다.
       </div>
     </section>
