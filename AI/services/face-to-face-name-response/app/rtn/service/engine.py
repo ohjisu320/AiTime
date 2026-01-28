@@ -1,7 +1,4 @@
-from __future__ import annotations
-
-import warnings
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 
 from app.rtn.debug.broker import FrameBroker
 from app.rtn.factory import build_analyzer
@@ -19,14 +16,6 @@ class RTNEngine:
 def build_engine(
     settings: RTNSettings = DEFAULT_SETTINGS,
 ) -> tuple[RTNEngine, object | None]:
-    """Build engine from a single settings object (PR-3).
-
-    This is the new canonical API:
-        engine, router = build_engine(DEFAULT_SETTINGS)
-
-    All hyperparameters should be adjusted through `RTNSettings` / `RTNConfig`.
-    """
-
     broker = FrameBroker(jpeg_quality=settings.engine.jpeg_quality)
 
     analyzer = build_analyzer(
@@ -37,82 +26,3 @@ def build_engine(
 
     router = create_debug_router(broker) if settings.engine.enable_mjpeg else None
     return RTNEngine(analyzer=analyzer, broker=broker), router
-
-
-def build_engine_legacy(
-    *,
-    enable_mjpeg: bool = True,
-    jpeg_quality: int = 80,
-    # 아래는 (구) build_analyzer 파라미터 그대로 통과
-    window_s: float = 5.0,
-    vad_merge_gap: float = 0.3,
-    vad_min_speech_ms: int = 250,
-    vad_min_silence_ms: int = 250,
-    min_contact_frames: int = 3,
-    warmup_s: float = 1.0,
-    conf: float = 0.6,
-    debug: bool = False,  # 로컬 cv2.imshow
-    fps_override: float | None = None,
-) -> tuple[RTNEngine, object | None]:
-    """Deprecated kwargs-based engine builder.
-
-    Kept temporarily to avoid breaking older call sites.
-    Prefer:
-        build_engine(settings)
-
-    This wrapper derives a settings object from DEFAULT_SETTINGS so that behavior
-    remains identical to previous defaults.
-    """
-
-    warnings.warn(
-        "build_engine_legacy(...) is deprecated; use build_engine(settings) instead.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-
-    base = DEFAULT_SETTINGS
-
-    engine_cfg = replace(
-        base.engine,
-        enable_mjpeg=enable_mjpeg,
-        jpeg_quality=jpeg_quality,
-    )
-
-    rtn_base = base.rtn
-    rtn_cfg = replace(
-        rtn_base,
-        vad=replace(
-            rtn_base.vad,
-            merge_gap_s=vad_merge_gap,
-            min_speech_ms=vad_min_speech_ms,
-            min_silence_ms=vad_min_silence_ms,
-        ),
-        contact=replace(rtn_base.contact, min_contact_frames=min_contact_frames),
-        role=replace(rtn_base.role, warmup_s=warmup_s),
-        face_det=replace(rtn_base.face_det, min_conf=conf),
-        analysis=replace(
-            rtn_base.analysis,
-            window_s=window_s,
-            debug=debug,
-            fps_override=fps_override,
-        ),
-    )
-
-    settings = replace(base, engine=engine_cfg, rtn=rtn_cfg)
-    return build_engine(settings)
-
-
-def build_engine_from_settings(
-    settings: RTNSettings = DEFAULT_SETTINGS,
-) -> tuple[RTNEngine, object | None]:
-    """
-    build_engine_from_settings(...) is deprecated
-    """
-
-    warnings.warn(
-        "build_engine_from_settings(...) is deprecated; \
-            use build_engine(settings) instead.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    return build_engine(settings)
