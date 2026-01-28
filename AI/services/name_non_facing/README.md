@@ -186,11 +186,11 @@ flowchart LR
 name_non_facing/
 ├── app/
 │   ├── __init__.py
-│   ├── main.py                 # FastAPI 앱 진입점
-│   ├── config.py               # 설정 및 환경변수
-│   ├── worker.py               # Celery Worker
+│   ├── main.py                              # FastAPI 앱 진입점
+│   ├── config.py                            # 설정 및 환경변수
+│   ├── worker.py                            # Celery Worker
 │   │
-│   ├── api/                    # API 라우터
+│   ├── api/                                 # API 라우터
 │   │   ├── __init__.py
 │   │   ├── router.py
 │   │   ├── endpoints/
@@ -202,31 +202,32 @@ name_non_facing/
 │   │       ├── request.py
 │   │       └── response.py    
 │   │
-│   ├── models/                 # AI 모델 래퍼
-│   │   ├── __init__.py
-│   │   ├── base.py
+│   ├── models/                              # AI 모델 래퍼
+│   │   ├── __init__.py             
+│   │   ├── base.py                          # 싱글톤, 지연로딩.
 │   │   ├── face_detector.py
 │   │   ├── face_mesh.py
 │   │   ├── head_pose.py
-│   │   ├── speech_recognizer.py
-│   │   ├── speaker_diarizer.py
-│   │   ├── vad.py
-│   │   └── child_voice_analyzer.py  
+│   │   ├── speech_recognizer.py             # 음성 인식 - 호명 감ㅁ지
+│   │   ├── speaker_diarizer.py              # 화자 구분
+│   │   ├── vad.py                           # 음성 구간 감지
+│   │   └── child_voice_analyzer.py          # 음성 반응 통합 분석.
 │   │
-│   ├── pipeline/               # 분석 파이프라인
-│   │   ├── __init__.py
-│   │   ├── orchestrator.py
-│   │   ├── context.py
+│   ├── pipeline/                            # 분석 파이프라인
+│   │   ├── __init__.py                      # 모듈 export
+│   │   ├── orchestrator.py                  # 
+│   │   ├── context.py                       # 
 │   │   └── stages/
-│   │       ├── __init__.py
-│   │       ├── input_stage.py
-│   │       ├── face_detect_stage.py
-│   │       ├── trigger_stage.py
-│   │       ├── child_analysis_stage.py
-│   │       ├── reaction_detect_stage.py
-│   │       └── result_stage.py
+│   │       ├── __init__.py                  # stage export
+│   │       ├── base_stage.py                # BaseStage 추상 클래스
+│   │       ├── input_stage.py               # 오디오 추출
+│   │       ├── trigger_stage.py             # 호명 감지
+│   │       ├── reaction_detect_stage.py     # 음성 반응 감지
+│   │       ├── face_detect_stage.py         # 
+│   │       ├── child_analysis_stage.py      # 
+│   │       └── result_stage.py              # 결과 산출
 │   │
-│   ├── core/                   # 핵심 비즈니스 로직
+│   ├── core/                                # 핵심 비즈니스 로직
 │   │   ├── __init__.py
 │   │   ├── vector_math.py  
 │   │   ├── angle_calculator.py 
