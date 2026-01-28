@@ -14,6 +14,7 @@ import com.ssafy.aitime.security.provider.JwtTokenProvider;
 import com.ssafy.aitime.security.repository.RefreshTokenRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -27,7 +28,9 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class HospitalStaffServiceImpl implements HospitalStaffService {
 
-    private final AuthenticationManager authenticationManager;
+    @Qualifier("staffAuthenticationManager")
+    private final AuthenticationManager staffAuthenticationManager;
+
     private final JwtTokenProvider jwtTokenProvider;
     private final RefreshTokenRepository refreshTokenRepository;
     private final HospitalStaffRepository hospitalStaffRepository;
@@ -44,8 +47,12 @@ public class HospitalStaffServiceImpl implements HospitalStaffService {
 
         // 2. 토큰 생성
         String accessToken = jwtTokenProvider.createAccessToken(
-                principal.getLoginId(), principal.getStaffRole().name(), "STAFF");
-        String refreshToken = jwtTokenProvider.createRefreshToken(principal.getLoginId(), "STAFF");
+                principal.getLoginId(),
+                principal.getStaffRole().name(),
+                "STAFF");
+        String refreshToken = jwtTokenProvider.createRefreshToken(
+                principal.getLoginId(),
+                "STAFF");
 
         // 3. Redis 저장 (RTR 적용)
         saveRefreshToken(principal.getLoginId(), refreshToken);
@@ -53,7 +60,12 @@ public class HospitalStaffServiceImpl implements HospitalStaffService {
         return new StaffTokenResponse(
                 accessToken,
                 refreshToken,
-                new HospitalStaffInfoDTO(principal.getHospitalStaffId(), principal.getName(),  principal.getStaffRole()));
+                new HospitalStaffInfoDTO(
+                        principal.getHospitalStaffId(),
+                        principal.getName(),
+                        principal.getStaffRole()
+                )
+        );
     }
 
     @Override
@@ -98,10 +110,10 @@ public class HospitalStaffServiceImpl implements HospitalStaffService {
 
     private Authentication authenticate(String loginId, String password) {
         try {
-            // 필터/인터셉터에서 타입을 구분하지 않는다면,
-            // 현재 구조상 STAFF 로그인을 하려면 CustomUserDetailsService의 기본 loadUserByUsername이
-            // STAFF를 먼저 찾거나 타입 기반 인증이 선행되어야 합니다.
-            return authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(loginId, password));
+            // staffAuthenticationManager 사용
+            return staffAuthenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(loginId, password)
+            );
         } catch (BadCredentialsException e) {
             throw new IllegalArgumentException("아이디 또는 비밀번호가 틀렸습니다.");
         }
