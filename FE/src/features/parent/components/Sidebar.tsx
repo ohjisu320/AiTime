@@ -1,5 +1,7 @@
 // Sidebar.tsx
 import type { DashboardData } from '../types/dashboard';
+import { useNavigate } from 'react-router-dom';
+import { logoutUser } from '../../auth/api/authApi';
 
 // 1. Props 인터페이스에 클릭 핸들러 추가
 interface SidebarProps {
@@ -8,6 +10,22 @@ interface SidebarProps {
 }
 
 const Sidebar = ({ childName, onCodeInputClick }: SidebarProps) => {
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+
+    try {
+      await logoutUser();
+    } catch (e) {
+      console.warn("Force logging out despite API error", e);
+    } finally {
+      // Client-side cleanup
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      // Redirect to Root
+      navigate('/');
+    }
+  };
   return (
     <aside className="w-64 flex flex-none flex-col sticky top-0 bg-white border-r border-gray-200 h-screen min-h-[1000px]">      <div className="h-24 px-6 pt-6 border-b border-gray-200 flex flex-col justify-start items-start shrink-0">
       <div className="inline-flex justify-start items-center gap-3">
@@ -33,7 +51,9 @@ const Sidebar = ({ childName, onCodeInputClick }: SidebarProps) => {
         </div>
 
         <div className="h-12 pl-4 rounded-2xl inline-flex items-center gap-3 text-gray-600 hover:bg-gray-50 cursor-pointer transition-colors">
-          <span>회원정보 수정</span>
+          <div onClick={() => navigate('/parent/mypage/edit')}>
+            <span>회원정보 수정</span>
+          </div>
         </div>
 
         <div className="mt-auto pt-4 border-t border-gray-200">
@@ -45,7 +65,10 @@ const Sidebar = ({ childName, onCodeInputClick }: SidebarProps) => {
                 <span className="text-gray-500 text-[10px] truncate">{childName}의 부모님</span>
               </div>
             </div>
-            <button className="h-9 w-full bg-white rounded-lg border border-gray-200 text-gray-600 text-xs font-medium hover:bg-gray-50 transition-colors">
+            <button
+              onClick={handleLogout}
+              className="h-9 w-full bg-white rounded-lg border border-gray-200 text-gray-600 text-xs font-medium hover:bg-gray-50 transition-colors"
+            >
               로그아웃
             </button>
           </div>
