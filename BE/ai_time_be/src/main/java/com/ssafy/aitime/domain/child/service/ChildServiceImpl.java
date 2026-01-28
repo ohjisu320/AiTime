@@ -4,6 +4,7 @@ import com.ssafy.aitime.common.enums.RecordStatus;
 import com.ssafy.aitime.domain.child.dto.request.ChildCreateRequest;
 import com.ssafy.aitime.domain.child.dto.request.ChildDeleteResponse;
 import com.ssafy.aitime.domain.child.dto.response.ChildHomeResponse;
+import com.ssafy.aitime.domain.child.dto.response.ChildHospitalListResponse;
 import com.ssafy.aitime.domain.child.dto.response.ChildInfoResponse;
 import com.ssafy.aitime.domain.child.dto.response.HospitalInfo;
 import com.ssafy.aitime.domain.child.entity.Child;
@@ -12,6 +13,8 @@ import com.ssafy.aitime.domain.child.exception.ChildNotFoundException;
 import com.ssafy.aitime.domain.child.repository.ChildRepository;
 import com.ssafy.aitime.domain.exam.dto.response.ExamSummaryResponse;
 import com.ssafy.aitime.domain.exam.service.ExamService;
+import com.ssafy.aitime.domain.hospital.dto.response.HospitalResponseDto;
+import com.ssafy.aitime.domain.hospital.service.HospitalChildrenService;
 import com.ssafy.aitime.domain.hospital.service.HospitalService;
 import com.ssafy.aitime.domain.user.entity.User;
 import com.ssafy.aitime.domain.user.service.UserService;
@@ -98,7 +101,7 @@ public class ChildServiceImpl implements ChildService{
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public ChildHomeResponse getChildHomeInfo(UUID userId, UUID childId) {
         // 아이 주체(부모)가 유효한지 확인
         userService.getById(userId);
