@@ -71,10 +71,10 @@ public class RabbitMQTestController {
 
         // 2. Video 4개 생성
         VideoType[] videoTypes = {
-                VideoType.TASK1,
-                VideoType.TASK2,
-                VideoType.TASK3,
-                VideoType.TASK4
+                VideoType.POSE_IMITATION,      // task1: 동작 모방행동
+                VideoType.SPEECH_IMITATION,    // task2: 발화 모방행동
+                VideoType.NAME_FACING,         // task3: 대면 호명반응
+                VideoType.NAME_NON_FACING      // task4: 비대면 호명반응
         };
 
         for (int i = 0; i < videoTypes.length; i++) {
@@ -192,9 +192,9 @@ public class RabbitMQTestController {
         guide.put("step7", "DELETE /test/rabbitmq/cleanup/{examId} - 데이터 정리");
 
         Map<String, String> queues = new HashMap<>();
-        queues.put("요청큐1", "analysis.req.task1 (대면 호명반응)");
+        queues.put("요청큐1", "analysis.req.task1 (동작 모방행동)");
         queues.put("요청큐2", "analysis.req.task2 (발화 모방행동)");
-        queues.put("요청큐3", "analysis.req.task3 (동작 모방행동)");
+        queues.put("요청큐3", "analysis.req.task3 (대면 호명반응)");
         queues.put("요청큐4", "analysis.req.task4 (비대면 호명반응)");
         queues.put("결과큐", "analysis.resp");
 

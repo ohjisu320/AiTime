@@ -37,10 +37,10 @@ public class AnalysisRequestMessage {
 
     private static Integer mapVideoTypeToTaskNo(com.ssafy.aitime.domain.exam.entity.enums.VideoType videoType) {
         return switch (videoType) {
-            case TASK1 -> 1;           // 대면 호명반응 NAME_FACING
-            case TASK2 -> 2;      // 발화 모방행동 SPEECH_IMITATION
-            case TASK3 -> 3;        // 동작 모방행동 POSE_IMITATION
-            case TASK4 -> 4;       // 비대면 호명반응 NAME_NON_FACING
+            case POSE_IMITATION -> 1;      // task1: 동작 모방행동
+            case SPEECH_IMITATION -> 2;    // task2: 발화 모방행동
+            case NAME_FACING -> 3;         // task3: 대면 호명반응
+            case NAME_NON_FACING -> 4;     // task4: 비대면 호명반응
         };
     }
 
