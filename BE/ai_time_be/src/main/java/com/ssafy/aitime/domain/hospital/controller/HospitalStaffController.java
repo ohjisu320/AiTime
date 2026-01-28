@@ -63,6 +63,26 @@ public class HospitalStaffController {
                 .body(ApiResponse.ok("토큰이 재발급되었습니다.", responseBody));
     }
 
+    @PostMapping("/logout")
+    public ResponseEntity<ApiResponse<Object>> logout(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @CookieValue(name = "refreshToken", required = false) String refreshToken
+    ) {
+        String accessToken = resolveBearerToken(authHeader);
+
+        hospitalStaffService.logout(accessToken, refreshToken);
+
+        // 쿠키 삭제를 위해 만료시간을 0으로 설정한 쿠키 반환
+        ResponseCookie cookie = ResponseCookie.from("refreshToken", "")
+                .maxAge(0)
+                .path("/")
+                .build();
+
+        return ResponseEntity.ok()
+                .header("Set-Cookie", cookie.toString())
+                .body(ApiResponse.ok("로그아웃 되었습니다.", null));
+    }
+
     /**
      * 쿠키 생성 공통 메서드 (보안 설정 일관성 유지)
      */
@@ -74,5 +94,15 @@ public class HospitalStaffController {
                 .path("/")
                 .maxAge(1209600)      // 14일 (UserController 설정과 동일)
                 .build();
+    }
+
+    private String resolveBearerToken(String authorizationHeader) {
+        if (authorizationHeader == null || authorizationHeader.isBlank()) {
+            return null;
+        }
+        if (!authorizationHeader.startsWith("Bearer ")) {
+            return null;
+        }
+        return authorizationHeader.substring(7);
     }
 }

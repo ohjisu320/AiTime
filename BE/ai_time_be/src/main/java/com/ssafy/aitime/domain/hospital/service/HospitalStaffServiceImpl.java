@@ -16,6 +16,7 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -23,6 +24,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -34,6 +37,7 @@ public class HospitalStaffServiceImpl implements HospitalStaffService {
     private final JwtTokenProvider jwtTokenProvider;
     private final RefreshTokenRepository refreshTokenRepository;
     private final HospitalStaffRepository hospitalStaffRepository;
+    private final StringRedisTemplate redisTemplate;
 
     @Value("${jwt.refresh-token-expiration}")
     private long refreshTokenExpirationMillis;
@@ -41,11 +45,11 @@ public class HospitalStaffServiceImpl implements HospitalStaffService {
     @Override
     @Transactional
     public StaffTokenResponse login(HospitalStaffLoginRequest request) {
-        // 1. 스프링 시큐리티 인증 (CustomUserDetailsService가 STAFF 타입으로 조회함)
+        // 스프링 시큐리티 인증 (CustomUserDetailsService가 STAFF 타입으로 조회함)
         Authentication authentication = authenticate(request.loginId(), request.password());
         HospitalStaffPrincipal principal = (HospitalStaffPrincipal) authentication.getPrincipal();
 
-        // 2. 토큰 생성
+        // 토큰 생성
         String accessToken = jwtTokenProvider.createAccessToken(
                 principal.getLoginId(),
                 principal.getStaffRole().name(),
@@ -54,7 +58,7 @@ public class HospitalStaffServiceImpl implements HospitalStaffService {
                 principal.getLoginId(),
                 "STAFF");
 
-        // 3. Redis 저장 (RTR 적용)
+        // Redis 저장 (RTR 적용)
         saveRefreshToken(principal.getLoginId(), refreshToken);
 
         return new StaffTokenResponse(
@@ -99,6 +103,19 @@ public class HospitalStaffServiceImpl implements HospitalStaffService {
                 new HospitalStaffInfoDTO(staff.getHospitalStaffId(), staff.getName(),  staff.getStaffRole()));
     }
 
+    @Override
+    @Transactional
+    public void logout(String accessToken, String refreshToken) {
+        // RefreshToken이 유효하면 Redis에서 삭제
+        if (refreshToken != null && !refreshToken.isBlank() && jwtTokenProvider.validateToken(refreshToken)) {
+            String loginId = jwtTokenProvider.getLoginId(refreshToken);
+            refreshTokenRepository.deleteById(loginId);
+        }
+
+        // AccessToken을 블랙리스트에 추가
+        blacklistAccessToken(accessToken);
+    }
+
     private void saveRefreshToken(String loginId, String refreshToken) {
         RefreshToken rf = RefreshToken.builder()
                 .loginId(loginId)
@@ -116,6 +133,25 @@ public class HospitalStaffServiceImpl implements HospitalStaffService {
             );
         } catch (BadCredentialsException e) {
             throw new IllegalArgumentException("아이디 또는 비밀번호가 틀렸습니다.");
+        }
+    }
+
+    private void blacklistAccessToken(String accessToken) {
+        if (accessToken == null || accessToken.isBlank()) {
+            return;
+        }
+        if (!jwtTokenProvider.validateToken(accessToken)) {
+            return;
+        }
+
+        long expiration = jwtTokenProvider.getExpiration(accessToken);
+        if (expiration > 0) {
+            redisTemplate.opsForValue().set(
+                    "blacklist:" + accessToken,
+                    "logout",
+                    expiration,
+                    TimeUnit.MILLISECONDS
+            );
         }
     }
 }

@@ -7,4 +7,5 @@ import com.ssafy.aitime.domain.hospital.dto.response.StaffTokenResponse;
 public interface HospitalStaffService {
     StaffTokenResponse login(HospitalStaffLoginRequest request);
     StaffTokenResponse refresh(String refreshToken);
+    void logout(String accessToken, String refreshToken);
 }
