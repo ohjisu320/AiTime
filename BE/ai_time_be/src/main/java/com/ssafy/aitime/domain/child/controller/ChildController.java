@@ -5,6 +5,7 @@ import com.ssafy.aitime.domain.child.dto.request.ChildCreateRequest;
 import com.ssafy.aitime.domain.child.dto.request.ChildDeleteResponse;
 import com.ssafy.aitime.domain.child.dto.request.ChildHospitalLinkRequest;
 import com.ssafy.aitime.domain.child.dto.response.ChildHomeResponse;
+import com.ssafy.aitime.domain.child.dto.response.ChildHospitalListResponse;
 import com.ssafy.aitime.domain.child.dto.response.ChildInfoResponse;
 import com.ssafy.aitime.domain.child.service.ChildService;
 import com.ssafy.aitime.security.principal.UserPrincipal;
@@ -72,5 +73,14 @@ public class ChildController {
         childService.registerInviteCode(childId, request.inviteCode(), principal.getUserId());
         return ResponseEntity.ok(
                 ApiResponse.ok("병원 연동이 성공적으로 완료되었습니다.", null));
+    }
+
+    @GetMapping("/{childId}/hospital-list")
+    public ResponseEntity<ApiResponse<ChildHospitalListResponse>> getHospitalList(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable @NotNull UUID childId
+    ) {
+        return ResponseEntity.ok(
+                ApiResponse.ok("연동된 병원 목록 조회가 완료되었습니다.", childService.getLinkedHospitals(principal.getUserId(),childId)));
     }
 }

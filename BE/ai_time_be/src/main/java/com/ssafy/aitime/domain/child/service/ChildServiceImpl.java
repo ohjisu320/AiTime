@@ -4,6 +4,7 @@ import com.ssafy.aitime.common.enums.RecordStatus;
 import com.ssafy.aitime.domain.child.dto.request.ChildCreateRequest;
 import com.ssafy.aitime.domain.child.dto.request.ChildDeleteResponse;
 import com.ssafy.aitime.domain.child.dto.response.ChildHomeResponse;
+import com.ssafy.aitime.domain.child.dto.response.ChildHospitalListResponse;
 import com.ssafy.aitime.domain.child.dto.response.ChildInfoResponse;
 import com.ssafy.aitime.domain.hospital.dto.response.HospitalInfoDTO;
 import com.ssafy.aitime.domain.child.entity.Child;
@@ -12,6 +13,8 @@ import com.ssafy.aitime.domain.child.exception.ChildNotFoundException;
 import com.ssafy.aitime.domain.child.repository.ChildRepository;
 import com.ssafy.aitime.domain.exam.dto.response.ExamSummaryResponse;
 import com.ssafy.aitime.domain.exam.service.ExamService;
+import com.ssafy.aitime.domain.hospital.dto.response.HospitalResponseDto;
+import com.ssafy.aitime.domain.hospital.service.HospitalChildrenService;
 import com.ssafy.aitime.domain.hospital.service.HospitalService;
 import com.ssafy.aitime.domain.invite.dto.response.InviteCodeValidationDto;
 import com.ssafy.aitime.domain.invite.service.InviteCodeService;
@@ -37,6 +40,7 @@ public class ChildServiceImpl implements ChildService{
     private final ExamService examService;
     private final HospitalService hospitalService;
     private final InviteCodeService inviteCodeService;
+    private final HospitalChildrenService hospitalChildrenService;
 
     @Override
     @Transactional
@@ -101,7 +105,7 @@ public class ChildServiceImpl implements ChildService{
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public ChildHomeResponse getChildHomeInfo(UUID userId, UUID childId) {
         // 아이 주체(부모)가 유효한지 확인
         userService.getById(userId);
@@ -159,6 +163,28 @@ public class ChildServiceImpl implements ChildService{
 
         // 4. 초대 코드 사용 처리 (InviteCodeService에서 처리)
         inviteCodeService.markAsUsed(inviteCode);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ChildHospitalListResponse getLinkedHospitals(UUID userId, UUID childId) {
+        // 아이 주체(부모)가 유효한지 확인
+        userService.getById(userId);
+
+        // 조회할 아이가 존재하는지 확인 (ACTIVE 상태만)
+        Child child = childRepository.findByChildIdAndRecordStatus(childId, RecordStatus.ACTIVE)
+                .orElseThrow(ChildNotFoundException::new);
+
+        // 권한 체크: 아이의 부모 ID와 현재 로그인한 유저 ID 비교
+        if (!child.getUser().getUserId().equals(userId)) {
+            // 본인의 아이가 아니면 에러 발생
+            throw new ChildAccessDeniedException();
+        }
+
+        // 연동된 병원 리스트 조회
+        List<HospitalResponseDto> hospitalResponseDtoList = hospitalChildrenService.getHospitalResponseDtosByChild(childId);
+
+        return new ChildHospitalListResponse(hospitalResponseDtoList);
     }
 
 }
