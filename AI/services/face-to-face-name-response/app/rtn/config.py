@@ -17,6 +17,29 @@ class FaceDetConfig:
 
 
 @dataclass(frozen=True)
+class FaceMeshConfig:
+    """MediaPipe FaceMesh 파라미터.
+
+    TODO: 실제 연동
+    """
+
+    refine_landmarks: bool = True
+    det_min_conf: float = 0.3
+    trk_min_conf: float = 0.5
+    trk_min_track: float = 0.5
+    min_crop_size: int = 160
+    upscale_to: int = 256
+
+
+@dataclass(frozen=True)
+class CropConfig:
+    """crop_face_square 여유(margin) 휴리스틱."""
+
+    parent_margin: float = 0.25
+    child_margin: float = 0.40
+
+
+@dataclass(frozen=True)
 class TrackConfig:
     max_age: int = 8
     min_hits: int = 2
@@ -32,6 +55,14 @@ class RoleAssignConfig:
 class ROIConfig:
     mesh_dilate_px: int = 14
     bbox_fallback_dilate_px: int = 28
+
+    # FaceMesh 실패 시 bbox fallback ROI 근사(비율 휴리스틱)
+    # - x: 좌우 15%~85%
+    # - y: 위 18%~55%
+    bbox_fallback_x1_ratio: float = 0.15
+    bbox_fallback_x2_ratio: float = 0.85
+    bbox_fallback_y1_ratio: float = 0.18
+    bbox_fallback_y2_ratio: float = 0.55
 
 
 @dataclass(frozen=True)
