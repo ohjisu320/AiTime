@@ -6,7 +6,7 @@ import {
   Eye,
   VideoOff,
 } from "lucide-react";
-import type { TaskVideoItem } from "./doctor-video-data"; // [수정] TASK_TABS, VideoType 제거
+import type { TaskVideoItem } from "./doctorVideoData"; // [수정] TASK_TABS, VideoType 제거
 
 interface DoctorVideoCardProps {
   item: TaskVideoItem;

@@ -8,7 +8,7 @@ import {
   type TaskVideoItem,
   type VideoType,
   generateMockVideos,
-} from "../components/video/doctor-video-data";
+} from "../components/video/doctorVideoData";
 import DoctorTaskSidebar from "../components/video/DoctorTaskSidebar";
 import DoctorTaskTabs from "../components/video/DoctorTaskTabs";
 import DoctorVideoCard from "../components/video/DoctorVideoCard";

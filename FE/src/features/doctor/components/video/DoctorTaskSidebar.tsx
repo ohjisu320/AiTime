@@ -1,6 +1,6 @@
 import { ArrowLeft, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { TaskVideoItem } from "./doctor-video-data";
+import type { TaskVideoItem } from "./doctorVideoData";
 
 interface DoctorTaskSidebarProps {
   videoList: TaskVideoItem[];

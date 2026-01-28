@@ -1,4 +1,4 @@
-import { TASK_TABS, type VideoType } from "./doctor-video-data";
+import { TASK_TABS, type VideoType } from "./doctorVideoData";
 
 interface DoctorTaskTabsProps {
   activeTask: VideoType;
