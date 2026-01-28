@@ -1,108 +1,18 @@
+import warnings
 from collections.abc import Callable
+from dataclasses import replace
 
-from app.rtn.config import (
-    AnalysisConfig,
-    ContactConfig,
-    CropConfig,
-    FaceDetConfig,
-    FaceMeshConfig,
-    GazeSmoothConfig,
-    ROIConfig,
-    RoleAssignConfig,
-    TrackConfig,
-    VADConfig,
-)
 from app.rtn.pipeline.video_analyzer import VideoAnalyzer
-from app.rtn.settings import RTNConfig
+from app.rtn.settings import DEFAULT_SETTINGS, RTNConfig
 from app.rtn.types import FrameBGR
 
 
 def build_analyzer(
-    window_s: float = 5.0,
-    vad_merge_gap: float = 0.3,
-    vad_min_speech_ms: int = 250,
-    vad_min_silence_ms: int = 250,
-    min_contact_frames: int = 3,
-    warmup_s: float = 1.0,
-    conf: float = 0.6,
-    debug: bool = False,
-    fps_override: float | None = None,
-    debug_publish: Callable[[FrameBGR], None] | None = None,
-) -> VideoAnalyzer:
-    vad_cfg = VADConfig(
-        sr=16000,
-        min_speech_ms=vad_min_speech_ms,
-        min_silence_ms=vad_min_silence_ms,
-        merge_gap_s=vad_merge_gap,
-    )
-    # face mesh:
-    # - 얼굴 검출 신뢰도 임계값(conf)은 downstream(트래킹/역할/ROI) 안정성에 관여
-    # - model_selection은 MediaPipe FaceDetection 옵션(거리/정확도 트레이드오프)
-    #   -> cfg.face_det.model_selection 값으로 제어
-    face_cfg = FaceDetConfig(min_conf=conf)
-
-    # SORT/트래킹:
-    # - max_age: 잠깐 놓친 트랙을 얼마나 유지할지(가림/회전 대비) ↔ 오탐 유지 위험
-    # - min_hits: 트랙 확정까지 필요한 히트 수(초기 오탐 억제) ↔ 초기 지연 증가
-    # - iou_threshold: 매칭 엄격도(아이/부모 근접 시 중요)
-    track_cfg = TrackConfig(max_age=8, min_hits=2, iou_threshold=0.3)
-
-    # 역할 할당:
-    # - 초반 warmup 동안 트랙 안정화/영역 기반 판정에 사용(초기 흔들림 완화)
-    role_cfg = RoleAssignConfig(warmup_s=warmup_s)
-
-    # ROI
-    # - 랜드마크/추정 노이즈를 흡수하기 위해 dilation 적용.
-    # - mesh 실패(측면/가림) 시 bbox fallback은 불확실성이 커서 더 크게 잡음.
-    roi_cfg = ROIConfig(mesh_dilate_px=14, bbox_fallback_dilate_px=28)
-
-    # gaze:
-    # 휴리스틱이라서 프레임 단위 노이즈 smoothing
-    gaze_cfg = GazeSmoothConfig()
-
-    # eye-contact 판정 튜닝:
-    # - min_contact_frames: "순간 스파이크"를 접촉으로 오인하지 않도록 최소 지속 프레임
-    # - raycast_samples: 추정 안정성(정확도)과 계산 비용 트레이드오프
-    contact_cfg = ContactConfig(
-        min_contact_frames=min_contact_frames, raycast_samples=11
-    )
-
-    # 분석 창 길이
-    # (window_s)는 응답 지연/유지시간 집계 범위를 결정
-    analysis_cfg = AnalysisConfig(
-        window_s=window_s, debug=debug, fps_override=fps_override
-    )
-
-    return VideoAnalyzer(
-        vad_cfg=vad_cfg,
-        face_cfg=face_cfg,
-        face_mesh_cfg=FaceMeshConfig(),
-        crop_cfg=CropConfig(),
-        track_cfg=track_cfg,
-        role_cfg=role_cfg,
-        roi_cfg=roi_cfg,
-        gaze_cfg=gaze_cfg,
-        contact_cfg=contact_cfg,
-        analysis_cfg=analysis_cfg,
-        conf_th=conf,
-        debug_publish=debug_publish,
-    )
-
-
-def build_analyzer_from_cfg(
     cfg: RTNConfig,
     *,
     debug_publish: Callable[[FrameBGR], None] | None = None,
     conf_th: float | None = None,
 ) -> VideoAnalyzer:
-    """New settings-based constructor (PR-1).
-
-    - Does not modify the legacy `build_analyzer(...)` behavior.
-    - Default settings (DEFAULT_SETTINGS) are chosen to match current defaults.
-    - In PR-2, `cfg.face_mesh` / `cfg.crop` are wired into VideoAnalyzer/WindowAnalyzer.
-    """
-
-    # legacy behavior: use the same threshold for detector config + downstream filtering
     th = float(conf_th) if conf_th is not None else float(cfg.face_det.min_conf)
 
     return VideoAnalyzer(
@@ -119,3 +29,75 @@ def build_analyzer_from_cfg(
         conf_th=th,
         debug_publish=debug_publish,
     )
+
+
+def build_analyzer_legacy(
+    window_s: float = 5.0,
+    vad_merge_gap: float = 0.3,
+    vad_min_speech_ms: int = 250,
+    vad_min_silence_ms: int = 250,
+    min_contact_frames: int = 3,
+    warmup_s: float = 1.0,
+    conf: float = 0.6,
+    debug: bool = False,
+    fps_override: float | None = None,
+    debug_publish: Callable[[FrameBGR], None] | None = None,
+) -> VideoAnalyzer:
+    """Deprecated kwargs-based builder.
+
+    Kept temporarily to avoid breaking older call sites.
+    Prefer:
+        build_analyzer(DEFAULT_SETTINGS.rtn, ...)
+
+    This wrapper creates a config derived from DEFAULT_SETTINGS so that
+    behavior stays identical to previous defaults.
+    """
+
+    warnings.warn(
+        "build_analyzer_legacy(...) is deprecated; \
+            use build_analyzer(cfg, ...) instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+
+    base = DEFAULT_SETTINGS.rtn
+
+    cfg = replace(
+        base,
+        vad=replace(
+            base.vad,
+            merge_gap_s=vad_merge_gap,
+            min_speech_ms=vad_min_speech_ms,
+            min_silence_ms=vad_min_silence_ms,
+        ),
+        face_det=replace(base.face_det, min_conf=conf),
+        role=replace(base.role, warmup_s=warmup_s),
+        contact=replace(base.contact, min_contact_frames=min_contact_frames),
+        analysis=replace(
+            base.analysis,
+            window_s=window_s,
+            debug=debug,
+            fps_override=fps_override,
+        ),
+    )
+
+    return build_analyzer(cfg, debug_publish=debug_publish, conf_th=conf)
+
+
+def build_analyzer_from_cfg(
+    cfg: RTNConfig,
+    *,
+    debug_publish: Callable[[FrameBGR], None] | None = None,
+    conf_th: float | None = None,
+) -> VideoAnalyzer:
+    """
+    build_analyzer_from_cfg(...) is deprecated
+    """
+
+    warnings.warn(
+        "build_analyzer_from_cfg(...) is deprecated; \
+            use build_analyzer(cfg, ...) instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return build_analyzer(cfg, debug_publish=debug_publish, conf_th=conf_th)

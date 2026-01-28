@@ -1,7 +1,10 @@
-from dataclasses import dataclass
+from __future__ import annotations
+
+import warnings
+from dataclasses import dataclass, replace
 
 from app.rtn.debug.broker import FrameBroker
-from app.rtn.factory import build_analyzer, build_analyzer_from_cfg
+from app.rtn.factory import build_analyzer
 from app.rtn.pipeline.video_analyzer import VideoAnalyzer
 from app.rtn.service.debug_stream import create_debug_router
 from app.rtn.settings import DEFAULT_SETTINGS, RTNSettings
@@ -14,10 +17,33 @@ class RTNEngine:
 
 
 def build_engine(
+    settings: RTNSettings = DEFAULT_SETTINGS,
+) -> tuple[RTNEngine, object | None]:
+    """Build engine from a single settings object (PR-3).
+
+    This is the new canonical API:
+        engine, router = build_engine(DEFAULT_SETTINGS)
+
+    All hyperparameters should be adjusted through `RTNSettings` / `RTNConfig`.
+    """
+
+    broker = FrameBroker(jpeg_quality=settings.engine.jpeg_quality)
+
+    analyzer = build_analyzer(
+        settings.rtn,
+        debug_publish=(broker.publish if settings.engine.enable_mjpeg else None),
+        conf_th=settings.rtn.face_det.min_conf,
+    )
+
+    router = create_debug_router(broker) if settings.engine.enable_mjpeg else None
+    return RTNEngine(analyzer=analyzer, broker=broker), router
+
+
+def build_engine_legacy(
     *,
     enable_mjpeg: bool = True,
     jpeg_quality: int = 80,
-    # 아래는 build_analyzer 파라미터 그대로 통과
+    # 아래는 (구) build_analyzer 파라미터 그대로 통과
     window_s: float = 5.0,
     vad_merge_gap: float = 0.3,
     vad_min_speech_ms: int = 250,
@@ -28,38 +54,65 @@ def build_engine(
     debug: bool = False,  # 로컬 cv2.imshow
     fps_override: float | None = None,
 ) -> tuple[RTNEngine, object | None]:
-    """
-    분석 엔진 + (선택) 디버그 스트림 라우터를 생성한다.
-    """
-    broker = FrameBroker(jpeg_quality=jpeg_quality)
+    """Deprecated kwargs-based engine builder.
 
-    analyzer = build_analyzer(
-        window_s=window_s,
-        vad_merge_gap=vad_merge_gap,
-        vad_min_speech_ms=vad_min_speech_ms,
-        vad_min_silence_ms=vad_min_silence_ms,
-        min_contact_frames=min_contact_frames,
-        warmup_s=warmup_s,
-        conf=conf,
-        debug=debug,
-        fps_override=fps_override,
-        debug_publish=(broker.publish if enable_mjpeg else None),
+    Kept temporarily to avoid breaking older call sites.
+    Prefer:
+        build_engine(settings)
+
+    This wrapper derives a settings object from DEFAULT_SETTINGS so that behavior
+    remains identical to previous defaults.
+    """
+
+    warnings.warn(
+        "build_engine_legacy(...) is deprecated; use build_engine(settings) instead.",
+        DeprecationWarning,
+        stacklevel=2,
     )
 
-    router = create_debug_router(broker) if enable_mjpeg else None
-    return RTNEngine(analyzer=analyzer, broker=broker), router
+    base = DEFAULT_SETTINGS
+
+    engine_cfg = replace(
+        base.engine,
+        enable_mjpeg=enable_mjpeg,
+        jpeg_quality=jpeg_quality,
+    )
+
+    rtn_base = base.rtn
+    rtn_cfg = replace(
+        rtn_base,
+        vad=replace(
+            rtn_base.vad,
+            merge_gap_s=vad_merge_gap,
+            min_speech_ms=vad_min_speech_ms,
+            min_silence_ms=vad_min_silence_ms,
+        ),
+        contact=replace(rtn_base.contact, min_contact_frames=min_contact_frames),
+        role=replace(rtn_base.role, warmup_s=warmup_s),
+        face_det=replace(rtn_base.face_det, min_conf=conf),
+        analysis=replace(
+            rtn_base.analysis,
+            window_s=window_s,
+            debug=debug,
+            fps_override=fps_override,
+        ),
+    )
+
+    settings = replace(base, engine=engine_cfg, rtn=rtn_cfg)
+    return build_engine(settings)
 
 
 def build_engine_from_settings(
     settings: RTNSettings = DEFAULT_SETTINGS,
 ) -> tuple[RTNEngine, object | None]:
-    broker = FrameBroker(jpeg_quality=settings.engine.jpeg_quality)
+    """
+    build_engine_from_settings(...) is deprecated
+    """
 
-    analyzer = build_analyzer_from_cfg(
-        settings.rtn,
-        debug_publish=(broker.publish if settings.engine.enable_mjpeg else None),
-        conf_th=settings.rtn.face_det.min_conf,
+    warnings.warn(
+        "build_engine_from_settings(...) is deprecated; \
+            use build_engine(settings) instead.",
+        DeprecationWarning,
+        stacklevel=2,
     )
-
-    router = create_debug_router(broker) if settings.engine.enable_mjpeg else None
-    return RTNEngine(analyzer=analyzer, broker=broker), router
+    return build_engine(settings)
