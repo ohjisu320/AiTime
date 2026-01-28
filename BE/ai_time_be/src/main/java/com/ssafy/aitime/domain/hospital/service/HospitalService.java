@@ -27,4 +27,11 @@ public interface HospitalService {
      * @param hospitalId 병원 ID
      */
     void linkChildToHospital(UUID childId, UUID hospitalId);
+
+    /**
+     * 특정 아이가 병원과 연동되어 있는지 확인
+     * @param childId 아이 ID
+     * @return 병원 연동 여부
+     */
+    boolean hasLinkedHospital(UUID childId);
 }

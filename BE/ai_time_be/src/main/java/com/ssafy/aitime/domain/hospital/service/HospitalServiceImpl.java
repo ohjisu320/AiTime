@@ -78,4 +78,13 @@ public class HospitalServiceImpl implements HospitalService {
 
         hospitalChildrenRepository.save(link);
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean hasLinkedHospital(UUID childId) {
+        return hospitalChildrenRepository.existsByChild_ChildIdAndLinkStatus(
+                childId,
+                LinkStatus.ACTIVE
+        );
+    }
 }
