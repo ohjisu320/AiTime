@@ -2,7 +2,6 @@ package com.ssafy.aitime.domain.exam.service;
 
 import com.ssafy.aitime.domain.exam.dto.response.ExamSummaryDTO;
 
-import java.util.Optional;
 import java.util.UUID;
 
 public interface ExamService {
