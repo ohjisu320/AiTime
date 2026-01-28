@@ -75,9 +75,9 @@ export const MOCK_CASE_AVAILABLE: ChildHomeResponse = {
     code: 200, status: "OK", message: "Success",
     data: {
         ...BASE_CHILD_DATA,
-        status: 'AVAILABLE',
+        status: 'IN_PROGRESS',
         isExamEligible: true,
-        examProgress: 0,
+        examProgress: 2,
         draftExpiresAt: null,
         nextEligibleAt: null,
         linkedHospitals: [{ hospitalId: "h1", name: "서울대학교병원" }]

@@ -91,7 +91,7 @@ export const useDashboardLogic = (callbacks?: DashboardCallbacks) => {
                     title: "검사가 진행 중입니다",
                     subtitle: `임시 저장 만료까지 ${dDay} (이어하지 않으면 초기화됩니다)`,
                     buttonText: "검사 이어하기",
-                    onPrimaryAction: () => navigate('/parent/exam'),
+                    onPrimaryAction: () => navigate('/exam/consent'),
                 };
 
             case 'COOLDOWN':

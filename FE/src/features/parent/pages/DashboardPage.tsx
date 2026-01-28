@@ -104,7 +104,7 @@ const DashboardPage = () => {
                 confirmText="수정하기"
                 onConfirm={() => {
                     setIsModifyModalOpen(false);
-                    navigate('/parent/exam');
+                    navigate('/exam/consent');
                 }}
                 onClose={() => setIsModifyModalOpen(false)}
             />
