@@ -6,10 +6,13 @@ import com.ssafy.aitime.domain.hospital.entity.enums.StaffRole;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
 public interface HospitalStaffRepository extends JpaRepository<HospitalStaff, UUID> {
+
+    Optional<HospitalStaff> findByLoginIdAndRecordStatus(String loginId, RecordStatus recordStatus);
 
     /**
      * 의사 ID와 역할, 상태로 존재 여부 확인
