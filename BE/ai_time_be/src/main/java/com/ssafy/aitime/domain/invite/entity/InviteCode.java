@@ -1,6 +1,5 @@
 package com.ssafy.aitime.domain.invite.entity;
 
-import com.ssafy.aitime.common.entity.BaseEntity;
 import com.ssafy.aitime.domain.hospital.entity.HospitalStaff;
 import com.ssafy.aitime.domain.invite.entity.enums.InviteCodeStatus;
 import jakarta.persistence.*;
@@ -39,9 +38,6 @@ public class InviteCode {
     @Column(name = "scheduled_at")
     private LocalDateTime scheduledAt;
 
-    @Column(name = "expired_at", nullable = false)
-    private LocalDateTime expiredAt;
-
     @Enumerated(EnumType.STRING)
     @Column(name = "invite_code_status", nullable = false, length = 20)
     private InviteCodeStatus inviteCodeStatus;
@@ -68,9 +64,22 @@ public class InviteCode {
         updatedAt = LocalDateTime.now();
     }
 
+    void updateStatus(InviteCodeStatus status) {
+        this.inviteCodeStatus = status;
+        onUpdate();
+    }
+
+    public boolean isAlreadyUsed() {
+        return this.inviteCodeStatus == InviteCodeStatus.REGISTERED;
+    }
+
+    public void markAsUsed() {
+        this.updateStatus(InviteCodeStatus.REGISTERED);
+    }
+
     @Builder
     private InviteCode(String inviteCode, HospitalStaff hospitalStaff, String childName, LocalDate childBirthdate,
-                       String parentPhone, LocalDateTime scheduledAt, LocalDateTime expiredAt, InviteCodeStatus inviteCodeStatus,
+                       String parentPhone, LocalDateTime scheduledAt, InviteCodeStatus inviteCodeStatus,
                        UUID doctorId) {
         this.inviteCode = inviteCode;
         this.hospitalStaff = hospitalStaff;
@@ -78,7 +87,6 @@ public class InviteCode {
         this.childBirthdate = childBirthdate;
         this.parentPhone = parentPhone;
         this.scheduledAt = scheduledAt;
-        this.expiredAt = expiredAt;
         this.inviteCodeStatus = (inviteCodeStatus == null) ? InviteCodeStatus.ISSUED : inviteCodeStatus;
         this.doctorId = doctorId;
     }

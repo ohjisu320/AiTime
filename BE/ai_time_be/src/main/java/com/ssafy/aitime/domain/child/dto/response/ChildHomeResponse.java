@@ -1,6 +1,7 @@
 package com.ssafy.aitime.domain.child.dto.response;
 
 import com.ssafy.aitime.domain.child.entity.enums.Gender;
+import com.ssafy.aitime.domain.hospital.dto.response.HospitalInfoDTO;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -14,6 +15,6 @@ public record ChildHomeResponse(
         int examProgress,
         boolean hasPreviousExam,
         LocalDate nextEligibleAt,
-        List<HospitalInfo> linkedHospitals
+        List<HospitalInfoDTO> linkedHospitals
 ) {
 }

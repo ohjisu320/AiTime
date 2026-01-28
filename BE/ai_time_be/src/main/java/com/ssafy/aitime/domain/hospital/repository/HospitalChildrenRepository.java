@@ -21,4 +21,11 @@ public interface HospitalChildrenRepository extends JpaRepository<HospitalChildr
             UUID childId,
             LinkStatus linkStatus
     );
+
+    // 중복 연동 체크
+    boolean existsByChild_ChildIdAndHospital_HospitalIdAndLinkStatus(
+            UUID childId,
+            UUID hospitalId,
+            LinkStatus linkStatus
+    );
 }

@@ -12,6 +12,6 @@ public interface ChildService {
     ChildInfoResponse addChild(UUID userId, ChildCreateRequest request);
     List<ChildInfoResponse> getChildList(UUID userId);
     ChildDeleteResponse deleteChild(UUID userId, UUID childId);
-
     ChildHomeResponse getChildHomeInfo(UUID userId, UUID childId);
+    void registerInviteCode(UUID childId, String inviteCode, UUID userId);
 }
