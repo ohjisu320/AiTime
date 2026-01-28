@@ -1,0 +1,139 @@
+package com.ssafy.aitime.domain.invite.service;
+
+import com.ssafy.aitime.domain.hospital.entity.HospitalStaff;
+import com.ssafy.aitime.domain.hospital.entity.enums.StaffRole;
+import com.ssafy.aitime.domain.hospital.exception.HospitalStaffAccessDeniedException;
+import com.ssafy.aitime.domain.hospital.exception.InvalidDoctorSelectionException;
+import com.ssafy.aitime.domain.hospital.service.HospitalStaffService;
+import com.ssafy.aitime.domain.invite.dto.request.InviteCodeRequest;
+import com.ssafy.aitime.domain.invite.dto.response.InviteCodeResponse;
+import com.ssafy.aitime.domain.invite.dto.response.InviteCodeValidationDto;
+import com.ssafy.aitime.domain.invite.entity.InviteCode;
+import com.ssafy.aitime.domain.invite.entity.enums.InviteCodeStatus;
+import com.ssafy.aitime.domain.invite.exception.AlreadyIssuedInviteCodeException;
+import com.ssafy.aitime.domain.invite.exception.InviteCodeAlreadyUsedException;
+import com.ssafy.aitime.domain.invite.exception.InviteCodeNotFoundException;
+import com.ssafy.aitime.domain.invite.repository.InviteCodeRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.nio.file.AccessDeniedException;
+import java.security.SecureRandom;
+import java.util.UUID;
+
+@Service
+@RequiredArgsConstructor
+public class InviteCodeServiceImpl implements InviteCodeService {
+
+    private final InviteCodeRepository inviteCodeRepository;
+
+    private final HospitalStaffService hospitalStaffService;
+
+    private static final String ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    private static final SecureRandom RANDOM = new SecureRandom();
+
+    @Override
+    @Transactional(readOnly = true)
+    public InviteCodeValidationDto validateAndGetInviteCode(String inviteCode) {
+        // 1. 초대 코드 조회
+        InviteCode codeEntity = inviteCodeRepository.findByInviteCode(inviteCode)
+                .orElseThrow(InviteCodeNotFoundException::new);
+
+        // 2. 이미 사용된 코드인지 확인 (만료 체크 제거)
+        if (codeEntity.isAlreadyUsed()) {
+            throw new InviteCodeAlreadyUsedException();
+        }
+
+        // 3. 필요한 정보만 DTO로 변환하여 반환
+        return InviteCodeValidationDto.from(
+                codeEntity.getInviteCode(),
+                codeEntity.getHospitalStaff().getHospital()
+        );
+    }
+
+    @Override
+    @Transactional
+    public void markAsUsed(String inviteCode) {
+        // 초대 코드 조회
+        InviteCode codeEntity = inviteCodeRepository.findByInviteCode(inviteCode)
+                .orElseThrow(InviteCodeNotFoundException::new);
+
+        // 사용 처리
+        codeEntity.markAsUsed();
+        inviteCodeRepository.save(codeEntity);
+    }
+
+    @Override
+    @Transactional
+    public InviteCodeResponse generateInviteCode(InviteCodeRequest request, UUID hospitalStaffId) {
+// 1. 서비스 간 의존을 통해 발급자(Staff) 엔티티 조회
+        HospitalStaff staff = hospitalStaffService.getHospitalStaffById(hospitalStaffId);
+
+        // 2. 비즈니스 권한 체크: DESK 역할만 가능
+        if (staff.getStaffRole() != StaffRole.DESK) {
+            throw new HospitalStaffAccessDeniedException();
+        }
+
+        if (request.doctorId() != null) {
+            HospitalStaff doctor = hospitalStaffService.getHospitalStaffById(request.doctorId());
+
+            // 의사 역할인지 + 같은 병원 소속인지 검증
+            if (doctor.getStaffRole() != StaffRole.DOCTOR ||
+                    !doctor.getHospital().getHospitalId().equals(staff.getHospital().getHospitalId())) {
+                throw new InvalidDoctorSelectionException(); // 커스텀 예외 권장
+            }
+        }
+
+        // 중복 발급 확인: "같은 의사"에게 이미 발급된 ISSUED 코드가 있는지 확인
+        inviteCodeRepository.findByChildNameAndChildBirthdateAndParentPhoneAndInviteCodeStatusAndDoctorId(
+                request.childName(),
+                request.childBirthdate(),
+                request.parentPhone(),
+                InviteCodeStatus.ISSUED,
+                request.doctorId() // doctorId가 null인 경우 '의사 미지정' 코드를 검색함
+        ).ifPresent(existing -> {
+            throw new AlreadyIssuedInviteCodeException();
+        });
+
+        // 3. 고유한 비즈니스 코드 생성 (FTL-XXXX-XX)
+        String businessCode;
+        do {
+            businessCode = createRandomCode();
+        } while (inviteCodeRepository.existsByInviteCode(businessCode));
+
+        // 4. 엔티티 생성 및 저장
+        InviteCode inviteCode = InviteCode.builder()
+                .inviteCode(businessCode)
+                .hospitalStaff(staff)
+                .childName(request.childName())
+                .childBirthdate(request.childBirthdate())
+                .parentPhone(request.parentPhone())
+                .scheduledAt(request.scheduledAt())
+                .doctorId(request.doctorId())
+                .build();
+
+        InviteCode saved = inviteCodeRepository.save(inviteCode);
+
+        return new InviteCodeResponse(
+                saved.getInviteCodeId(),
+                saved.getInviteCode(),
+                saved.getChildName(),
+                saved.getParentPhone(),
+                saved.getInviteCodeStatus(),
+                saved.getCreatedAt()
+        );
+    }
+
+    private String createRandomCode() {
+        StringBuilder sb = new StringBuilder("FTL-");
+        for (int i = 0; i < 4; i++) {
+            sb.append(ALPHABET.charAt(RANDOM.nextInt(ALPHABET.length())));
+        }
+        sb.append("-");
+        for (int i = 0; i < 2; i++) {
+            sb.append(RANDOM.nextInt(10));
+        }
+        return sb.toString();
+    }
+}

@@ -5,6 +5,7 @@ import com.ssafy.aitime.domain.hospital.dto.request.HospitalStaffLoginRequest;
 import com.ssafy.aitime.domain.hospital.dto.response.HospitalStaffLoginResponse;
 import com.ssafy.aitime.domain.hospital.dto.response.StaffTokenResponse;
 import com.ssafy.aitime.domain.hospital.entity.HospitalStaff;
+import com.ssafy.aitime.domain.hospital.exception.HospitalStaffNotFoundException;
 import com.ssafy.aitime.domain.hospital.repository.HospitalStaffRepository;
 import com.ssafy.aitime.domain.hospital.service.dto.HospitalStaffInfoDTO;
 import com.ssafy.aitime.domain.user.exception.InvalidPasswordException;
@@ -25,6 +26,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -114,6 +116,12 @@ public class HospitalStaffServiceImpl implements HospitalStaffService {
 
         // AccessToken을 블랙리스트에 추가
         blacklistAccessToken(accessToken);
+    }
+
+    @Override
+    public HospitalStaff getHospitalStaffById(UUID hospitalStaffId) {
+        return hospitalStaffRepository.findById(hospitalStaffId)
+                .orElseThrow(HospitalStaffNotFoundException::new);
     }
 
     private void saveRefreshToken(String loginId, String refreshToken) {
