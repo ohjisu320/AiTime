@@ -298,8 +298,8 @@ def main():
     parser.add_argument(
         "--name", "-n",
         type=str,
-        default="민수",
-        help="호명할 아이 이름 (기본: 민수)"
+        default="정현",
+        help="호명할 아이 이름 (기본: 정현)"
     )
     parser.add_argument(
         "--unit-only", "-u",
