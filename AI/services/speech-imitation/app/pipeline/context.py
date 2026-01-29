@@ -78,8 +78,25 @@ class PipelineContext:
     error: str | None = None
     extra: dict[str, Any] = field(default_factory=dict)
 
+    # Repro Keys
+    code_sha: str | None = None
+    config_version: str | None = None
+
+    # Observability
+    stage_metrics: dict[str, Any] = field(default_factory=dict)
+    quality_flags: list[str] = field(default_factory=list)
+
     def add_warning(self, msg: str) -> None:
         self.warnings.append(msg)
+
+    def add_metric(self, stage: str, key: str, value: Any) -> None:
+        if stage not in self.stage_metrics:
+            self.stage_metrics[stage] = {}
+        self.stage_metrics[stage][key] = value
+
+    def add_flag(self, flag: str) -> None:
+        if flag not in self.quality_flags:
+            self.quality_flags.append(flag)
 
     def to_result(self) -> dict[str, Any]:
         # summary metrics
@@ -133,4 +150,12 @@ class PipelineContext:
             "warnings": self.warnings,
             "error": self.error,
             "processing_times": self.processing_times,
+            "repro": {
+                "code_sha": self.code_sha,
+                "config_version": self.config_version,
+            },
+            "observability": {
+                "stage_metrics": self.stage_metrics,
+                "quality_flags": self.quality_flags,
+            },
         }

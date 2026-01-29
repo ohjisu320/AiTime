@@ -26,6 +26,7 @@ from app.pipeline.stages import (
 )
 from app.pipeline.stages.base_stage import BaseStage
 from app.utils.logger import setup_logging
+from app.utils.repro import compute_config_hash, get_git_revision_hash
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +53,10 @@ class SpeechImitationPipelineOrchestrator:
             request_id=rid, video_path=video_path, age_months=int(age_months)
         )
         context.status = PipelineStatus.RUNNING
+
+        # Repro Keys
+        context.code_sha = get_git_revision_hash()
+        context.config_version = compute_config_hash(self._settings)
 
         for stage in self._stages:
             try:
