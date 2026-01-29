@@ -5,6 +5,7 @@ import com.ssafy.aitime.domain.invite.dto.request.InviteCodeRequest;
 import com.ssafy.aitime.domain.invite.dto.response.InviteCodeResponse;
 import com.ssafy.aitime.domain.invite.dto.response.InviteCodeRevokeResponse;
 import com.ssafy.aitime.domain.invite.dto.response.InviteCodeStatusResponse;
+import com.ssafy.aitime.domain.invite.dto.response.UnregisteredPatientResponse;
 import com.ssafy.aitime.domain.invite.service.InviteCodeService;
 import com.ssafy.aitime.security.principal.HospitalStaffPrincipal;
 import jakarta.validation.Valid;
@@ -14,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -45,5 +47,18 @@ public class InviteCodeController {
     public ApiResponse<InviteCodeStatusResponse> getStatus(@PathVariable UUID inviteCodeId) {
         InviteCodeStatusResponse response = inviteCodeService.getInviteCodeStatus(inviteCodeId);
         return ApiResponse.ok("초대코드 상태 조회가 완료되었습니다.", response);
+    }
+
+    @GetMapping("/patients")
+    public ApiResponse<List<UnregisteredPatientResponse>> getUnregisteredPatients(
+            @RequestParam int year,
+            @RequestParam int month,
+            @RequestParam int day,
+            @AuthenticationPrincipal HospitalStaffPrincipal principal
+    ) {
+        List<UnregisteredPatientResponse> patients = inviteCodeService
+                .getUnregisteredPatients(principal.getHospitalId(), year, month, day);
+
+        return ApiResponse.ok("날짜별 등록 대기 환아 목록 조회가 완료되었습니다.", patients);
     }
 }
