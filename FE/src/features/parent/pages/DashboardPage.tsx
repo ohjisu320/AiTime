@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react'; // useMemo 추가
+// import { useState, useMemo } from 'react'; // useMemo 제거
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 // 컴포넌트 임포트
@@ -11,82 +12,86 @@ import CodeRegisterModal from '../components/CodeRegisterModal';
 import ConfirmModal from '../components/ConfirmModal';
 
 // 데이터 및 훅 임포트
-import { useParentDashboard } from '../hooks/useParentDashboard';
+import { useDashboardLogic } from '../hooks/useDashboardLogic';
+import { registerInviteCode } from '@/features/parent/api/dashboardApi';
 
 const DashboardPage = () => {
     const navigate = useNavigate();
 
-    // Swagger 데이터를 가져오는 커스텀 훅
-    const { data, isLoading, isError } = useParentDashboard();
+    // 1. Logic Layer: 모든 로직은 훅에서 처리 (콜백 주입)
+    const { heroProps, isLoading, isError, data, refetch } = useDashboardLogic({
+        onNeedHospital: () => setIsCodeModalOpen(true)
+    });
 
     // 모달 상태 관리
     const [isModifyModalOpen, setIsModifyModalOpen] = useState(false);
     const [isViewModalOpen, setIsViewModalOpen] = useState(false);
     const [isCodeModalOpen, setIsCodeModalOpen] = useState(false);
+    const [isResultLinkModalOpen, setIsResultLinkModalOpen] = useState(false); // 결과 연동 모달
+    const [isRegistering, setIsRegistering] = useState(false); // 초대코드 등록 로딩 상태
 
+    // 로딩 및 에러 처리
+    if (isLoading) {
+        return (
+            <div className="flex w-full h-screen items-center justify-center bg-white">
+                <LoadingSpinner />
+            </div>
+        );
+    }
+    if (isError || !data) return <div className="p-8 text-center">데이터를 불러오는 중 오류가 발생했습니다.</div>;
 
-    // 2. 메인 버튼 클릭 핸들러 (순서 중요: bannerProps보다 먼저 정의되어야 함)
-    const handleMainButtonClick = () => {
-        if (!data) return;
+    // 초대 코드 등록 핸들러
+    const handleCodeRegister = async (code: string) => {
+        setIsRegistering(true);
+        try {
+            // TODO: childId should be dynamic
+            const response = await registerInviteCode("child-001", code);
+            if (response.code === 200) {
+                // 중요: 연동 후 데이터 새로고침 (Soft Refresh) - 이제 데이터를 반환함
+                const newData = await refetch();
 
-        if (data.linkedHospitals.length === 0) {
-            alert("병원 초대 코드를 먼저 등록해 주세요.");
-            return;
-        }
+                setIsCodeModalOpen(false); // 성공 시 닫기
 
-        if (data.examProgress > 0 && data.examProgress < 4) {
-            setIsModifyModalOpen(true);
-            return;
-        }
+                // 데이터 갱신 후 상태 확인
+                if (newData && (newData.status === 'COOLDOWN' || newData.status === 'COOLDOWN_BEFORE')) {
+                    setIsResultLinkModalOpen(true);
+                }
 
-        if (data.isExamEligible && data.examProgress === 0) {
-            navigate('/exam/consent');
-            return;
-        }
-
-        if (data.examProgress === 4) {
-            setIsViewModalOpen(true);
-            return;
+            } else {
+                alert("병원 연동 실패: " + response.message);
+            }
+        } catch (error) {
+            console.error("Error registering invite code", error);
+            alert("병원 연동 중 오류가 발생했습니다.");
+        } finally {
+            setIsRegistering(false);
         }
     };
 
-
-    // 3. bannerProps를 함수 내부로 이동 (에러 해결: Cannot find name 'data')
-    // useMemo를 사용하면 렌더링 최적화에 도움이 됩니다.
-    const bannerProps = useMemo(() => {
-        if (!data) return null;
-        return {
-            isEligible: data.isExamEligible,
-            progress: data.examProgress,
-            nextDate: data.nextEligibleAt,
-            hospitalCount: data.linkedHospitals.length,
-            onClick: handleMainButtonClick,
-        };
-    }, [data]);
-
-    // 로딩 및 에러 처리
-    if (isLoading) return <LoadingSpinner />;
-    if (isError || !data) return <div className="p-8 text-center">데이터를 불러오는 중 오류가 발생했습니다.</div>;
+    const handleResultSubmit = () => {
+        // 결과 제출 로직 (현재는 리포트 페이지 이동으로 대체)
+        setIsResultLinkModalOpen(false);
+        navigate('/parent/report');
+    };
 
     return (
         <div className="flex w-full min-h-[1000px] bg-white overflow-hidden">
             <Sidebar
-                childName={data.name}
+                childName={data?.name || "어린이"}
                 onCodeInputClick={() => setIsCodeModalOpen(true)}
             />
 
             <main className="flex-1 h-screen overflow-y-auto p-8 flex flex-col gap-8">
-                {/* bannerProps가 있을 때만 렌더링 */}
-                {bannerProps && <HeroBanner {...bannerProps} />}
+                {/* 2. UI Layer: 단순히 Props 전달만 수행 */}
+                <HeroBanner {...heroProps} />
 
                 <section className="flex flex-col xl:flex-row gap-6 w-full max-w-[1350px]">
-                    {/* flex-1을 주어 HospitalTimeline(너비 고정) 외의 남은 공간을 모두 차지하게 함 */}
                     <div className="flex-1 min-h-[500px]">
                         <GuideVideo />
                     </div>
 
                     <aside className="w-full xl:w-96 flex-none">
-                        <HospitalTimeline hospitals={data.linkedHospitals} childName={data.name} />
+                        {data && <HospitalTimeline hospitals={data.linkedHospitals} childName={data.name} onAddClick={() => setIsCodeModalOpen(true)} />}
                     </aside>
                 </section>
             </main>
@@ -95,16 +100,16 @@ const DashboardPage = () => {
             <ConfirmModal
                 isOpen={isModifyModalOpen}
                 title="검사 영상을 수정하시겠습니까?"
-                description={`현재 ${data.examProgress}/4 단계 진행 중입니다. 수정 시 기존 분석 데이터는 초기화될 수 있습니다.`}
+                description={`현재 ${data?.examProgress}/4 단계 진행 중입니다. 수정 시 기존 분석 데이터는 초기화될 수 있습니다.`}
                 confirmText="수정하기"
                 onConfirm={() => {
                     setIsModifyModalOpen(false);
-                    navigate('/parent/exam');
+                    navigate('/exam/consent');
                 }}
                 onClose={() => setIsModifyModalOpen(false)}
             />
 
-            {/* 영상 확인 모달 (4단계) - 누락된 모달 추가 */}
+            {/* 영상 확인 모달 (4단계) */}
             <ConfirmModal
                 isOpen={isViewModalOpen}
                 title="제출된 영상을 확인하시겠습니까?"
@@ -117,18 +122,27 @@ const DashboardPage = () => {
                 }}
                 onClose={() => setIsViewModalOpen(false)}
             />
-            {/* 초대 코드 등록 모달 추가 */}
+
+            {/* 결과 연동 알림 모달 (COOLDOWN_BEFORE) */}
+            <ConfirmModal
+                isOpen={isResultLinkModalOpen}
+                title="이전 검사 결과가 연동되었습니다"
+                description={`병원과 연동되어 기존 검사 결과를 제출할 수 있습니다.\n제출하시겠습니까?`}
+                confirmText="결과 제출하기"
+                onConfirm={handleResultSubmit}
+                onClose={() => setIsResultLinkModalOpen(false)}
+            />
+
+            {/* 초대 코드 등록 모달 */}
             <CodeRegisterModal
                 isOpen={isCodeModalOpen}
-                onClose={() => setIsCodeModalOpen(false)}
-                onConfirm={(code) => {
-                    console.log("서버로 전송할 코드:", code); // Swagger { "inviteCode": code }
-                    setIsCodeModalOpen(false);
-                }}
+                onClose={() => !isRegistering && setIsCodeModalOpen(false)}
+                onConfirm={handleCodeRegister}
                 title="병원 초대 코드 등록"
-                childName={data.name} // 반드시 추가
+                childName={data?.name || "어린이"}
                 description="어린이의 검사 결과를 공유받을 병원 초대 코드를 입력해 주세요."
                 confirmText="병원 연결하기"
+                isLoading={isRegistering}
             />
         </div>
     );

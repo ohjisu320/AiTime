@@ -7,7 +7,7 @@ import MissionGuideHeader from './MissionGuideHeader';
 import InstructionList from './InstructionList';
 import ScriptCard from './ScriptCard';
 import BigActionButton from '@/components/common/BigActionButton';
-import StatusCheckGroup from './StatusCheckGroup'; 
+import StatusCheckGroup from './StatusCheckGroup';
 
 interface ScreeningGuideProps {
   onStart: () => void;
@@ -18,11 +18,10 @@ interface ScreeningGuideProps {
   showSystemCheck?: boolean; // 👈 띄울지 말지 결정하는 옵션 (기본값 true) 
 }
 
-const ScreeningGuide: React.FC<ScreeningGuideProps> = ({ 
-  onStart, isReady, isAligned, volume, missionData, showSystemCheck = true 
+const ScreeningGuide: React.FC<ScreeningGuideProps> = ({
+  onStart, isReady, isAligned, volume, missionData, showSystemCheck = true
 }) => {
-  console.log("현재 미션:", missionData?.korTitle, "체크 표시 여부:", showSystemCheck);
-  
+
   return (
     <div className="flex flex-col h-full bg-white">
       <MissionGuideHeader {...missionData} />

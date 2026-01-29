@@ -3,30 +3,30 @@ import { CheckCircle2, PlayCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface MissionCardProps {
-    title: string;
-    subTitle: string;
-    description: string;
-    status: 'PENDING' | 'UPLOADED';
-    variant: 'pink' | 'purple' | 'blue' | 'emerald' | 'amber' | 'violet'; 
-    onClick: () => void;
-  }
+  title: string;
+  subTitle?: string;
+  description: string;
+  status: 'PENDING' | 'UPLOADED';
+  variant: 'pink' | 'purple' | 'blue' | 'emerald' | 'amber' | 'violet';
+  onClick: () => void;
+}
 
-const MissionCard: React.FC<MissionCardProps> = ({ 
-  title, 
-  subTitle, 
-  description, 
-  status, 
-  onClick 
+const MissionCard: React.FC<MissionCardProps> = ({
+  title,
+  subTitle,
+  description,
+  status,
+  onClick
 }) => {
   const isCompleted = status === 'UPLOADED';
 
   return (
-    <div 
+    <div
       // 🚩 수정 포인트: 조건문을 제거하고 항상 onClick을 연결합니다.
       onClick={onClick}
       className={cn(
         "relative w-full p-6 rounded-2xl border-2 transition-all flex justify-between items-center shadow-sm",
-        isCompleted 
+        isCompleted
           ? "bg-green-50 border-green-200 cursor-pointer" // cursor-default를 pointer로 변경
           : "bg-white border-gray-100 hover:border-[#6366F1] hover:shadow-md cursor-pointer"
       )}
