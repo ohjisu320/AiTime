@@ -2,14 +2,19 @@ package com.ssafy.aitime.domain.hospital.controller;
 
 import com.ssafy.aitime.common.response.ApiResponse;
 import com.ssafy.aitime.domain.hospital.dto.request.HospitalStaffLoginRequest;
+import com.ssafy.aitime.domain.hospital.dto.response.DoctorListResponse;
 import com.ssafy.aitime.domain.hospital.dto.response.HospitalStaffLoginResponse;
 import com.ssafy.aitime.domain.hospital.dto.response.StaffTokenResponse;
 import com.ssafy.aitime.domain.hospital.service.HospitalStaffService;
+import com.ssafy.aitime.security.principal.HospitalStaffPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/hospital-staff")
@@ -83,6 +88,15 @@ public class HospitalStaffController {
                 .body(ApiResponse.ok("로그아웃 되었습니다.", null));
     }
 
+    @GetMapping("/doctors")
+    public ResponseEntity<ApiResponse<List<DoctorListResponse>>> getDoctors(
+            @AuthenticationPrincipal HospitalStaffPrincipal principal
+    ) {
+        List<DoctorListResponse> response = hospitalStaffService.getDoctorsInMyHospital(principal.getHospitalStaffId());
+        return ResponseEntity.ok()
+                        .body(ApiResponse.ok("의사 목록 조회가 완료되었습니다.", response));
+    }
+
     /**
      * 쿠키 생성 공통 메서드 (보안 설정 일관성 유지)
      */
@@ -104,5 +118,14 @@ public class HospitalStaffController {
             return null;
         }
         return authorizationHeader.substring(7);
+    }
+
+
+    // 더미데이터 생성 용
+    @PostMapping("/dummy")
+    public ResponseEntity<ApiResponse<Object>> createDummy() {
+        hospitalStaffService.createDummyData();
+        return ResponseEntity.ok()
+                .body(ApiResponse.ok("더미 데이터(병원 2개, 각 병원당 데스크1/의사2) 생성이 완료되었습니다.", null));
     }
 }
