@@ -126,7 +126,7 @@ public class ChildServiceImpl implements ChildService{
                 child.getChildId(),
                 child.getName(),
                 child.getGender(),
-                examSummary.examStatus(),
+                examSummary.childHomeStatus(),
                 examSummary.examProgress(),
                 examSummary.examStartedAt(),
                 examSummary.nextEligibleAt(),

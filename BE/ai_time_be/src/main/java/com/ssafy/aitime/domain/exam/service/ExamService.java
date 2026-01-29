@@ -1,5 +1,7 @@
 package com.ssafy.aitime.domain.exam.service;
 
+import com.ssafy.aitime.domain.child.entity.Child;
+import com.ssafy.aitime.domain.exam.dto.response.ExamStartResponse;
 import com.ssafy.aitime.domain.exam.dto.response.ExamSummaryDTO;
 
 import java.util.UUID;
@@ -13,4 +15,13 @@ public interface ExamService {
      * @return 검사 요약 정보 DTO
      */
     ExamSummaryDTO getExamSummaryForChild(UUID childId);
+
+    /**
+     * 검사 생성 - Child 엔티티를 받아서 검사 생성
+     * ChildService에서 권한 확인 후 호출됨
+     *
+     * @param child Child 엔티티
+     * @return 생성된 검사 정보
+     */
+    ExamStartResponse createExam(Child child);
 }

@@ -152,6 +152,7 @@ public class UserServiceImpl implements UserService {
     public UserJoinResponse join(UserJoinRequest request) {
         // 휴대폰 인증 여부 최종 확인 (Redis) - postman 테스트 용으로 주석
         validatePhoneVerification(request.phoneNumber());
+        validatePhoneVerification(request.phoneNumber());
 
         // 아이디 중복 최종 체크 (API 우회 방지)
         if (userRepository.existsByLoginId(request.loginId())) {

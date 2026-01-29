@@ -7,6 +7,8 @@ import com.ssafy.aitime.domain.child.dto.response.ChildHomeResponse;
 import com.ssafy.aitime.domain.child.dto.response.ChildHospitalListResponse;
 import com.ssafy.aitime.domain.child.dto.response.ChildInfoResponse;
 import com.ssafy.aitime.domain.child.service.ChildService;
+import com.ssafy.aitime.domain.exam.dto.request.ExamStartRequest;
+import com.ssafy.aitime.domain.exam.dto.response.ExamStartResponse;
 import com.ssafy.aitime.security.principal.UserPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

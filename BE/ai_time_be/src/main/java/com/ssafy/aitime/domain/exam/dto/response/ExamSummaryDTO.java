@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
  * 도메인 간 결합도를 낮추기 위해 서비스 레이어에서 DTO로 변환하여 전달
  */
 public record ExamSummaryDTO(
-        ChildHomeStatus examStatus,        // 계산된 검사 상태
+        ChildHomeStatus childHomeStatus,        // 계산된 검사 상태
         Integer examProgress,              // 업로드된 비디오 개수 (0~4)
         LocalDate examStartedAt,           // 검사 시작일
         LocalDate nextEligibleAt,          // 다음 검사 가능일
