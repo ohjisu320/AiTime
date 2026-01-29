@@ -33,3 +33,13 @@ class VadStage(BaseStage):
         segs = self._vad.detect(context.audio, sample_rate=int(context.sample_rate))
         context.speech_segments = segs
         logger.info(f"VAD 세그먼트 수: {len(segs)}")
+
+        # Observability
+        total_speech = sum(s.duration_sec for s in segs)
+        context.add_metric(self.name, "num_segments", len(segs))
+        context.add_metric(self.name, "total_speech_sec", total_speech)
+
+        if len(segs) == 0:
+            context.add_flag("NO_SPEECH_DETECTED")
+        elif total_speech < 0.5:
+            context.add_flag("AUDIO_TOO_SHORT")

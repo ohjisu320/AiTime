@@ -25,7 +25,22 @@ class ResultStage(BaseStage):
 
     def process(self, context: PipelineContext) -> None:
         context.extra["schema_version"] = self._settings.SCHEMA_VERSION
-        # status set by orchestrator; ensure completed
+
+        # Taxonomy Mapping
+        if context.status == PipelineStatus.FAILED and context.error:
+            taxonomy = "System"  # default
+            err_msg = str(context.error).lower()
+
+            if "not found" in err_msg or "video" in err_msg:
+                taxonomy = "Data"
+            elif "memory" in err_msg or "timeout" in err_msg:
+                taxonomy = "Serving"
+            elif "vad" in err_msg or "segment" in err_msg:
+                taxonomy = "Model"
+
+            context.extra["failure_taxonomy"] = taxonomy
+
+        # status set by orchestrator; ensure completed (if not failed)
         if context.status != PipelineStatus.FAILED:
             context.status = PipelineStatus.COMPLETED
         logger.info("결과 생성 완료")
