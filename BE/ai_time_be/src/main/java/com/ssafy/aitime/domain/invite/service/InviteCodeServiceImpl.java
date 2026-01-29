@@ -130,7 +130,7 @@ public class InviteCodeServiceImpl implements InviteCodeService {
     @Override
     @Transactional
     public InviteCodeRevokeResponse revokeInviteCode(UUID inviteCodeId, UUID hospitalStaffId) {
-        // 1. 발급자(Staff) 권한 체크 (선택 사항이나 보안상 권장)
+        // 1. 발급자(Staff) 권한 체크
         HospitalStaff staff = hospitalStaffService.getHospitalStaffById(hospitalStaffId);
         if (staff.getStaffRole() != StaffRole.DESK) {
             throw new HospitalStaffAccessDeniedException();
@@ -139,6 +139,11 @@ public class InviteCodeServiceImpl implements InviteCodeService {
         // 2. 초대코드 존재 여부 확인
         InviteCode inviteCode = inviteCodeRepository.findById(inviteCodeId)
                 .orElseThrow(InviteCodeNotFoundException::new);
+
+        if (!inviteCode.getHospitalStaff().getHospital().getHospitalId()
+                .equals(staff.getHospital().getHospitalId())) {
+            throw new HospitalStaffAccessDeniedException();
+        }
 
         // 3. 이미 사용된 코드인지 확인 (사용된 코드는 취소 불가)
         if (inviteCode.isAlreadyUsed()) {
