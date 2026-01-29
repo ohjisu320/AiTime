@@ -33,7 +33,14 @@ public class Video extends AuditableEntity {
     private UUID videoId;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "exam_id", nullable = false)
+    @JoinColumn(
+            name = "exam_id",
+            nullable = false,
+            foreignKey = @ForeignKey(
+                    name = "fk_video_exam",
+                    foreignKeyDefinition = "FOREIGN KEY (exam_id) REFERENCES exam(exam_id) ON DELETE CASCADE"
+            )
+    )
     private Exam exam;
 
     @Enumerated(EnumType.STRING)
