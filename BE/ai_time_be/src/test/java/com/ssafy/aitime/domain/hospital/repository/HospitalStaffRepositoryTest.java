@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -351,5 +352,36 @@ class HospitalStaffRepositoryTest {
                 .build();
         em.persist(staff);
         return staff;
+    }
+
+    @Test
+    @DisplayName("특정 병원에 소속된 ACTIVE 상태의 의사들만 조회한다")
+    void findAllByHospital_HospitalIdAndStaffRoleAndRecordStatus_Success() {
+        // given
+        Hospital hospital1 = persistHospital("H1", "병원1", "주소", "02-1", RecordStatus.ACTIVE);
+        Hospital hospital2 = persistHospital("H2", "병원2", "주소", "02-2", RecordStatus.ACTIVE);
+
+        // 병원 1의 의사들
+        persistHospitalStaff(hospital1, "doc1", "박의사", "pw", StaffRole.DOCTOR, RecordStatus.ACTIVE);
+        persistHospitalStaff(hospital1, "doc2", "김의사", "pw", StaffRole.DOCTOR, RecordStatus.ACTIVE);
+
+        // 병원 1의 데스크 (조회되면 안됨)
+        persistHospitalStaff(hospital1, "desk1", "접수원", "pw", StaffRole.DESK, RecordStatus.ACTIVE);
+
+        // 병원 2의 의사 (조회되면 안됨)
+        persistHospitalStaff(hospital2, "doc3", "남의병원 의사", "pw", StaffRole.DOCTOR, RecordStatus.ACTIVE);
+
+        em.flush();
+        em.clear();
+
+        // when
+        List<HospitalStaff> results = hospitalStaffRepository
+                .findAllByHospital_HospitalIdAndStaffRoleAndRecordStatus(
+                        hospital1.getHospitalId(), StaffRole.DOCTOR, RecordStatus.ACTIVE);
+
+        // then
+        assertThat(results).hasSize(2);
+        assertThat(results).extracting("name").containsExactlyInAnyOrder("박의사", "김의사");
+        assertThat(results).extracting("hospital.hospitalId").containsOnly(hospital1.getHospitalId());
     }
 }
