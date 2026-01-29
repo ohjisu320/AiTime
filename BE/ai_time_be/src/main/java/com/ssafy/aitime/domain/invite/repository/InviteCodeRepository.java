@@ -2,10 +2,13 @@ package com.ssafy.aitime.domain.invite.repository;
 
 import com.ssafy.aitime.domain.invite.entity.InviteCode;
 import com.ssafy.aitime.domain.invite.entity.enums.InviteCodeStatus;
+import io.lettuce.core.dynamic.annotation.Param;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -19,5 +22,17 @@ public interface InviteCodeRepository extends JpaRepository<InviteCode, UUID> {
             String parentPhone,
             InviteCodeStatus status,
             UUID doctorId
+    );
+    @Query("""
+        SELECT ic FROM InviteCode ic
+        JOIN FETCH ic.hospitalStaff hs
+        WHERE hs.hospital.hospitalId = :hospitalId
+        AND ic.inviteCodeStatus = 'ISSUED'
+        AND DATE(ic.scheduledAt) = :targetDate
+        ORDER BY ic.scheduledAt ASC
+    """)
+    List<InviteCode> findUnregisteredPatientsByHospitalAndDate(
+            @Param("hospitalId") UUID hospitalId,
+            @Param("targetDate") LocalDate targetDate
     );
 }
