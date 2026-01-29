@@ -6,6 +6,7 @@ import com.ssafy.aitime.domain.hospital.entity.enums.StaffRole;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -28,5 +29,9 @@ public interface HospitalStaffRepository extends JpaRepository<HospitalStaff, UU
             RecordStatus recordStatus
     );
 
-
+    List<HospitalStaff> findAllByHospital_HospitalIdAndStaffRoleAndRecordStatus(
+            UUID hospitalId,
+            StaffRole staffRole,
+            RecordStatus recordStatus
+    );
 }

@@ -2,14 +2,19 @@ package com.ssafy.aitime.domain.hospital.controller;
 
 import com.ssafy.aitime.common.response.ApiResponse;
 import com.ssafy.aitime.domain.hospital.dto.request.HospitalStaffLoginRequest;
+import com.ssafy.aitime.domain.hospital.dto.response.DoctorListResponse;
 import com.ssafy.aitime.domain.hospital.dto.response.HospitalStaffLoginResponse;
 import com.ssafy.aitime.domain.hospital.dto.response.StaffTokenResponse;
 import com.ssafy.aitime.domain.hospital.service.HospitalStaffService;
+import com.ssafy.aitime.security.principal.HospitalStaffPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/hospital-staff")
@@ -81,6 +86,15 @@ public class HospitalStaffController {
         return ResponseEntity.ok()
                 .header("Set-Cookie", cookie.toString())
                 .body(ApiResponse.ok("로그아웃 되었습니다.", null));
+    }
+
+    @GetMapping("/doctors")
+    public ResponseEntity<ApiResponse<List<DoctorListResponse>>> getDoctors(
+            @AuthenticationPrincipal HospitalStaffPrincipal principal
+    ) {
+        List<DoctorListResponse> response = hospitalStaffService.getDoctorsInMyHospital(principal.getHospitalStaffId());
+        return ResponseEntity.ok()
+                        .body(ApiResponse.ok("의사 목록 조회가 완료되었습니다.", response));
     }
 
     /**
