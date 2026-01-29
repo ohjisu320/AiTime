@@ -1,42 +1,61 @@
-// import { useQuery } from '@tanstack/react-query'; // 나중에 연동 시 사용
-// import axios from '@/utils/axios';
+import { useState, useEffect } from 'react';
+import {
+  fetchChildHomeInfo,
+  type ChildHomeResponse,
+  MOCK_CASE_AVAILABLE,
+  MOCK_CASE_NEED_HOSPITAL,
+  MOCK_CASE_COOLDOWN,
+  MOCK_CASE_COOLDOWN_BEFORE,
+  MOCK_CASE_IN_PROGRESS
+} from '../api/dashboardApi';
 
-interface LinkedHospital {
-  hospitalId: string;
-  name: string;
-}
+// ==========================================
+// [테스트용 설정]
+// 이 값을 true로 하면 아래 MOCK_DATA가 강제로 적용됩니다.
+const ENABLE_MOCK = true;
 
-interface DashboardData {
-  childId: string;
-  name: string;
-  gender: 'MALE' | 'FEMALE';
-  isExamEligible: boolean;
-  examProgress: number; 
-  hasPreviousExam: boolean;
-  nextEligibleAt: string;
-  linkedHospitals: LinkedHospital[];
-}
+// MOCK_CASE_AVAILABLE를 참조하여, registerInviteCode에서 수정된 내용이 반영되도록 합니다.
+// 필요에 따라 다른 케이스(MOCK_CASE_NEED_HOSPITAL 등)로 교체하여 테스트하세요.
+const MOCK_DATA = MOCK_CASE_NEED_HOSPITAL.data;
+// ==========================================
 
 export const useParentDashboard = () => {
-  // 1. 가짜 데이터 정의
-  const mockData: DashboardData = {
-    childId: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-    name: "오지수", // 일단 나...
-    gender: "MALE",
-    isExamEligible: true,
-    examProgress: 2,
-    hasPreviousExam: true,
-    nextEligibleAt: "2026-05-30",
-    linkedHospitals: [
-      { hospitalId: "1", name: "서울아이소아과" },
-      { hospitalId: "2", name: "세브란스 병원" }
-    ]
+  const [data, setData] = useState<ChildHomeResponse['data'] | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
+
+  const fetchData = async () => {
+    try {
+      setIsLoading(true);
+
+      if (ENABLE_MOCK) {
+        // 네트워크 지연 시뮬레이션 (선택사항, 너무 빠르면 로딩 못볼 수 있으므로 300ms 줌)
+        await new Promise(resolve => setTimeout(resolve, 300));
+        setData(MOCK_DATA);
+        return MOCK_DATA;
+      }
+
+      // fetchChildHomeInfo handles errors and returns mock data, so this should almost always succeed
+      const response = await fetchChildHomeInfo("child-001");
+      setData(response.data);
+      return response.data; // Return data for chaining
+    } catch (err) {
+      console.error("Unexpected error in useParentDashboard", err);
+      setIsError(true);
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  // 2. DashboardPage에서 사용하는 변수들과 형식을 맞춰서 반환
+  useEffect(() => {
+    fetchData();
+  }, []);
+
   return {
-    data: mockData,
-    isLoading: false,
-    isError: false,
+    data,
+    isLoading,
+    isError,
+    refetch: fetchData,
   };
 };

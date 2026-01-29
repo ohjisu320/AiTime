@@ -8,7 +8,7 @@ interface LoadingSpinnerProps {
 
 const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ className }) => {
   return (
-    <div className={cn("animate-spin rounded-full border-4 border-t-transparent border-indigo-500", className)}>
+    <div className={cn("animate-spin rounded-full border-4 border-t-transparent border-indigo-500 w-12 h-12", className)}>
       {/* 스피너 아이콘 또는 스타일 정의 */}
     </div>
   );
