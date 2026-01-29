@@ -8,8 +8,8 @@ import { SCREENING_CONTENT } from '../constants/missionData';
 
 const ExamRecordingPage: React.FC = () => {
   const navigate = useNavigate();
-  const { missionId } = useParams<{ missionId: string }>(); 
-  
+  const { missionId } = useParams<{ missionId: string }>();
+
   const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
   const [isPassModalOpen, setIsPassModalOpen] = useState(false);
 
@@ -21,12 +21,13 @@ const ExamRecordingPage: React.FC = () => {
   }, [navigate, currentMissionId]);
 
   // 1. WebRTC 스크리닝 훅에서 필요한 상태들 추출
-  const { 
-    videoRef, 
-    isAligned, 
-    volume, 
-    startCamera: startWebRTC, 
-    stopCamera: stopWebRTC 
+  const {
+    videoRef,
+    videoStream,
+    isAligned,
+    volume,
+    startCamera: startWebRTC,
+    stopCamera: stopWebRTC
   } = useWebRTCScreening();
 
   useEffect(() => {
@@ -34,7 +35,8 @@ const ExamRecordingPage: React.FC = () => {
     return () => {
       stopWebRTC();
     };
-  }, [startWebRTC, stopWebRTC]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // 빈 배열: 마운트 시 1번만 실행
 
   const handleStartExam = useCallback(() => {
     if (!isAligned || volume > 30) {
@@ -48,16 +50,16 @@ const ExamRecordingPage: React.FC = () => {
     <>
       <ExamBaseLayout
         videoRef={videoRef}
-        videoStream={null}
-        isRecording={false} 
+        videoStream={videoStream}
+        isRecording={false}
         isAligned={isAligned}
         volume={volume}
         onBack={() => navigate('/exam/mission')}
         sidebarContent={
           content ? (
-            <ScreeningGuide 
-              onStart={handleStartExam} 
-              isReady={isAligned && volume <= 30} 
+            <ScreeningGuide
+              onStart={handleStartExam}
+              isReady={isAligned && volume <= 30}
               // ✅ [수정 포인트] 새로 추가된 Props들을 자식에게 전달합니다.
               isAligned={isAligned}
               volume={volume}

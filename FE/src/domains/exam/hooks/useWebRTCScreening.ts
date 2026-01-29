@@ -13,6 +13,7 @@ export const useWebRTCScreening = () => {
 
   const [isAligned, setIsAligned] = useState(false);
   const [volume, setVolume] = useState(0);
+  const [videoStream, setVideoStream] = useState<MediaStream | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<
     'IDLE' | 'CONNECTING' | 'CONNECTED' | 'DISCONNECTED'
   >('IDLE');
@@ -179,14 +180,28 @@ export const useWebRTCScreening = () => {
 
   // --- 메인 시작 함수 ---
   const startCamera = useCallback(async () => {
+    console.log('🎥 [DEBUG] startCamera 호출됨');
     setConnectionStatus('CONNECTING');
     try {
+      console.log('📸 [DEBUG] getUserMedia 요청 중...');
       const localStream = await navigator.mediaDevices.getUserMedia({
         video: { width: 1280, height: 720 },
         audio: true
       });
 
-      if (videoRef.current) videoRef.current.srcObject = localStream;
+      console.log('✅ [DEBUG] getUserMedia 성공:', localStream);
+      console.log('📹 [DEBUG] 비디오 트랙:', localStream.getVideoTracks());
+      console.log('🎤 [DEBUG] 오디오 트랙:', localStream.getAudioTracks());
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = localStream;
+        console.log('✅ [DEBUG] videoRef.current.srcObject 설정 완료');
+      } else {
+        console.error('❌ [DEBUG] videoRef.current가 null입니다!');
+      }
+
+      setVideoStream(localStream);
+      console.log('✅ [DEBUG] setVideoStream 호출 완료');
 
       if (USE_MOCK) {
         runMockSimulation();
@@ -194,7 +209,7 @@ export const useWebRTCScreening = () => {
         await startRealConnection(localStream);
       }
     } catch (e) {
-      console.error("Camera Start Error:", e);
+      console.error("❌ [DEBUG] Camera Start Error:", e);
       setConnectionStatus('DISCONNECTED');
     }
   }, [runMockSimulation, startRealConnection]);
@@ -206,6 +221,7 @@ export const useWebRTCScreening = () => {
       const stream = videoRef.current.srcObject as MediaStream;
       stream.getTracks().forEach(track => track.stop());
       videoRef.current.srcObject = null;
+      setVideoStream(null);
     }
 
     // WebRTC & WS 종료
@@ -233,5 +249,5 @@ export const useWebRTCScreening = () => {
     setVolume(0);
   }, []);
 
-  return { videoRef, isAligned, volume, connectionStatus, startCamera, stopCamera };
+  return { videoRef, videoStream, isAligned, volume, connectionStatus, startCamera, stopCamera };
 };
