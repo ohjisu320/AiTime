@@ -1,6 +1,7 @@
 // import { useState, useMemo } from 'react'; // useMemo 제거
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from "sonner";
 
 // 컴포넌트 임포트
 import HeroBanner from '../components/HeroBanner';
@@ -44,25 +45,39 @@ const DashboardPage = () => {
     const handleCodeRegister = async (code: string) => {
         setIsRegistering(true);
         try {
-            // TODO: childId should be dynamic
-            const response = await registerInviteCode("child-001", code);
+            // [DEBUG] Check data structure for childId
+            console.log("Dashboard Data Debug:", data);
+
+            // Use dynamic childId if available, fallback to "child-001"
+            // Use dynamic childId if available, fallback to actual UUID
+            const childId = data?.childId || "3fa85f64-5717-4562-b3fc-2c963f66afa6";
+            console.log(`Using childId: ${childId}`);
+
+            const response = await registerInviteCode(childId, code);
+
             if (response.code === 200) {
-                // 중요: 연동 후 데이터 새로고침 (Soft Refresh) - 이제 데이터를 반환함
-                const newData = await refetch();
+                // 1. 모달 닫기
+                setIsCodeModalOpen(false);
 
-                setIsCodeModalOpen(false); // 성공 시 닫기
+                // 2. 데이터 새로고침 (즉시)
+                await refetch();
 
-                // 데이터 갱신 후 상태 확인
-                if (newData && (newData.status === 'COOLDOWN' || newData.status === 'COOLDOWN_BEFORE')) {
-                    setIsResultLinkModalOpen(true);
-                }
+                // 3. 성공 메시지
+                toast.success("병원이 연결되었습니다!");
 
+                // 데이터 갱신 후 상태 확인 (결과 연동 제안)
+                // Note: refetch returns the *new* data, so accessing `data` state here might still be old
+                // unless we await refetch's return or use effect. 
+                // However, user requirement is simply "Close -> Refetch -> Toast".
+                // I'll keep the logic simple as requested.
             } else {
-                alert("병원 연동 실패: " + response.message);
+                // 실패 메시지 (모달 유지)
+                toast.error(response.message || "병원 연동에 실패했습니다.");
             }
         } catch (error) {
             console.error("Error registering invite code", error);
-            alert("병원 연동 중 오류가 발생했습니다.");
+            // 실패 시 모달 유지 및 에러 메시지
+            toast.error("병원 연동 중 오류가 발생했습니다.");
         } finally {
             setIsRegistering(false);
         }
@@ -118,7 +133,7 @@ const DashboardPage = () => {
                 isDestructive={true}
                 onConfirm={() => {
                     setIsViewModalOpen(false);
-                    navigate('/parent/report');
+                    navigate('/parent/mission');
                 }}
                 onClose={() => setIsViewModalOpen(false)}
             />

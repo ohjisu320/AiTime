@@ -16,6 +16,8 @@ interface DashboardCallbacks {
     onNeedHospital?: () => void;
 }
 
+
+
 export const useDashboardLogic = (callbacks?: DashboardCallbacks) => {
     const navigate = useNavigate();
     const { data, isLoading, isError, refetch } = useParentDashboard();
@@ -125,3 +127,4 @@ export const useDashboardLogic = (callbacks?: DashboardCallbacks) => {
         refetch,
     };
 };
+
