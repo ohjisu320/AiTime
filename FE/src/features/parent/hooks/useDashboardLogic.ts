@@ -103,7 +103,7 @@ export const useDashboardLogic = (callbacks?: DashboardCallbacks) => {
                     title: "검사가 완료되었습니다",
                     subtitle: `다음 검사 가능일: ${nextDate}`,
                     buttonText: "마지막 검사 영상 보기",
-                    onPrimaryAction: () => navigate('/video/review?mode=read_only'),
+                    onPrimaryAction: () => navigate('/exam/mission'),
                 };
 
             default:
