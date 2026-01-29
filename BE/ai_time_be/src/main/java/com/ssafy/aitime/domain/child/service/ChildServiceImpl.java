@@ -6,6 +6,7 @@ import com.ssafy.aitime.domain.child.dto.request.ChildDeleteResponse;
 import com.ssafy.aitime.domain.child.dto.response.ChildHomeResponse;
 import com.ssafy.aitime.domain.child.dto.response.ChildHospitalListResponse;
 import com.ssafy.aitime.domain.child.dto.response.ChildInfoResponse;
+import com.ssafy.aitime.domain.exam.dto.response.ExamStartResponse;
 import com.ssafy.aitime.domain.exam.dto.response.ExamSummaryDTO;
 import com.ssafy.aitime.domain.hospital.dto.response.HospitalInfoDTO;
 import com.ssafy.aitime.domain.child.entity.Child;
@@ -130,7 +131,7 @@ public class ChildServiceImpl implements ChildService{
                 child.getChildId(),
                 child.getName(),
                 child.getGender(),
-                examSummary.examStatus(),
+                examSummary.childHomeStatus(),
                 examSummary.examProgress(),
                 examSummary.examStartedAt(),
                 examSummary.nextEligibleAt(),
@@ -184,6 +185,27 @@ public class ChildServiceImpl implements ChildService{
         List<HospitalResponseDto> hospitalResponseDtoList = hospitalChildrenService.getHospitalResponseDtosByChild(childId);
 
         return new ChildHospitalListResponse(hospitalResponseDtoList);
+    }
+
+    @Override
+    @Transactional
+    public ExamStartResponse childStartExam(UUID userId, UUID childId, Boolean videoConsent) {
+        // 1. videoConsent 확인
+        if (videoConsent == null || !videoConsent) {
+            throw new IllegalArgumentException("비디오 동의가 필요합니다");
+        }
+
+        // 2. Child 조회
+        Child child = childRepository.findByChildIdAndRecordStatus(childId, RecordStatus.ACTIVE)
+                .orElseThrow(() -> new ChildNotFoundException());
+
+        // 3. 권한 확인
+        if (!child.getUser().getUserId().equals(userId)) {
+            throw new ChildAccessDeniedException();
+        }
+
+        // 4. ExamService에 Child 엔티티 전달하여 검사 생성
+        return examService.createExam(child);
     }
 
 }

@@ -45,7 +45,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 }
             }
 
-            filterChain.doFilter(request, response);
+            filterChain.                                                                                                                                            doFilter(request, response);
         }catch(JwtException | IllegalArgumentException e){
             log.error("JWT 인증 실패: {}", e.getMessage());
             setErrorResponse(response, "유효하지 않은 토큰입니다: " + e.getMessage());
