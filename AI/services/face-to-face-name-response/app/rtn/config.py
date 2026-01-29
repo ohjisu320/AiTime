@@ -56,3 +56,14 @@ class AnalysisConfig:
     window_s: float = 5.0
     debug: bool = False
     fps_override: float | None = None
+
+
+@dataclass(frozen=True)
+class RabbitMQConfig:
+    """RabbitMQ 연결 설정"""
+    host: str = "localhost"
+    port: int = 5672
+    user: str = "guest"
+    password: str = "guest"
+    task_queue: str = "face_name_task_queue"
+    result_queue: str = "face_name_result_queue"
