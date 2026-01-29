@@ -17,6 +17,13 @@ public interface VideoRepository extends JpaRepository<Video, UUID> {
      * SQL: SELECT COUNT(*) FROM video WHERE exam_id = ?
      */
     int countByExam(Exam exam);
+
+    /**
+     * 특정 검사(Exam)에 연결된 모든 비디오를 반환합니다.
+     * ExamService에서 UPLOADED 상태의 비디오만 필터링하기 위해 사용
+     */
+    List<Video> findByExam(Exam exam);
+
     Optional<Video> findByExamExamIdAndVideoType(UUID examId, VideoType videoType);
 
     List<Video> findByExamExamId(UUID examId);
