@@ -9,7 +9,7 @@ import { useMissions } from '../hooks/useMissions';
 
 const MissionListPage: React.FC = () => {
   const navigate = useNavigate();
-  const { missions, isLoading } = useMissions(); // 커스텀 훅을 통한 데이터 로드 
+  const { missions, isLoading, error } = useMissions(); // 커스텀 훅을 통한 데이터 로드 
 
   const [recheckModal, setRecheckModal] = useState({ isOpen: false, title: '', type: '' });
   const [submitModalOpen, setSubmitModalOpen] = useState(false);
@@ -41,6 +41,18 @@ const MissionListPage: React.FC = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p className="text-xl font-bold text-gray-400 animate-pulse">검사 진행도를 불러오고 있습니다...</p>
+      </div>
+    );
+  }
+
+  // 에러 상태 UI
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-xl font-bold text-red-500 mb-4">데이터를 불러오는 중 오류가 발생했습니다.</p>
+          <p className="text-gray-600">{error}</p>
+        </div>
       </div>
     );
   }
