@@ -140,8 +140,7 @@ public class InviteCodeServiceImpl implements InviteCodeService {
         InviteCode inviteCode = inviteCodeRepository.findById(inviteCodeId)
                 .orElseThrow(InviteCodeNotFoundException::new);
 
-        if (!inviteCode.getHospitalStaff().getHospital().getHospitalId()
-                .equals(staff.getHospital().getHospitalId())) {
+        if (!inviteCode.getHospitalStaff().getHospitalStaffId().equals(hospitalStaffId)) {
             throw new HospitalStaffAccessDeniedException();
         }
 
