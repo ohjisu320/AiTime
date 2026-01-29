@@ -23,5 +23,4 @@ export interface SignupFormData {
 export interface TermsAgreement {
   term1: boolean; // 필수 약관
   term2: boolean; // 개인정보 수집
-  term3: boolean; // 영상 수집
 }

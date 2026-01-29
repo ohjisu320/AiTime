@@ -1,22 +1,38 @@
 // src/features/auth/hooks/useSignup.ts
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import Swal from "sweetalert2";
-// ✅ 충돌 방지를 위해 별도로 생성한 파일에서 타입 Import
+// 충돌 방지를 위해 별도로 생성한 파일에서 타입 Import
 import type { SignupFormData, TermsAgreement } from "../types/signup";
 
 export const useSignup = () => {
   const navigate = useNavigate();
-  const [step, setStep] = useState<1 | 2>(1);
+  const [searchParams, setSearchParams] = useSearchParams(); // URL 파라미터 제어
+  // URL의 step 파라미터를 읽어와서 초기값 설정 (기본값 1)
+  const initialStep = Number(searchParams.get("step")) === 2 ? 2 : 1;
+  const [step, setStep] = useState<1 | 2>(initialStep as 1 | 2);
 
   // --- Step 1: 약관 동의 State ---
   const [agreements, setAgreements] = useState<TermsAgreement>({
     term1: false,
     term2: false,
-    term3: false,
   });
 
   const isAllAgreed = Object.values(agreements).every(Boolean);
+
+  useEffect(() => {
+    const currentStepParam = searchParams.get("step");
+
+    if (currentStepParam === "2" && !isAllAgreed) {
+      Swal.fire({
+        icon: "warning",
+        text: "약관 동의가 필요합니다.",
+        confirmButtonColor: "#9593D9",
+      });
+      setStep(1);
+      setSearchParams({ step: "1" }); // URL 강제 변경
+    }
+  }, [searchParams, isAllAgreed, setSearchParams]);
 
   const handleAgreementChange = (
     key: keyof TermsAgreement,
@@ -29,7 +45,6 @@ export const useSignup = () => {
     setAgreements({
       term1: checked,
       term2: checked,
-      term3: checked,
     });
   };
 
@@ -65,11 +80,16 @@ export const useSignup = () => {
       return;
     }
     setStep(2);
+    setSearchParams({ step: "2" }); // ✅ URL 업데이트
   };
 
   const handleBack = () => {
-    if (step === 2) setStep(1);
-    else navigate("/login");
+    if (step === 2) {
+      setStep(1);
+      setSearchParams({ step: "1" }); // ✅ URL 업데이트
+    } else {
+      navigate("/login");
+    }
   };
 
   // [API Mock] 아이디 중복 확인
@@ -96,6 +116,18 @@ export const useSignup = () => {
   // [API Mock] 회원가입 요청
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // ✅ 최종 제출 시에도 안전 장치 (약관 미동의 시 차단)
+    if (!isAllAgreed) {
+      Swal.fire(
+        "경고",
+        "약관에 동의하지 않으면 가입할 수 없습니다.",
+        "warning",
+      );
+      setStep(1);
+      setSearchParams({ step: "1" });
+      return;
+    }
 
     if (formData.password !== formData.confirmPassword) {
       setErrors((prev) => ({
