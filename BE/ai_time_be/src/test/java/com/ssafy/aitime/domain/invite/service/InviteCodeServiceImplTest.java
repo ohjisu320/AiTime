@@ -140,6 +140,7 @@ class InviteCodeServiceImplTest {
             UUID inviteCodeId = UUID.randomUUID();
             InviteCode inviteCode = InviteCode.builder()
                     .inviteCodeStatus(InviteCodeStatus.ISSUED)
+                    .hospitalStaff(deskStaff)
                     .build();
             ReflectionTestUtils.setField(inviteCode, "inviteCodeId", inviteCodeId);
 
@@ -156,11 +157,36 @@ class InviteCodeServiceImplTest {
         }
 
         @Test
+        @DisplayName("실패: 다른 스태프가 발급한 초대코드는 취소할 수 없다")
+        void revoke_Fail_OtherStaff() {
+            // given
+            UUID inviteCodeId = UUID.randomUUID();
+            HospitalStaff otherStaff = HospitalStaff.builder().build();
+            ReflectionTestUtils.setField(otherStaff, "hospitalStaffId", UUID.randomUUID()); // 다른 ID
+
+            InviteCode inviteCode = InviteCode.builder()
+                    .inviteCodeStatus(InviteCodeStatus.ISSUED)
+                    .hospitalStaff(otherStaff) // 발급자를 다른 사람으로 설정
+                    .build();
+
+            given(hospitalStaffService.getHospitalStaffById(staffId)).willReturn(deskStaff);
+            given(inviteCodeRepository.findById(inviteCodeId)).willReturn(Optional.of(inviteCode));
+
+            // when & then
+            assertThatThrownBy(() -> inviteCodeService.revokeInviteCode(inviteCodeId, staffId))
+                    .isInstanceOf(HospitalStaffAccessDeniedException.class);
+        }
+
+        @Test
         @DisplayName("실패: 이미 사용된(REGISTERED) 코드는 취소할 수 없다")
         void revoke_Fail_AlreadyUsed() {
             // given
             UUID inviteCodeId = UUID.randomUUID();
-            InviteCode inviteCode = InviteCode.builder().inviteCodeStatus(InviteCodeStatus.REGISTERED).build();
+            InviteCode inviteCode = InviteCode.builder()
+                    .inviteCodeStatus(InviteCodeStatus.REGISTERED) // ✅ 핵심: 사용된 상태로!
+                    .hospitalStaff(deskStaff)
+                    .build();
+            ReflectionTestUtils.setField(inviteCode, "inviteCodeId", inviteCodeId);
 
             given(hospitalStaffService.getHospitalStaffById(staffId)).willReturn(deskStaff);
             given(inviteCodeRepository.findById(inviteCodeId)).willReturn(Optional.of(inviteCode));
@@ -168,6 +194,9 @@ class InviteCodeServiceImplTest {
             // when & then
             assertThatThrownBy(() -> inviteCodeService.revokeInviteCode(inviteCodeId, staffId))
                     .isInstanceOf(InviteCodeAlreadyUsedException.class);
+
+            // (선택) save가 호출되지 않았는지까지 검증 가능
+            verify(inviteCodeRepository, never()).save(any());
         }
     }
 
