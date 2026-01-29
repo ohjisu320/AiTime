@@ -119,4 +119,13 @@ public class HospitalStaffController {
         }
         return authorizationHeader.substring(7);
     }
+
+
+    // 더미데이터 생성 용
+    @PostMapping("/dummy")
+    public ResponseEntity<ApiResponse<Object>> createDummy() {
+        hospitalStaffService.createDummyData();
+        return ResponseEntity.ok()
+                .body(ApiResponse.ok("더미 데이터(병원 2개, 각 병원당 데스크1/의사2) 생성이 완료되었습니다.", null));
+    }
 }

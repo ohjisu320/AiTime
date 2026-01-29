@@ -16,4 +16,8 @@ public interface HospitalStaffService {
 
     HospitalStaff getHospitalStaffById(UUID hospitalStaffId);
     List<DoctorListResponse> getDoctorsInMyHospital(UUID hospitalStaffId);
+
+
+    // 더미데이터 생성용
+    void createDummyData();
 }
