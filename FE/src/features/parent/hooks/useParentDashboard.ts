@@ -16,7 +16,7 @@ const ENABLE_MOCK = true;
 
 // MOCK_CASE_AVAILABLE를 참조하여, registerInviteCode에서 수정된 내용이 반영되도록 합니다.
 // 필요에 따라 다른 케이스(MOCK_CASE_NEED_HOSPITAL 등)로 교체하여 테스트하세요.
-const MOCK_DATA = MOCK_CASE_AVAILABLE.data;
+const MOCK_DATA = MOCK_CASE_NEED_HOSPITAL.data;
 // ==========================================
 
 export const useParentDashboard = () => {

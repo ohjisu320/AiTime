@@ -88,7 +88,7 @@ export const useDashboardLogic = (callbacks?: DashboardCallbacks) => {
                 const dDay = calculateDDay(data.draftExpiresAt);
                 return {
                     ...baseProps,
-                    title: "검사가 진행 중입니다",
+                    title: `검사 진행 중 (${data.examProgress}/4)`,
                     subtitle: `임시 저장 만료까지 ${dDay} (이어하지 않으면 초기화됩니다)`,
                     buttonText: "검사 이어하기",
                     onPrimaryAction: () => navigate('/exam/consent'),
