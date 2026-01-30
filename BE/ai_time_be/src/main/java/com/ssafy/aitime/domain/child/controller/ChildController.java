@@ -10,6 +10,7 @@ import com.ssafy.aitime.domain.child.dto.response.ChildInfoResponse;
 import com.ssafy.aitime.domain.child.service.ChildService;
 import com.ssafy.aitime.domain.exam.dto.request.ExamStartRequest;
 import com.ssafy.aitime.domain.exam.dto.response.ExamStartResponse;
+import com.ssafy.aitime.domain.hospital.dto.response.HospitalResponseDto;
 import com.ssafy.aitime.security.principal.UserPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -78,7 +79,7 @@ public class ChildController {
     }
 
     @GetMapping("/{childId}/hospital-list")
-    public ResponseEntity<ApiResponse<ChildHospitalListResponse>> getHospitalList(
+    public ResponseEntity<ApiResponse<List<HospitalResponseDto>>> getHospitalList(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable @NotNull UUID childId
     ) {

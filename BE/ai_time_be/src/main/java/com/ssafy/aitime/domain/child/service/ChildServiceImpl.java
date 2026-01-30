@@ -167,7 +167,7 @@ public class ChildServiceImpl implements ChildService{
 
     @Override
     @Transactional(readOnly = true)
-    public ChildHospitalListResponse getLinkedHospitals(UUID userId, UUID childId) {
+    public List<HospitalResponseDto> getLinkedHospitals(UUID userId, UUID childId) {
         // 아이 주체(부모)가 유효한지 확인
         userService.getById(userId);
 
@@ -182,9 +182,7 @@ public class ChildServiceImpl implements ChildService{
         }
 
         // 연동된 병원 리스트 조회
-        List<HospitalResponseDto> hospitalResponseDtoList = hospitalChildrenService.getHospitalResponseDtosByChild(childId);
-
-        return new ChildHospitalListResponse(hospitalResponseDtoList);
+        return hospitalChildrenService.getHospitalResponseDtosByChild(childId);
     }
 
     @Override
