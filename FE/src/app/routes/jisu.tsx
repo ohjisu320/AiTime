@@ -58,5 +58,5 @@ export const jisuRoutes: RouteObject[] = [
         element: <ExamPage /> // /exam/recorder (실제 검사 진행)
       },
     ],
-  },
+  }
 ];

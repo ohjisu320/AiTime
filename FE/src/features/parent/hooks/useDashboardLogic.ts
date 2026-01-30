@@ -16,6 +16,8 @@ interface DashboardCallbacks {
     onNeedHospital?: () => void;
 }
 
+
+
 export const useDashboardLogic = (callbacks?: DashboardCallbacks) => {
     const navigate = useNavigate();
     const { data, isLoading, isError, refetch } = useParentDashboard();
@@ -56,8 +58,24 @@ export const useDashboardLogic = (callbacks?: DashboardCallbacks) => {
             status: data.status,
         };
 
+        // 🚨 중요: 연결된 병원이 없으면 무조건 NEED_HOSPITAL 상태로 처리
+        const hasLinkedHospitals = data.linkedHospitals && data.linkedHospitals.length > 0;
+
+        if (!hasLinkedHospitals) {
+            return {
+                ...baseProps,
+                status: 'NEED_HOSPITAL',
+                title: "병원을 연결해주세요",
+                subtitle: "병원 코드를 입력하고 자녀의 발달 검사를 시작하세요.",
+                buttonText: "병원 연결하기",
+                onPrimaryAction: callbacks?.onNeedHospital ?? (() => console.warn('onNeedHospital callback not provided')),
+            };
+        }
+
         switch (data.status) {
             case 'NEED_HOSPITAL':
+            default:
+                // 병원 연결이 필요하거나 알 수 없는 상태
                 return {
                     ...baseProps,
                     title: "병원을 연결해주세요",
@@ -105,15 +123,6 @@ export const useDashboardLogic = (callbacks?: DashboardCallbacks) => {
                     buttonText: "마지막 검사 영상 보기",
                     onPrimaryAction: () => navigate('/exam/mission'),
                 };
-
-            default:
-                return {
-                    ...baseProps,
-                    title: "AiTime Parent Dashboard",
-                    subtitle: "아이의 성장을 함께 지켜봐주세요.",
-                    buttonText: "홈으로 이동",
-                    onPrimaryAction: () => navigate('/parent'),
-                };
         }
     };
 
@@ -125,3 +134,4 @@ export const useDashboardLogic = (callbacks?: DashboardCallbacks) => {
         refetch,
     };
 };
+

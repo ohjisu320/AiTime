@@ -1,8 +1,13 @@
-import axios from 'axios';
+import api from '@/api/axiosConfig';
 
-// ---------------------------
-// 1. Enums & Interfaces
-// ---------------------------
+// =================================================================
+// 테스트용 UUID (localStorage에 selectedChildId가 없을 때 fallback)
+// =================================================================
+export const TEST_CHILD_ID = "136d8eb8-8264-4953-9c9c-19baf49dc8b4";
+
+// =================================================================
+// 타입 정의 (Type Definitions)
+// =================================================================
 
 export type ChildDashboardStatus =
     | 'NEED_HOSPITAL'       // 병원 연결 필요
@@ -10,7 +15,8 @@ export type ChildDashboardStatus =
     | 'AVAILABLE_EXPIRED'   // 검사 가능 (이전 임시저장 만료됨)
     | 'IN_PROGRESS'         // 검사 진행 중 (이어하기)
     | 'COOLDOWN'            // 쿨타임 (다음 검사 대기)
-    | 'COOLDOWN_BEFORE';    // 쿨타임 중 병원 연동됨 (특수 케이스)
+    | 'COOLDOWN_BEFORE'     // 쿨타임 중 병원 연동됨 (특수 케이스)
+    | 'WAITING';            // 대기 중
 
 export interface LinkedHospital {
     hospitalId: string;
@@ -19,18 +25,18 @@ export interface LinkedHospital {
 
 export interface ChildHomeResponse {
     code: number;
-    status: string; // API 응답 status (e.g., "200 OK")
+    status: string;
     message: string;
     data: {
         childId: string;
         name: string;
         gender: 'MALE' | 'FEMALE';
-        status: ChildDashboardStatus; // UI 상태 결정용 핵심 필드
+        status: ChildDashboardStatus;
         isExamEligible: boolean;
-        examProgress: number; // 0 ~ 4
+        examProgress: number;
         hasPreviousExam: boolean;
-        draftExpiresAt: string | null; // ISO Date String
-        nextEligibleAt: string | null; // ISO Date String
+        draftExpiresAt: string | null;
+        nextEligibleAt: string | null;
         linkedHospitals: LinkedHospital[];
     };
 }
@@ -43,181 +49,145 @@ export interface HospitalLinkResponse {
     code: number;
     status: string;
     message: string;
+    data?: string;
 }
 
-// ---------------------------
-// 2. Constants for Mock Data (Scenarios)
-// ---------------------------
 
-const BASE_CHILD_DATA = {
-    childId: "mock-child-001",
-    name: "김지후",
-    gender: "MALE" as const,
+// --- [API Functions] ---------------------------------------------
+
+/**
+ * 1. 메인 대시보드 정보 조회 (GET)
+ * (수정사항: API 에러가 나면 무조건 Mock 데이터를 반환해서 화면이 꺼지지 않게 함)
+ */
+export const fetchChildHomeInfo = async (childId: string) => {
+    // childId가 없거나 이상하면 테스트 ID로 대체
+    const targetId = childId || "65952064-7506-499d-b4fc-1b919be4db5f";
+    console.log(`🚀 [GET] Dashboard Info for: ${targetId}`);
+
+    try {
+        const response = await api.get(`/child/${targetId}`);
+        console.log("✅ Fetch Success:", response.data);
+        // API 응답 구조: {code, status, message, data: {...child info...}}
+        // 실제 아이 정보만 반환
+        return response.data.data;
+    } catch (error) {
+        // 🚨 여기가 핵심입니다! 
+        // 에러를 throw 하지 않고, 콘솔에만 찍은 뒤 '가짜 데이터'를 리턴합니다.
+        console.warn("⚠️ API 연결 실패 (401 등). 임시 데이터를 보여줍니다.");
+        console.error("❌ fetchChildHomeInfo Error:", error);
+
+        // 화면이 죽지 않도록 Mock Data 반환 (data 부분만)
+        return MOCK_CASE_AVAILABLE.data;
+    }
+};
+
+/**
+ * 2. 연결된 병원 목록 조회 (GET)
+ */
+export const fetchLinkedHospitals = async (childId: string) => {
+    const targetId = childId || TEST_CHILD_ID;
+    console.log(`🚀 [GET] Hospital List for: ${targetId}`);
+
+    try {
+        const response = await api.get(`/child/${targetId}/hospital-list`);
+
+        // Swagger 명세상 data.data 안에 배열이 있었음
+        const list = response.data?.data || [];
+        console.log("✅ Linked Hospitals:", list);
+        return list;
+    } catch (error) {
+        console.error("❌ fetchLinkedHospitals Error:", error);
+        return []; // 에러 시 빈 배열 반환하여 화면 안 깨지게 처리
+    }
+};
+
+/**
+ * 3. 초대코드로 병원 연결 (POST)
+ */
+export const registerInviteCode = async (childId: string, inviteCode: string) => {
+    const targetId = childId || TEST_CHILD_ID;
+    console.log(`🚀 [POST] Linking Hospital... Child: ${targetId}, Code: ${inviteCode}`);
+
+    const requestBody = { inviteCode };
+    console.log('📤 Request Body:', JSON.stringify(requestBody));
+
+    try {
+        const response = await api.post(
+            `/child/${targetId}/hospital-link`,
+            requestBody
+        );
+
+        console.log("✅ Link Success:", response.data);
+        return response.data;
+    } catch (error: any) {
+        console.error("❌ registerInviteCode Error:", error);
+        // 에러 응답 상세 정보 출력
+        if (error.response) {
+            console.error("Error Response Data:", error.response.data);
+            console.error("Error Response Status:", error.response.status);
+        }
+        throw error;
+    }
+};
+
+// =================================================================
+// 🚨 [Fix] Missing Exports for Build Error
+// useParentDashboard.ts 에서 import 하고 있는 Mock 상수들을 복구합니다.
+// =================================================================
+
+const MOCK_BASE_DATA = {
+    childId: TEST_CHILD_ID,
+    name: "오하나",
+    gender: "FEMALE" as const,
+    birthDate: "2019-05-05",
     hasPreviousExam: true,
+    status: "AVAILABLE" as ChildDashboardStatus,
+    isExamEligible: true,
+    examProgress: 0,
+    draftExpiresAt: null,
+    nextEligibleAt: null,
+    linkedHospitals: [] as LinkedHospital[],
+    recentExamResult: null
 };
 
-// Case 1: 병원 연결 필요
-export const MOCK_CASE_NEED_HOSPITAL: ChildHomeResponse = {
-    code: 200, status: "OK", message: "Success",
-    data: {
-        ...BASE_CHILD_DATA,
-        status: 'NEED_HOSPITAL',
-        isExamEligible: false,
-        examProgress: 0,
-        draftExpiresAt: null,
-        nextEligibleAt: null,
-        linkedHospitals: []
-    }
-};
-
-// Case 2: 새 검사 가능 (기본)
 export const MOCK_CASE_AVAILABLE: ChildHomeResponse = {
-    code: 200, status: "OK", message: "Success",
-    data: {
-        ...BASE_CHILD_DATA,
-        status: 'AVAILABLE',
-        isExamEligible: true,
-        examProgress: 0,
-        draftExpiresAt: null,
-        nextEligibleAt: null,
-        linkedHospitals: [{ hospitalId: "h1", name: "서울대학교병원" }]
-    }
+    code: 200,
+    status: "OK",
+    message: "Success",
+    data: MOCK_BASE_DATA
 };
 
-// Case 3: 새 검사 가능 (이전 임시저장 만료) - 모달 띄우기용
-export const MOCK_CASE_AVAILABLE_EXPIRED: ChildHomeResponse = {
-    code: 200, status: "OK", message: "Success",
-    data: {
-        ...BASE_CHILD_DATA,
-        status: 'AVAILABLE_EXPIRED',
-        isExamEligible: true,
-        examProgress: 0,
-        draftExpiresAt: null,
-        nextEligibleAt: null,
-        linkedHospitals: [{ hospitalId: "h1", name: "서울대학교병원" }]
-    }
+export const MOCK_CASE_WAITING: ChildHomeResponse = {
+    code: 200,
+    status: "OK",
+    message: "Success",
+    data: { ...MOCK_BASE_DATA, status: "WAITING", examProgress: 2 }
 };
 
-// Case 4: 검사 진행 중 (이어하기)
-const twoDaysFromNow = new Date();
-twoDaysFromNow.setDate(twoDaysFromNow.getDate() + 2);
+export const MOCK_CASE_COOLDOWN: ChildHomeResponse = {
+    code: 200,
+    status: "OK",
+    message: "Success",
+    data: { ...MOCK_BASE_DATA, status: "COOLDOWN", isExamEligible: false, examProgress: 4 }
+};
+
+export const MOCK_CASE_NEED_HOSPITAL: ChildHomeResponse = {
+    code: 200,
+    status: "OK",
+    message: "Success",
+    data: { ...MOCK_BASE_DATA, status: "NEED_HOSPITAL", linkedHospitals: [] }
+};
+
+export const MOCK_CASE_COOLDOWN_BEFORE: ChildHomeResponse = {
+    code: 200,
+    status: "OK",
+    message: "Success",
+    data: { ...MOCK_BASE_DATA, status: "COOLDOWN_BEFORE", isExamEligible: false, examProgress: 4 }
+};
 
 export const MOCK_CASE_IN_PROGRESS: ChildHomeResponse = {
-    code: 200, status: "OK", message: "Success",
-    data: {
-        ...BASE_CHILD_DATA,
-        status: 'IN_PROGRESS',
-        isExamEligible: true, // 진행 중이어도 eligible은 true일 수 있음 (컨텍스트에 따라 다름)
-        examProgress: 2, // 2/4 단계 진행 중
-        draftExpiresAt: twoDaysFromNow.toISOString(),
-        nextEligibleAt: null,
-        linkedHospitals: [{ hospitalId: "h1", name: "서울대학교병원" }]
-    }
-};
-
-// Case 5: 쿨타임 (검사 완료, 대기 중) - Read Only
-export const MOCK_CASE_COOLDOWN: ChildHomeResponse = {
-    code: 200, status: "OK", message: "Success",
-    data: {
-        ...BASE_CHILD_DATA,
-        status: 'COOLDOWN',
-        isExamEligible: false,
-        examProgress: 4, // 완료
-        draftExpiresAt: null,
-        nextEligibleAt: "2026-05-30", // 미래 날짜
-        linkedHospitals: [{ hospitalId: "h1", name: "서울대학교병원" }]
-    }
-};
-
-// Case 6: 쿨타임 중 병원 연동됨 (제출 제안 모달)
-export const MOCK_CASE_COOLDOWN_BEFORE: ChildHomeResponse = {
-    code: 200, status: "OK", message: "Success",
-    data: {
-        ...BASE_CHILD_DATA,
-        status: 'COOLDOWN_BEFORE',
-        isExamEligible: false,
-        examProgress: 4,
-        draftExpiresAt: null,
-        nextEligibleAt: "2026-05-30",
-        linkedHospitals: [{ hospitalId: "h1", name: "서울대학교병원" }]
-    }
-};
-
-// ---------------------------
-// 3. API Functions
-// ---------------------------
-
-// GET /api/v1/child/{childId}
-export const fetchChildHomeInfo = async (childId: string): Promise<ChildHomeResponse> => {
-    try {
-        const response = await axios.get<ChildHomeResponse>(`/api/v1/child/${childId}`);
-
-        if (!response.data || !response.data.data) {
-            throw new Error("Invalid response structure received from API");
-        }
-
-        return response.data;
-    } catch (error) {
-        console.warn("API Failed. Falling back to Mock Data...", error);
-
-        // ---------------------------------------------------------
-        // [DEVELOPER] Uncomment ONE line below to test specific status
-        // ---------------------------------------------------------
-
-        // return MOCK_CASE_NEED_HOSPITAL;      // Case 1: 병원 없음
-        return MOCK_CASE_AVAILABLE;          // Case 2: 검사 가능 (기본)
-        // return MOCK_CASE_AVAILABLE_EXPIRED;  // Case 3: 만료 재검사
-        // return MOCK_CASE_IN_PROGRESS;        // Case 4: 이어하기
-        // return MOCK_CASE_COOLDOWN;           // Case 5: 완료/대기 (영상 보기)
-        // return MOCK_CASE_COOLDOWN_BEFORE;    // Case 6: 기존 영상 제출 제안
-
-        // Default Fallback
-        // return MOCK_CASE_AVAILABLE;
-    }
-};
-
-// POST /api/v1/child/{childId}/hospital-link
-export const registerInviteCode = async (childId: string, inviteCode: string): Promise<HospitalLinkResponse> => {
-    try {
-        const response = await axios.post<HospitalLinkResponse>(`/api/v1/child/${childId}/hospital-link`, {
-            inviteCode
-        });
-        return response.data;
-    } catch (error) {
-        console.warn("registerInviteCode failed, using MOCK DATA", error);
-
-        // MOCK LOGIC: Update the in-memory mock data so the UI reflects the change
-        if (inviteCode === "AAA") {
-            const newHospital = { hospitalId: "h-mock-new", name: "튼튼소아과 (Mock)" };
-
-            // Helper to add hospital if not exists
-            const addHospital = (target: ChildHomeResponse) => {
-                if (!target.data.linkedHospitals.some(h => h.hospitalId === "h-mock-new")) {
-                    target.data.linkedHospitals.push(newHospital);
-                }
-            };
-
-            // Update ALL mock cases to ensure the user sees the change regardless of which one is active
-            addHospital(MOCK_CASE_NEED_HOSPITAL);
-            addHospital(MOCK_CASE_AVAILABLE);
-            addHospital(MOCK_CASE_AVAILABLE_EXPIRED);
-            addHospital(MOCK_CASE_IN_PROGRESS);
-            addHospital(MOCK_CASE_COOLDOWN);
-            addHospital(MOCK_CASE_COOLDOWN_BEFORE);
-
-            // Special State Transitions (Optional enhancement)
-            // If we were in NEED_HOSPITAL, we are now AVAILABLE (if eligible)
-            if (MOCK_CASE_NEED_HOSPITAL.data.status === 'NEED_HOSPITAL') {
-                // For now, let's not auto-change status to avoid confusion, 
-                // but typically this would become AVAILABLE.
-            }
-        }
-
-        // Simple Mock Response
-        return {
-            code: 200,
-            status: "OK",
-            message: "병원 연동이 성공적으로 완료되었습니다. (Mock)"
-        };
-    }
+    code: 200,
+    status: "OK",
+    message: "Success",
+    data: { ...MOCK_BASE_DATA, status: "IN_PROGRESS", examProgress: 2 }
 };
