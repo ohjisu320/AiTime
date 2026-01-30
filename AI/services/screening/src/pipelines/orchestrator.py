@@ -98,6 +98,8 @@ class PreflightOrchestrator:
         avg_luma_mean = float(np.mean([s.luma_mean for s in v])) if v else 0.0
 
         return WindowStats(
+            video_count=len(v),
+            audio_count=len(a),
             noise_high_ratio=noise_high_ratio,
             low_light_ratio=low_light_ratio,
             two_faces_ratio=two_faces_ratio,
@@ -182,14 +184,14 @@ class PreflightOrchestrator:
             )
             return
 
-        # timeout fail is handled by decide()
-        if failure_reason == FailureReason.FAIL_TIMEOUT:
+        # timeout fail
+        if seen_seconds >= self.ctx.config.max_total_time_sec:
             self._finished = True
             self.send(
                 ResultMessage(
                     run_id=self.ctx.repro.run_id,
                     passed=False,
-                    failure_reason=failure_reason,
+                    failure_reason=failure_reason or FailureReason.FAIL_TIMEOUT,
                     flags=list(set(flags)),
                     ratios=ratios,
                     scores=scores,

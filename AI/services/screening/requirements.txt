@@ -5,3 +5,4 @@ av
 opencv-python
 pyyaml
 numpy
+pytest
