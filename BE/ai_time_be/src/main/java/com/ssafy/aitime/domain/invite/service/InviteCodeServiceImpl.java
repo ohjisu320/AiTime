@@ -200,12 +200,16 @@ public class InviteCodeServiceImpl implements InviteCodeService {
         LocalDateTime startOfMonth = firstDayOfMonth.atStartOfDay();
         LocalDateTime endOfMonth = firstDayOfMonth.plusMonths(1).atStartOfDay();
 
-        // 2. 해당 병원의 해당 월 예약 날짜 조회
-        return inviteCodeRepository.findScheduledDatesByHospitalAndMonth(
-                hospitalId,
-                startOfMonth,
-                endOfMonth
-        );
+        // 2. 해당 병원의 해당 월 초대코드 조회
+        List<InviteCode> inviteCodes = inviteCodeRepository
+                .findIssuedInviteCodesByHospitalAndMonth(hospitalId, startOfMonth, endOfMonth);
+
+        // 3. scheduledAt에서 날짜만 추출하고 중복 제거 후 정렬
+        return inviteCodes.stream()
+                .map(ic -> ic.getScheduledAt().toLocalDate())
+                .distinct()
+                .sorted()
+                .toList();
     }
 
     private String createRandomCode() {

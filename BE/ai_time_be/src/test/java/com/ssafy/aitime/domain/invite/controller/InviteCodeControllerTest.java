@@ -279,4 +279,113 @@ class InviteCodeControllerTest {
         verify(inviteCodeService, times(1))
                 .getUnregisteredPatients(eq(TEST_HOSPITAL_ID), eq(year), eq(month), eq(day));
     }
+
+    // InviteCodeControllerTest.java에 추가
+
+    @Test
+    @DisplayName("캘린더 인디케이터 정보를 조회하면 200 상태코드와 날짜 목록을 반환한다")
+    void getScheduledDates_Success() throws Exception {
+        // given
+        int year = 2026;
+        int month = 1;
+
+        List<LocalDate> dates = List.of(
+                LocalDate.of(2026, 1, 10),
+                LocalDate.of(2026, 1, 15),
+                LocalDate.of(2026, 1, 20),
+                LocalDate.of(2026, 1, 25)
+        );
+
+        given(inviteCodeService.getScheduledDates(any(UUID.class), eq(year), eq(month)))
+                .willReturn(dates);
+
+        // when & then
+        mockMvc.perform(get("/invite-code/calendar")
+                        .param("year", String.valueOf(year))
+                        .param("month", String.valueOf(month)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("등록 대기 중인 예약 날짜 조회가 완료되었습니다."))
+                .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.data.length()").value(4))
+                .andExpect(jsonPath("$.data[0]").value("2026-01-10"))
+                .andExpect(jsonPath("$.data[1]").value("2026-01-15"))
+                .andExpect(jsonPath("$.data[2]").value("2026-01-20"))
+                .andExpect(jsonPath("$.data[3]").value("2026-01-25"));
+    }
+
+    @Test
+    @DisplayName("예약이 없는 월은 200 상태코드와 빈 배열을 반환한다")
+    void getScheduledDates_EmptyResult() throws Exception {
+        // given
+        int year = 2026;
+        int month = 12;
+
+        given(inviteCodeService.getScheduledDates(any(UUID.class), eq(year), eq(month)))
+                .willReturn(List.of());
+
+        // when & then
+        mockMvc.perform(get("/invite-code/calendar")
+                        .param("year", String.valueOf(year))
+                        .param("month", String.valueOf(month)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("등록 대기 중인 예약 날짜 조회가 완료되었습니다."))
+                .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.data.length()").value(0));
+    }
+
+    @Test
+    @DisplayName("필수 파라미터가 누락되면 400 Bad Request를 반환한다 - 캘린더")
+    void getScheduledDates_MissingParameter() throws Exception {
+        // when & then - year만 있고 month 누락
+        mockMvc.perform(get("/invite-code/calendar")
+                        .param("year", "2026"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("인증된 사용자의 병원 ID로 캘린더를 조회한다")
+    void getScheduledDates_UsesAuthenticatedHospitalId() throws Exception {
+        // given
+        int year = 2026;
+        int month = 1;
+
+        given(inviteCodeService.getScheduledDates(eq(TEST_HOSPITAL_ID), eq(year), eq(month)))
+                .willReturn(List.of());
+
+        // when
+        mockMvc.perform(get("/invite-code/calendar")
+                        .param("year", String.valueOf(year))
+                        .param("month", String.valueOf(month)))
+                .andExpect(status().isOk());
+
+        // then - 인증된 사용자의 병원 ID가 사용되었는지 검증
+        verify(inviteCodeService, times(1))
+                .getScheduledDates(eq(TEST_HOSPITAL_ID), eq(year), eq(month));
+    }
+
+    @Test
+    @DisplayName("다양한 월에 대해 정상적으로 조회한다")
+    void getScheduledDates_VariousMonths() throws Exception {
+        // given - 2월
+        given(inviteCodeService.getScheduledDates(any(UUID.class), eq(2026), eq(2)))
+                .willReturn(List.of(LocalDate.of(2026, 2, 14)));
+
+        // when & then - 2월
+        mockMvc.perform(get("/invite-code/calendar")
+                        .param("year", "2026")
+                        .param("month", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0]").value("2026-02-14"));
+
+        // given - 12월
+        given(inviteCodeService.getScheduledDates(any(UUID.class), eq(2026), eq(12)))
+                .willReturn(List.of(LocalDate.of(2026, 12, 25)));
+
+        // when & then - 12월
+        mockMvc.perform(get("/invite-code/calendar")
+                        .param("year", "2026")
+                        .param("month", "12"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0]").value("2026-12-25"));
+    }
 }
