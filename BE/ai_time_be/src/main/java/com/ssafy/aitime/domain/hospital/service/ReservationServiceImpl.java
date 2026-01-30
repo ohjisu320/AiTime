@@ -104,23 +104,25 @@ public class ReservationServiceImpl implements ReservationService {
     }
 
     @Override
-    public List<LocalDate> getHospitalReservationDates(UUID hospitalId, YearMonth yearMonth) {
+    @Transactional(readOnly = true)
+    public List<LocalDate> getHospitalReservationDates(UUID hospitalId, int year, int month) {
         // 1. 해당 월의 시작과 끝 계산
-        LocalDate firstDayOfMonth = yearMonth.atDay(1);
+        LocalDate firstDayOfMonth = LocalDate.of(year, month, 1);
         LocalDateTime startOfMonth = firstDayOfMonth.atStartOfDay();
-        LocalDateTime endOfMonth = yearMonth.plusMonths(1).atDay(1).atStartOfDay();
+        LocalDateTime endOfMonth = firstDayOfMonth.plusMonths(1).atStartOfDay();
 
         // 2. 해당 병원의 해당 월 예약 조회
         List<Reservation> reservations = reservationRepository
                 .findReservationsByHospitalAndMonth(hospitalId, startOfMonth, endOfMonth);
 
-        // 3. scheduledAt에서 날짜만 추출하고 중복 제거
+        // 3. scheduledAt에서 날짜만 추출하고 중복 제거 + 정렬
         return reservations.stream()
                 .map(r -> r.getScheduledAt().toLocalDate())
                 .distinct()
                 .sorted()
                 .toList();
     }
+
 
     @Override
     @Transactional(readOnly = true)

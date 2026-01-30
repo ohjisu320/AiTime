@@ -127,13 +127,16 @@ public class HospitalStaffController {
 
     @GetMapping("/calendar")
     public ApiResponse<List<LocalDate>> getReservationDates(
-            @RequestParam YearMonth yearMonth,
+            @RequestParam int year,
+            @RequestParam int month,
             @AuthenticationPrincipal HospitalStaffPrincipal principal
     ) {
-        List<LocalDate> dates = reservationService.getHospitalReservationDates(principal.getHospitalId(), yearMonth);
+        List<LocalDate> dates = reservationService
+                .getHospitalReservationDates(principal.getHospitalId(), year, month);
 
         return ApiResponse.ok("달력 인디케이터 조회가 완료되었습니다.", dates);
     }
+
 
     @GetMapping("/reservation-list")
     public ApiResponse<List<ReservationListResponse>> getReservationList(
