@@ -9,7 +9,7 @@ import {
 // ==========================================
 // [테스트용 설정]
 // 이 값을 true로 하면 아래 MOCK_DATA가 강제로 적용됩니다.
-const ENABLE_MOCK = false;
+const ENABLE_MOCK = false; // Swagger 토큰으로 실제 API 테스트
 
 // MOCK_CASE_AVAILABLE를 참조하여, registerInviteCode에서 수정된 내용이 반영되도록 합니다.
 const MOCK_DATA = MOCK_CASE_AVAILABLE.data;
