@@ -1,3 +1,4 @@
+import logging
 import time
 from collections import deque
 from collections.abc import Callable
@@ -11,6 +12,8 @@ from src.pipelines.stages.audio_quality import AudioQualityStage
 from src.pipelines.stages.face_detect import FaceDetectStage
 from src.pipelines.stages.frame_quality import FrameQualityStage
 from src.pipelines.stages.roi_validate import ROIValidateStage
+
+logger = logging.getLogger("preflight")
 
 
 @dataclass
@@ -55,6 +58,9 @@ class PreflightOrchestrator:
         self._t_start = time.monotonic()
         self._last_video_emit_t = 0.0
         self._finished = False
+
+        self._audio_buf = np.zeros((0,), dtype=np.float32)
+        self._audio_sr: int | None = None
 
     @property
     def finished(self) -> bool:
@@ -131,12 +137,18 @@ class PreflightOrchestrator:
             ).model_dump()
         )
 
-        # hints (simple mapping)
+        # 1. 힌트 우선순위 결정 (가장 심각한 것 하나만)
         hint = None
         if QualityFlag.NOISE_HIGH in flags:
-            hint = "주변 소음이 큽니다. 조용한 곳에서 다시 시도해 주세요."
+            hint = (
+                "주변 소음이 큽니다. TV/대화를 줄이고 조용한 곳에서 다시 시도해 주세요."
+            )
         elif QualityFlag.LOW_LIGHT in flags:
-            hint = "화면이 어둡습니다. 조명을 켜거나 창가 쪽으로 이동해 주세요."
+            hint = "화면이 어둡습니다. 조명을 켜거나 더 밝은 곳으로 이동해 주세요."
+        elif QualityFlag.TOO_MANY_FACES in flags:
+            hint = (
+                "화면에 사람이 2명보다 많습니다. 검사에는 2명만 나오도록 정리해 주세요."
+            )
         elif QualityFlag.TOO_FEW_FACES in flags:
             hint = "화면에 2명이 모두 나오도록 카메라 각도를 조정해 주세요."
         elif (
@@ -199,6 +211,18 @@ class PreflightOrchestrator:
         # stages
         fq = self.frame_stage.run(self.ctx, {"frame_bgr": frame_bgr})
         fd = self.face_stage.run(self.ctx, {"frame_bgr": frame_bgr})
+        num_faces = int(fd.payload["num_faces"])
+
+        # 디버그 로그 (30프레임마다)
+        self._dbg = getattr(self, "_dbg", 0) + 1
+        if self._dbg % 30 == 0:
+            logger.info(
+                "[%s] num_faces=%d area_ratios=%s",
+                self.ctx.repro.run_id,
+                num_faces,
+                fd.payload["face_area_ratios"],
+            )
+
         H, W = frame_bgr.shape[:2]
         rv = self.roi_stage.run(
             self.ctx, {"frame_wh": (W, H), "face_bboxes": fd.payload["bboxes"]}
@@ -225,16 +249,43 @@ class PreflightOrchestrator:
         if self._finished:
             return
 
-        now = self._now()
-        aq = self.audio_stage.run(
-            self.ctx, {"pcm": pcm_float32, "sample_rate": sample_rate}
-        )
-        self._audio.append(
-            AudioSample(
-                t=now,
-                rms_dbfs=float(aq.payload["rms_dbfs"]),
-                noisy=bool(aq.payload["noisy"]),
-            )
-        )
+        if pcm_float32.size == 0:
+            return
 
-        self._maybe_emit()
+        # normalize best-effort
+        pcm = pcm_float32.astype(np.float32)
+        if pcm.max() > 1.5 or pcm.min() < -1.5:
+            pcm = pcm / 32768.0
+
+        # init sr
+        if self._audio_sr is None:
+            self._audio_sr = int(sample_rate)
+
+        # if sample_rate changes, reset buffer
+        if int(sample_rate) != int(self._audio_sr):
+            self._audio_sr = int(sample_rate)
+            self._audio_buf = np.zeros((0,), dtype=np.float32)
+
+        self._audio_buf = np.concatenate([self._audio_buf, pcm], axis=0)
+
+        # chunk emit
+        chunk_sec = float(self.ctx.config.audio_chunk_sec)
+        need = int(self._audio_sr * chunk_sec)
+
+        while self._audio_buf.size >= need and not self._finished:
+            chunk = self._audio_buf[:need]
+            self._audio_buf = self._audio_buf[need:]
+
+            now = self._now()
+            aq = self.audio_stage.run(
+                self.ctx, {"pcm": chunk, "sample_rate": self._audio_sr}
+            )
+            self._audio.append(
+                AudioSample(
+                    t=now,
+                    rms_dbfs=float(aq.payload["rms_dbfs"]),
+                    noisy=bool(aq.payload["noisy"]),
+                )
+            )
+
+            self._maybe_emit()

@@ -44,6 +44,7 @@ def load_config(path: str = "configs/preflight.yaml") -> PreflightConfig:
         target_faces=int(raw["target_faces"]),
         audio_noise_dbfs_threshold=float(raw["audio"]["noise_dbfs_threshold"]),
         audio_noise_high_ratio_max=float(raw["audio"]["noise_high_ratio_max"]),
+        audio_chunk_sec=float(raw["audio"].get("chunk_sec", 0.5)),
         video_luma_mean_threshold=float(raw["video"]["luma_mean_threshold"]),
         video_low_light_ratio_max=float(raw["video"]["low_light_ratio_max"]),
         faces_two_faces_ratio_min=float(raw["faces"]["two_faces_ratio_min"]),
