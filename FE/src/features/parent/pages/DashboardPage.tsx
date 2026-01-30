@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import HeroBanner from '../components/HeroBanner';
 import Sidebar from '../components/Sidebar';
 import HospitalTimeline from '../components/HospitalTimeline';
-import LoadingSpinner from '@/components/common/LoadingSpinner';
+import { DashboardSkeleton } from '../components/DashboardSkeleton';
 import GuideVideo from '../components/GuideVideo';
 import CodeRegisterModal from '../components/CodeRegisterModal';
 import ConfirmModal from '../components/ConfirmModal';
@@ -23,7 +23,6 @@ const DashboardPage = () => {
     const { heroProps, isLoading, isError, data, refetch } = useDashboardLogic({
         onNeedHospital: () => setIsCodeModalOpen(true)
     });
-
     // 모달 상태 관리
     const [isModifyModalOpen, setIsModifyModalOpen] = useState(false);
     const [isViewModalOpen, setIsViewModalOpen] = useState(false);
@@ -31,15 +30,33 @@ const DashboardPage = () => {
     const [isResultLinkModalOpen, setIsResultLinkModalOpen] = useState(false); // 결과 연동 모달
     const [isRegistering, setIsRegistering] = useState(false); // 초대코드 등록 로딩 상태
 
-    // 로딩 및 에러 처리
+    // 로딩 중일 때 스켈레톤 UI 표시
     if (isLoading) {
         return (
-            <div className="flex w-full h-screen items-center justify-center bg-white">
-                <LoadingSpinner />
+            <div className="flex w-full h-screen bg-white overflow-hidden">
+                <Sidebar childName="로딩 중..." onCodeInputClick={() => { }} />
+                <DashboardSkeleton />
             </div>
         );
     }
-    if (isError || !data) return <div className="p-8 text-center">데이터를 불러오는 중 오류가 발생했습니다.</div>;
+
+    // 에러 발생 시 에러 화면 표시
+    if (isError || !data) {
+        return (
+            <div className="flex w-full h-screen bg-white overflow-hidden items-center justify-center">
+                <div className="text-center p-8">
+                    <h2 className="text-2xl font-bold text-gray-800 mb-4">데이터를 불러올 수 없습니다</h2>
+                    <p className="text-gray-600 mb-6">서버 연결에 문제가 있습니다. 잠시 후 다시 시도해주세요.</p>
+                    <button
+                        onClick={() => refetch()}
+                        className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                    >
+                        다시 시도
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     // 초대 코드 등록 핸들러
     const handleCodeRegister = async (code: string) => {
@@ -95,24 +112,25 @@ const DashboardPage = () => {
     };
 
     return (
-        <div className="flex w-full min-h-[1000px] bg-white overflow-hidden">
+        <div className="flex w-full h-screen bg-white overflow-hidden">
             <Sidebar
                 childName={data?.name || "어린이"}
                 onCodeInputClick={() => setIsCodeModalOpen(true)}
             />
 
-            <main className="flex-1 h-screen overflow-y-auto p-8 flex flex-col gap-8">
-                {/* HeroBanner - 반응형에서 더 큰 비중 */}
-                <div className="w-full">
+            <main className="flex-1 overflow-y-auto p-8 flex flex-col gap-8 justify-center">
+                {/* HeroBanner - 더 큰 크기 */}
+                <div className="w-full flex-shrink-0">
                     <HeroBanner {...heroProps} />
                 </div>
 
                 <section className="flex flex-col xl:flex-row gap-6 w-full max-w-[1350px]">
-                    {/* GuideVideo - 반응형에서 작은 비중 */}
-                    <div className="flex-1 min-h-[400px] xl:min-h-[500px]">
+                    {/* GuideVideo */}
+                    <div className="flex-1 min-h-[450px]">
                         <GuideVideo />
                     </div>
 
+                    {/* HospitalTimeline - 오른쪽 고정 */}
                     <aside className="w-full xl:w-96 flex-none">
                         {data && <HospitalTimeline hospitals={data.linkedHospitals} childName={data.name} onAddClick={() => setIsCodeModalOpen(true)} />}
                     </aside>

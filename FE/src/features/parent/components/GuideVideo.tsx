@@ -4,7 +4,7 @@ const GuideVideo = () => {
       <video
         className="absolute inset-0 w-full h-full object-cover"
         autoPlay muted loop playsInline
-        poster="https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?q=80&w=2038&auto=format&fit=crop"
+        poster="https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?auto=format&fit=crop&q=60&w=800"
       >
         <source src="https://assets.mixkit.co/videos/preview/mixkit-mother-and-her-little-daughter-playing-in-a-field-34440-large.mp4" type="video/mp4" />
       </video>
