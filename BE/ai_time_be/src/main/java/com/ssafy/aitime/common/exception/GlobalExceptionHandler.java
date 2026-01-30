@@ -6,6 +6,7 @@ import com.ssafy.aitime.common.exception.commonExceptions.UpdateFailedException;
 import com.ssafy.aitime.common.response.ApiResponse;
 import com.ssafy.aitime.domain.child.exception.ChildAccessDeniedException;
 import com.ssafy.aitime.domain.child.exception.ChildNotFoundException;
+import com.ssafy.aitime.domain.exam.exception.*;
 import com.ssafy.aitime.domain.hospital.exception.*;
 import com.ssafy.aitime.domain.invite.exception.AlreadyIssuedInviteCodeException;
 import com.ssafy.aitime.domain.invite.exception.InviteCodeAlreadyUsedException;
@@ -256,5 +257,63 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.CONFLICT)
                 .body(ApiResponse.of(HttpStatus.CONFLICT, e.getMessage(), null));
 
+    }
+
+    /********************************************************************************/
+    /*                        Exam CustomException                                  */
+    /********************************************************************************/
+
+    /**
+     * 검사 관련 BAD_REQUEST (400)
+     * - 잘못된 비디오 타입
+     * - 잘못된 examId 형식
+     */
+    @ExceptionHandler({
+            InvalidVideoTypeException.class,
+            InvalidExamIdFormatException.class
+    })
+    public ResponseEntity<ApiResponse<Object>> handleExamBadRequestException(RuntimeException e){
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.of(HttpStatus.BAD_REQUEST, e.getMessage(), null));
+    }
+
+    /**
+     * 검사 관련 NOT_FOUND (404)
+     * - 검사를 찾을 수 없음
+     * - 비디오를 찾을 수 없음
+     */
+    @ExceptionHandler({
+            ExamNotFoundException.class,
+            VideoNotFoundException.class
+    })
+    public ResponseEntity<ApiResponse<Object>> handleExamNotFoundException(RuntimeException e){
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.of(HttpStatus.NOT_FOUND, e.getMessage(), null));
+    }
+
+    /**
+     * 검사 상태 CONFLICT (409)
+     */
+    @ExceptionHandler({
+            ExamStatusNotAllowedException.class  // 추가
+    })
+    public ResponseEntity<ApiResponse<Object>> handleExamConflictException(RuntimeException e){
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(ApiResponse.of(HttpStatus.CONFLICT, e.getMessage(), null));
+    }
+
+    /**
+     * S3 업로드 관련 INTERNAL_SERVER_ERROR (500)
+     */
+    @ExceptionHandler({
+            S3UploadException.class
+    })
+    public ResponseEntity<ApiResponse<Object>> handleS3UploadException(RuntimeException e){
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.of(HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage(), null));
     }
 }

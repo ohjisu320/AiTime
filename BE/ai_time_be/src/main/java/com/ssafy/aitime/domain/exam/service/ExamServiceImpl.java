@@ -86,9 +86,7 @@ public class ExamServiceImpl implements ExamService {
         // 2. 검사 시작 가능 상태인지 확인 (AVAILABLE 또는 AVAILABLE_EXPIRED만 허용)
         if (!(currentStatus == ChildHomeStatus.AVAILABLE
                 || currentStatus == ChildHomeStatus.AVAILABLE_EXPIRED)) {
-            throw new ExamNotEligibleException(
-                    String.format("현재 검사를 시작할 수 없는 상태입니다. 현재 상태: %s", currentStatus)
-            );
+            throw new ExamNotEligibleException();
         }
 
         // 3. AVAILABLE_EXPIRED인 경우, 기존 IN_PROGRESS 검사를 삭제 (만료된 데이터 정리)
