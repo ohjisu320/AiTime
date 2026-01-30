@@ -6,7 +6,7 @@ const HeroBanner = ({ title, subtitle, buttonText, status, onPrimaryAction }: He
     <section
       onClick={onPrimaryAction} // Use the action passed from prop
       data-status={status} // Pass status to DOM for debugging/styling (fixes unused var)
-      className="relative w-full h-60 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] rounded-3xl shadow-2xl overflow-hidden p-12 flex items-center gap-8 cursor-pointer transition-all hover:brightness-110 active:scale-[0.99]"
+      className="relative w-full h-80 md:h-72 lg:h-64 xl:h-60 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] rounded-3xl shadow-2xl overflow-hidden p-12 flex items-center gap-8 cursor-pointer transition-all hover:brightness-110 active:scale-[0.99]"
     >
       {/* 배경 장식 패턴 */}
       <div className="absolute inset-0 opacity-10 pointer-events-none">

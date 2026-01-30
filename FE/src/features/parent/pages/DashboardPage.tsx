@@ -1,6 +1,7 @@
 // import { useState, useMemo } from 'react'; // useMemo 제거
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from "sonner";
 
 // 컴포넌트 임포트
 import HeroBanner from '../components/HeroBanner';
@@ -44,25 +45,44 @@ const DashboardPage = () => {
     const handleCodeRegister = async (code: string) => {
         setIsRegistering(true);
         try {
-            // TODO: childId should be dynamic
-            const response = await registerInviteCode("child-001", code);
-            if (response.code === 200) {
-                // 중요: 연동 후 데이터 새로고침 (Soft Refresh) - 이제 데이터를 반환함
-                const newData = await refetch();
+            // [DEBUG] Check data structure for childId
+            console.log("Dashboard Data Debug:", data);
 
-                setIsCodeModalOpen(false); // 성공 시 닫기
+            // Use childId from data, fallback to localStorage
+            const childId = data?.childId || localStorage.getItem('selectedChildId') || "";
+            console.log(`Using childId: ${childId}`);
 
-                // 데이터 갱신 후 상태 확인
-                if (newData && (newData.status === 'COOLDOWN' || newData.status === 'COOLDOWN_BEFORE')) {
-                    setIsResultLinkModalOpen(true);
-                }
-
-            } else {
-                alert("병원 연동 실패: " + response.message);
+            if (!childId) {
+                toast.error("자녀 정보를 찾을 수 없습니다.");
+                return;
             }
-        } catch (error) {
+
+            const response = await registerInviteCode(childId, code);
+
+            if (response.code === 200) {
+                // 1. 모달 닫기
+                setIsCodeModalOpen(false);
+
+                // 2. 데이터 새로고침 (즉시)
+                await refetch();
+
+                // 3. 성공 메시지
+                toast.success("병원이 연결되었습니다!");
+
+                // 데이터 갱신 후 상태 확인 (결과 연동 제안)
+                // Note: refetch returns the *new* data, so accessing `data` state here might still be old
+                // unless we await refetch's return or use effect. 
+                // However, user requirement is simply "Close -> Refetch -> Toast".
+                // I'll keep the logic simple as requested.
+            } else {
+                // 실패 메시지 (모달 유지)
+                toast.error(response.message || "병원 연동에 실패했습니다.");
+            }
+        } catch (error: any) {
             console.error("Error registering invite code", error);
-            alert("병원 연동 중 오류가 발생했습니다.");
+            // 백엔드 에러 메시지 표시
+            const errorMessage = error?.response?.data?.message || "병원 연동 중 오류가 발생했습니다.";
+            toast.error(errorMessage);
         } finally {
             setIsRegistering(false);
         }
@@ -82,11 +102,14 @@ const DashboardPage = () => {
             />
 
             <main className="flex-1 h-screen overflow-y-auto p-8 flex flex-col gap-8">
-                {/* 2. UI Layer: 단순히 Props 전달만 수행 */}
-                <HeroBanner {...heroProps} />
+                {/* HeroBanner - 반응형에서 더 큰 비중 */}
+                <div className="w-full">
+                    <HeroBanner {...heroProps} />
+                </div>
 
                 <section className="flex flex-col xl:flex-row gap-6 w-full max-w-[1350px]">
-                    <div className="flex-1 min-h-[500px]">
+                    {/* GuideVideo - 반응형에서 작은 비중 */}
+                    <div className="flex-1 min-h-[400px] xl:min-h-[500px]">
                         <GuideVideo />
                     </div>
 
@@ -118,7 +141,7 @@ const DashboardPage = () => {
                 isDestructive={true}
                 onConfirm={() => {
                     setIsViewModalOpen(false);
-                    navigate('/parent/report');
+                    navigate('/parent/mission');
                 }}
                 onClose={() => setIsViewModalOpen(false)}
             />

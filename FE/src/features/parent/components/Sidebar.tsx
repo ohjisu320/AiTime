@@ -1,7 +1,7 @@
 // Sidebar.tsx
-import type { DashboardData } from '../types/dashboard';
 import { useNavigate } from 'react-router-dom';
 import { logoutUser } from '../../auth/api/authApi';
+import { getCurrentUserFromToken } from '@/utils/jwtUtils';
 
 // 1. Props 인터페이스에 클릭 핸들러 추가
 interface SidebarProps {
@@ -11,6 +11,10 @@ interface SidebarProps {
 
 const Sidebar = ({ childName, onCodeInputClick }: SidebarProps) => {
   const navigate = useNavigate();
+
+  // JWT 토큰에서 부모 정보 추출
+  const userInfo = getCurrentUserFromToken();
+  const parentName = userInfo?.sub || '부모님'; // sub에 username이 들어있음
 
   const handleLogout = async () => {
 
@@ -61,7 +65,7 @@ const Sidebar = ({ childName, onCodeInputClick }: SidebarProps) => {
             <div className="inline-flex items-center gap-3">
               <div className="w-10 h-10 bg-indigo-200 rounded-full flex justify-center items-center text-white text-sm">👤</div>
               <div className="flex flex-col overflow-hidden">
-                <span className="text-gray-800 text-sm font-bold truncate">이지현님</span>
+                <span className="text-gray-800 text-sm font-bold truncate">{parentName}님</span>
                 <span className="text-gray-500 text-[10px] truncate">{childName}의 부모님</span>
               </div>
             </div>

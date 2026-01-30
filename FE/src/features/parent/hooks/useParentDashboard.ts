@@ -2,21 +2,17 @@ import { useState, useEffect } from 'react';
 import {
   fetchChildHomeInfo,
   type ChildHomeResponse,
+  TEST_CHILD_ID,
   MOCK_CASE_AVAILABLE,
-  MOCK_CASE_NEED_HOSPITAL,
-  MOCK_CASE_COOLDOWN,
-  MOCK_CASE_COOLDOWN_BEFORE,
-  MOCK_CASE_IN_PROGRESS
 } from '../api/dashboardApi';
 
 // ==========================================
 // [테스트용 설정]
 // 이 값을 true로 하면 아래 MOCK_DATA가 강제로 적용됩니다.
-const ENABLE_MOCK = true;
+const ENABLE_MOCK = false;
 
 // MOCK_CASE_AVAILABLE를 참조하여, registerInviteCode에서 수정된 내용이 반영되도록 합니다.
-// 필요에 따라 다른 케이스(MOCK_CASE_NEED_HOSPITAL 등)로 교체하여 테스트하세요.
-const MOCK_DATA = MOCK_CASE_NEED_HOSPITAL.data;
+const MOCK_DATA = MOCK_CASE_AVAILABLE.data;
 // ==========================================
 
 export const useParentDashboard = () => {
@@ -29,16 +25,25 @@ export const useParentDashboard = () => {
       setIsLoading(true);
 
       if (ENABLE_MOCK) {
-        // 네트워크 지연 시뮬레이션 (선택사항, 너무 빠르면 로딩 못볼 수 있으므로 300ms 줌)
+        // 네트워크 지연 시뮬레이션
         await new Promise(resolve => setTimeout(resolve, 300));
         setData(MOCK_DATA);
         return MOCK_DATA;
       }
 
-      // fetchChildHomeInfo handles errors and returns mock data, so this should almost always succeed
-      const response = await fetchChildHomeInfo("child-001");
-      setData(response.data);
-      return response.data; // Return data for chaining
+      // Get selected child ID from localStorage
+      const childId = localStorage.getItem('selectedChildId');
+
+      if (!childId) {
+        console.warn('⚠️ No childId in localStorage. Using TEST_CHILD_ID as fallback for development.');
+      }
+
+      // fetchChildHomeInfo가 이미 linkedHospitals를 포함하고 있으므로
+      // 별도로 fetchLinkedHospitals를 호출할 필요 없음
+      const response = await fetchChildHomeInfo(childId || TEST_CHILD_ID);
+
+      setData(response);
+      return response;
     } catch (err) {
       console.error("Unexpected error in useParentDashboard", err);
       setIsError(true);
