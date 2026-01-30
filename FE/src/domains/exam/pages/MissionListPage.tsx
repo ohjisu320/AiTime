@@ -9,7 +9,9 @@ import { useMissions } from '../hooks/useMissions';
 
 const MissionListPage: React.FC = () => {
   const navigate = useNavigate();
-  const { missions, isLoading, error } = useMissions(); // 커스텀 훅을 통한 데이터 로드 
+  // 로컬 스토리지에서 examId 가져오기 (새로고침/이어하기 대응)
+  const examId = localStorage.getItem('currentExamId') || undefined;
+  const { missions, isLoading, error } = useMissions(examId); // examId 전달 
 
   const [recheckModal, setRecheckModal] = useState({ isOpen: false, title: '', type: '' });
   const [submitModalOpen, setSubmitModalOpen] = useState(false);

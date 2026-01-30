@@ -3,7 +3,7 @@ import { fetchExamProgress } from '../api/missionApi';
 import type { Mission } from '../types/mission';
 
 // 💡 서버 연동 시 false로 변경하세요!
-const USE_MOCK = true;
+
 
 // ----------------------------------------------------------------------
 // 1. UI 전용 메타 데이터 (고정 정보 - 타이틀, 색상 등)
@@ -144,38 +144,21 @@ export const useMissions = (examId?: string) => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!examId && !USE_MOCK) {
+    // examId가 없으면 로딩 종료 후 에러 처리 (또는 빈 상태)
+    if (!examId) {
+      console.warn('⚠️ No examId provided to useMissions');
       setIsLoading(false);
+      setError('검사 ID를 찾을 수 없습니다.');
       return;
     }
 
     const fetchAllData = async () => {
       try {
+        setIsLoading(true); // 로딩 시작 명시
         setError(null);
-        let responseData;
 
-        if (USE_MOCK) {
-          // ✅ Mock 데이터
-          responseData = {
-            status: "OK" as const,
-            message: "검사 진행도 조회가 완료되었습니다.",
-            data: {
-              examId: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-              under18: true,
-              status: "IN_PROGRESS" as const,
-              videoTasks: [
-                { videoType: "TASK1" as const, status: "UPLOADED" as const, videoId: "v1..." },
-                { videoType: "TASK2" as const, status: "UPLOADED" as const, videoId: "v2..." },
-                { videoType: "TASK3" as const, status: "EMPTY" as const, videoId: null },
-                { videoType: "TASK4" as const, status: "EMPTY" as const, videoId: null }
-              ]
-            },
-            code: 200
-          };
-        } else {
-          // 실제 API 호출 (단일 요청)
-          responseData = await fetchExamProgress(examId!);
-        }
+        // 실제 API 호출 (단일 요청)
+        const responseData = await fetchExamProgress(examId);
 
         const { under18, videoTasks } = responseData.data;
 
@@ -204,9 +187,11 @@ export const useMissions = (examId?: string) => {
 
         setMissions(mergedMissions);
 
-      } catch (err) {
+      } catch (err: any) {
         console.error("데이터 조회 중 오류 발생:", err);
-        setError(err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.');
+        const errorMessage = err?.response?.data?.message || err.message || '알 수 없는 오류가 발생했습니다.';
+        setError(errorMessage);
+        // 에러 상황에서 필요한 경우 추가 처리 (예: 상위 컴포넌트에 알림 등)
       } finally {
         setIsLoading(false);
       }

@@ -1,4 +1,13 @@
 import api from '@/api/axiosConfig';
+import type {
+    ChildHomeResponse,
+    ChildHospitalListResponse,
+    ChildHospitalLinkRequest,
+    HospitalResponseDto,
+    ApiResponseChildHome,
+    ApiResponseChildHospitalList
+} from '@/api/types/child.types';
+import { ChildDashboardStatus } from '@/api/types';
 
 // =================================================================
 // 테스트용 UUID (localStorage에 selectedChildId가 없을 때 fallback)
@@ -6,92 +15,50 @@ import api from '@/api/axiosConfig';
 export const TEST_CHILD_ID = "136d8eb8-8264-4953-9c9c-19baf49dc8b4";
 
 // =================================================================
-// 타입 정의 (Type Definitions)
+// 타입 정의 (Re-export for backward compatibility)
 // =================================================================
-
-export type ChildDashboardStatus =
-    | 'NEED_HOSPITAL'       // 병원 연결 필요
-    | 'AVAILABLE'           // 새 검사 가능
-    | 'AVAILABLE_EXPIRED'   // 검사 가능 (이전 임시저장 만료됨)
-    | 'IN_PROGRESS'         // 검사 진행 중 (이어하기)
-    | 'COOLDOWN'            // 쿨타임 (다음 검사 대기)
-    | 'COOLDOWN_BEFORE'     // 쿨타임 중 병원 연동됨 (특수 케이스)
-    | 'WAITING';            // 대기 중
-
-export interface LinkedHospital {
-    hospitalId: string;
-    name: string;
-}
-
-export interface ChildHomeResponse {
-    code: number;
-    status: string;
-    message: string;
-    data: {
-        childId: string;
-        name: string;
-        gender: 'MALE' | 'FEMALE';
-        examStartedAt: string | null;      // ✅ 추가
-        examStatus: ChildDashboardStatus;  // ✅ examStatus (API 명세)
-        examProgress: number;
-        draftExpiresAt: string | null;
-        nextEligibleAt: string | null;
-        linkedHospitals: LinkedHospital[];
-    };
-}
-
-export interface HospitalLinkRequest {
-    inviteCode: string;
-}
-
-export interface HospitalLinkResponse {
-    code: number;
-    status: string;
-    message: string;
-    data?: string;
-}
-
+export { ChildDashboardStatus };
+export type { ChildHomeResponse };
+export type LinkedHospital = HospitalResponseDto;
 
 // --- [API Functions] ---------------------------------------------
 
 /**
  * 1. 메인 대시보드 정보 조회 (GET)
- * (수정사항: API 에러가 나면 무조건 Mock 데이터를 반환해서 화면이 꺼지지 않게 함)
  */
-export const fetchChildHomeInfo = async (childId: string) => {
+export const fetchChildHomeInfo = async (childId: string): Promise<ChildHomeResponse> => {
     // childId가 없거나 이상하면 테스트 ID로 대체
     const targetId = childId || TEST_CHILD_ID;
     console.log(`🚀 [GET] Dashboard Info for: ${targetId}`);
 
     try {
-        const response = await api.get(`/child/${targetId}`);
+        const response = await api.get<ApiResponseChildHome>(`/child/${targetId}`);
         console.log("✅ Fetch Success:", response.data);
-        // API 응답 구조: {code, status, message, data: {...child info...}}
-        // 실제 아이 정보만 반환
+        // data.data가 실제 아이 정보
         return response.data.data;
     } catch (error) {
         console.error("❌ fetchChildHomeInfo Error:", error);
-        throw error; // 에러를 그대로 던짐 → 에러 화면 표시
+        throw error;
     }
 };
 
 /**
  * 2. 연결된 병원 목록 조회 (GET)
  */
-export const fetchLinkedHospitals = async (childId: string) => {
+export const fetchLinkedHospitals = async (childId: string): Promise<HospitalResponseDto[]> => {
     const targetId = childId || TEST_CHILD_ID;
     console.log(`🚀 [GET] Hospital List for: ${targetId}`);
 
     try {
-        const response = await api.get(`/child/${targetId}/hospital-list`);
+        const response = await api.get<ApiResponseChildHospitalList>(`/child/${targetId}/hospital-list`);
 
-        // Swagger 명세상 data.data 안에 배열이 있었음
-        const list = response.data?.data || [];
+        // Swagger 명세상 data.data 안에 배열이 있음
+        const list = response.data.data?.data || [];
         console.log("✅ Linked Hospitals:", list);
         return list;
     } catch (error) {
         console.error("❌ fetchLinkedHospitals Error:", error);
-        return []; // 에러 시 빈 배열 반환하여 화면 안 깨지게 처리
+        return [];
     }
 };
 
@@ -102,7 +69,7 @@ export const registerInviteCode = async (childId: string, inviteCode: string) =>
     const targetId = childId || TEST_CHILD_ID;
     console.log(`🚀 [POST] Linking Hospital... Child: ${targetId}, Code: ${inviteCode}`);
 
-    const requestBody = { inviteCode };
+    const requestBody: ChildHospitalLinkRequest = { inviteCode };
     console.log('📤 Request Body:', JSON.stringify(requestBody));
 
     try {
@@ -115,7 +82,6 @@ export const registerInviteCode = async (childId: string, inviteCode: string) =>
         return response.data;
     } catch (error: any) {
         console.error("❌ registerInviteCode Error:", error);
-        // 에러 응답 상세 정보 출력
         if (error.response) {
             console.error("Error Response Data:", error.response.data);
             console.error("Error Response Status:", error.response.status);
@@ -129,56 +95,56 @@ export const registerInviteCode = async (childId: string, inviteCode: string) =>
 // useParentDashboard.ts 에서 import 하고 있는 Mock 상수들을 복구합니다.
 // =================================================================
 
-const MOCK_BASE_DATA = {
+const MOCK_BASE_DATA: ChildHomeResponse = {
     childId: TEST_CHILD_ID,
     name: "오하나",
-    gender: "FEMALE" as const,
-    examStatus: "AVAILABLE" as ChildDashboardStatus,  // ✅ examStatus
+    gender: "FEMALE",
+    examStatus: "AVAILABLE",
     examProgress: 0,
     examStartedAt: null,
     nextEligibleAt: null,
     draftExpiresAt: null,
-    linkedHospitals: [] as LinkedHospital[],
+    linkedHospitals: [],
 };
 
-export const MOCK_CASE_AVAILABLE: ChildHomeResponse = {
+export const MOCK_CASE_AVAILABLE: ApiResponseChildHome = {
     code: 200,
-    status: "OK",
+    status: "200 OK",
     message: "Success",
     data: MOCK_BASE_DATA
 };
 
-export const MOCK_CASE_WAITING: ChildHomeResponse = {
+export const MOCK_CASE_WAITING: ApiResponseChildHome = {
     code: 200,
-    status: "OK",
+    status: "200 OK",
     message: "Success",
     data: { ...MOCK_BASE_DATA, examStatus: "WAITING", examProgress: 2 }
 };
 
-export const MOCK_CASE_COOLDOWN: ChildHomeResponse = {
+export const MOCK_CASE_COOLDOWN: ApiResponseChildHome = {
     code: 200,
-    status: "OK",
+    status: "200 OK",
     message: "Success",
     data: { ...MOCK_BASE_DATA, examStatus: "COOLDOWN", examProgress: 4 }
 };
 
-export const MOCK_CASE_NEED_HOSPITAL: ChildHomeResponse = {
+export const MOCK_CASE_NEED_HOSPITAL: ApiResponseChildHome = {
     code: 200,
-    status: "OK",
+    status: "200 OK",
     message: "Success",
     data: { ...MOCK_BASE_DATA, examStatus: "NEED_HOSPITAL", linkedHospitals: [] }
 };
 
-export const MOCK_CASE_COOLDOWN_BEFORE: ChildHomeResponse = {
+export const MOCK_CASE_COOLDOWN_BEFORE: ApiResponseChildHome = {
     code: 200,
-    status: "OK",
+    status: "200 OK",
     message: "Success",
     data: { ...MOCK_BASE_DATA, examStatus: "COOLDOWN_BEFORE", examProgress: 4 }
 };
 
-export const MOCK_CASE_IN_PROGRESS: ChildHomeResponse = {
+export const MOCK_CASE_IN_PROGRESS: ApiResponseChildHome = {
     code: 200,
-    status: "OK",
+    status: "200 OK",
     message: "Success",
     data: { ...MOCK_BASE_DATA, examStatus: "IN_PROGRESS", examProgress: 2 }
 };

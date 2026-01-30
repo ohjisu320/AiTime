@@ -16,7 +16,7 @@ const MOCK_DATA = MOCK_CASE_AVAILABLE.data;
 // ==========================================
 
 export const useParentDashboard = () => {
-  const [data, setData] = useState<ChildHomeResponse['data'] | null>(null);
+  const [data, setData] = useState<ChildHomeResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
 
@@ -41,6 +41,12 @@ export const useParentDashboard = () => {
 
       // API 호출 - 응답이 올 때까지 무한정 대기
       const response = await fetchChildHomeInfo(childId || TEST_CHILD_ID);
+
+      // [Auto-Fix] 백엔드에서 examId가 넘어오면 즉시 저장 (복구용)
+      if (response && response.examId) {
+        console.log("🧩 Found hidden examId:", response.examId);
+        localStorage.setItem('currentExamId', String(response.examId));
+      }
 
       setData(response);
       return response;

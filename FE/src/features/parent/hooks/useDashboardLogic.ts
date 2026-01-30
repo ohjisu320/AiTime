@@ -23,7 +23,7 @@ export const useDashboardLogic = (callbacks?: DashboardCallbacks) => {
     const { data, isLoading, isError, refetch } = useParentDashboard();
 
     // Helper: Calculate D-Day
-    const calculateDDay = (targetDate: string | null) => {
+    const calculateDDay = (targetDate?: string | null) => {
         if (!targetDate) return "만료됨";
         const now = new Date();
         const target = new Date(targetDate);
@@ -109,7 +109,7 @@ export const useDashboardLogic = (callbacks?: DashboardCallbacks) => {
                     title: `검사 진행 중 (${data.examProgress}/4)`,
                     subtitle: `임시 저장 만료까지 ${dDay} (이어하지 않으면 초기화됩니다)`,
                     buttonText: "검사 이어하기",
-                    onPrimaryAction: () => navigate('/exam/consent'),
+                    onPrimaryAction: () => navigate('/exam/mission'),
                 };
 
             case 'COOLDOWN':
