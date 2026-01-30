@@ -15,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -60,5 +61,17 @@ public class InviteCodeController {
                 .getUnregisteredPatients(principal.getHospitalId(), year, month, day);
 
         return ApiResponse.ok("날짜별 등록 대기 환아 목록 조회가 완료되었습니다.", patients);
+    }
+
+    @GetMapping("/calendar")
+    public ApiResponse<List<LocalDate>> getScheduledDates(
+            @RequestParam int year,
+            @RequestParam int month,
+            @AuthenticationPrincipal HospitalStaffPrincipal principal
+    ) {
+        List<LocalDate> dates = inviteCodeService
+                .getScheduledDates(principal.getHospitalId(), year, month);
+
+        return ApiResponse.ok("등록 대기 중인 예약 날짜 조회가 완료되었습니다.", dates);
     }
 }

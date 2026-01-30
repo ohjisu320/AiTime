@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.nio.file.AccessDeniedException;
 import java.security.SecureRandom;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -189,6 +190,22 @@ public class InviteCodeServiceImpl implements InviteCodeService {
         return inviteCodes.stream()
                 .map(UnregisteredPatientResponse::from)
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<LocalDate> getScheduledDates(UUID hospitalId, int year, int month) {
+        // 1. 해당 월의 시작과 끝 계산
+        LocalDate firstDayOfMonth = LocalDate.of(year, month, 1);
+        LocalDateTime startOfMonth = firstDayOfMonth.atStartOfDay();
+        LocalDateTime endOfMonth = firstDayOfMonth.plusMonths(1).atStartOfDay();
+
+        // 2. 해당 병원의 해당 월 예약 날짜 조회
+        return inviteCodeRepository.findScheduledDatesByHospitalAndMonth(
+                hospitalId,
+                startOfMonth,
+                endOfMonth
+        );
     }
 
     private String createRandomCode() {
