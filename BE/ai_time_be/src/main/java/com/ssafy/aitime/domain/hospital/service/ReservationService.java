@@ -24,7 +24,7 @@ public interface ReservationService {
     /*
         해당 병원의 년/월별 예약 날짜 조회
      */
-    List<LocalDate> getHospitalReservationDates(UUID hospitalId, YearMonth yearMonth);
+    List<LocalDate> getHospitalReservationDates(UUID hospitalId, int year, int month);
 
     List<ReservationListResponse> getReservationList(UUID hospitalId, LocalDate date);
 }
