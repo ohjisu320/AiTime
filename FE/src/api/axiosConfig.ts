@@ -36,6 +36,27 @@ const processQueue = (error: any, token: string | null = null) => {
     failedQueue = [];
 };
 
+/**
+ * 리프레시 토큰 엔드포인트 결정
+ * (로그인된 사용자 타입에 따라 분기)
+ */
+const getRefreshEndpoint = () => {
+    try {
+        const userStr = localStorage.getItem('user');
+        if (userStr) {
+            const userData = JSON.parse(userStr);
+            // 병원 관계자(STAFF)인 경우
+            if (userData.type === 'STAFF') {
+                return '/hospital-staff/refresh';
+            }
+        }
+    } catch (e) {
+        console.error('Failed to parse user info for refresh endpoint', e);
+    }
+    // 기본값: 일반 보호자
+    return '/user/refresh';
+};
+
 api.interceptors.response.use(
     (response) => {
         // 성공 응답은 그대로 반환
@@ -74,10 +95,12 @@ api.interceptors.response.use(
             }
 
             try {
-                // Refresh Token으로 새 Access Token 요청
-                console.log('🔄 Refreshing access token...');
+                const refreshEndpoint = getRefreshEndpoint();
+                console.log(`🔄 Refreshing access token via ${refreshEndpoint}...`);
+
+                // Refresh Token으로 새 Access Token 요청 (Body 전송)
                 const response = await axios.post(
-                    `${import.meta.env.VITE_API_BASE_URL}/user/refresh`,
+                    `${import.meta.env.VITE_API_BASE_URL}${refreshEndpoint}`,
                     { refreshToken }
                 );
 
