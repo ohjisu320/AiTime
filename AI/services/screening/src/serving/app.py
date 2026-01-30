@@ -1,6 +1,7 @@
 import logging
 
 from fastapi import FastAPI
+from src.serving.admin import router as admin_router
 from src.serving.webrtc import router as webrtc_router
 from starlette.middleware.cors import CORSMiddleware
 
@@ -25,6 +26,7 @@ app.add_middleware(
 )
 
 app.include_router(webrtc_router, prefix="/webrtc")
+app.include_router(admin_router, prefix="/admin")
 
 
 @app.get("/health")

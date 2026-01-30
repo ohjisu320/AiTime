@@ -609,4 +609,7 @@ $RECYCLE.BIN/
 # face-to-face-name-response
 AI/services/face-to-face-name-response/asset
 
+# preflight
+AI/services/screening/artifacts/preflight/runs
+
 # End of https://www.toptal.com/developers/gitignore/api/python,macos,react,java,windows,intellij,flask,node

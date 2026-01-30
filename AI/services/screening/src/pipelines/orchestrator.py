@@ -3,10 +3,13 @@ import time
 from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 from src.contracts.context import FailureReason, QualityFlag, RunContext
 from src.contracts.messages import HintMessage, ProgressMessage, ResultMessage
+from src.monitoring.artifacts import DebugArtifactSaver
+from src.monitoring.run_logger import JsonlRunLogger
 from src.pipelines.stages.aggregate import WindowStats
 from src.pipelines.stages.audio_quality import AudioQualityStage
 from src.pipelines.stages.face_detect import FaceDetectStage
@@ -50,6 +53,9 @@ def _pick_failure_reason(flags: list[QualityFlag]) -> FailureReason | None:
 
 
 def _make_hint(flags: list[QualityFlag]) -> str:
+    if not flags:
+        return ""
+
     # 상세 분기: TooFew vs TooMany는 반드시 구분
     if QualityFlag.NOISE_HIGH in flags:
         return "주변 소음이 큽니다. TV/대화를 줄이고 조용한 장소로 이동해 주세요."
@@ -82,9 +88,18 @@ class PreflightOrchestrator:
       - sending progress/hint/result
     """
 
-    def __init__(self, ctx: RunContext, send: Callable[[dict], None]) -> None:
+    def __init__(
+        self,
+        ctx: RunContext,
+        send: Callable[[dict], None],
+        run_logger: JsonlRunLogger | None = None,
+        artifact_saver: DebugArtifactSaver | None = None,
+    ) -> None:
         self.ctx = ctx
         self.send = send
+        self.logger = run_logger
+        self.artifact_saver = artifact_saver
+        self._last_stage_log_t: dict[str, float] = {}
 
         self.frame_stage = FrameQualityStage()
         self.face_stage = FaceDetectStage()
@@ -107,6 +122,16 @@ class PreflightOrchestrator:
         self._last_flags_sig: tuple[str, ...] = ()
         self._last_hint_text: str = ""
         self._pass_start_t: float | None = None
+
+        if self.logger:
+            self.logger.log(
+                "lifecycle_start",
+                {
+                    "repro": self.ctx.repro.model_dump(),
+                    "task_type": self.ctx.config.task_type,
+                    "config": self.ctx.config.model_dump(),
+                },
+            )
 
     @property
     def finished(self) -> bool:
@@ -155,6 +180,32 @@ class PreflightOrchestrator:
             avg_luma_mean=avg_luma_mean,
         )
 
+    def _log_stage(self, name: str, out: Any, extra: dict | None = None) -> None:
+        if not self.logger:
+            return
+        now = self._now()
+        interval = getattr(self.ctx.config, "stage_log_interval_sec", 1.0)
+        last = self._last_stage_log_t.get(name, 0.0)
+        if now - last < interval:
+            return
+        self._last_stage_log_t[name] = now
+
+        self.logger.log(
+            "stage",
+            {
+                "stage_name": name,
+                "latency_ms": out.stage_metrics.latency_ms,
+                "success": out.stage_metrics.success,
+                "extra": {**out.stage_metrics.extra, **(extra or {})},
+                "quality_flags": [f.value for f in out.quality_flags],
+            },
+        )
+
+    def _finish_lifecycle(self, seen_seconds: float) -> None:
+        if self.logger:
+            self.logger.log("lifecycle_end", {"seen_seconds": seen_seconds})
+            self.logger.close()
+
     def _maybe_emit(self) -> None:
         now = self._now()
         seen_seconds = now - self._t_start
@@ -196,6 +247,8 @@ class PreflightOrchestrator:
             "avg_rms_dbfs": stats.avg_rms_dbfs,
             "avg_luma_mean": stats.avg_luma_mean,
         }
+        self._last_ratios = ratios
+        self._last_scores = scores
 
         # ---- 2) 현재 flags 계산 (윈도우 기반) ----
         flags: list[QualityFlag] = []
@@ -256,6 +309,16 @@ class PreflightOrchestrator:
                     flags=flags,
                 ).model_dump()
             )
+            if self.logger:
+                self.logger.log(
+                    "progress",
+                    {
+                        "progress": progress,
+                        "ratios": ratios,
+                        "scores": scores,
+                        "flags": [f.value for f in flags],
+                    },
+                )
             self._last_progress_sent_t = now
             self._last_flags_sig = flags_sig
 
@@ -273,6 +336,10 @@ class PreflightOrchestrator:
                     flags=flags,
                 ).model_dump()
             )
+            if self.logger:
+                self.logger.log(
+                    "hint", {"hint": hint, "flags": [f.value for f in flags]}
+                )
             self._last_hint_sent_t = now
             self._last_hint_text = hint
 
@@ -293,6 +360,32 @@ class PreflightOrchestrator:
                     },
                 ).model_dump()
             )
+            if self.logger:
+                self.logger.log(
+                    "result",
+                    {
+                        "passed": True,
+                        "failure_reason": None,
+                        "flags": [],
+                        "ratios": ratios,
+                        "scores": scores,
+                        "details": {
+                            "seen_seconds": seen_seconds,
+                            "pass_hold_sec": pass_hold_sec,
+                        },
+                    },
+                )
+            if self.artifact_saver:
+                self.artifact_saver.maybe_save(
+                    passed=True,
+                    flags=[],
+                    failure_reason=None,
+                    details={
+                        "seen_seconds": seen_seconds,
+                        "pass_hold_sec": pass_hold_sec,
+                    },
+                )
+            self._finish_lifecycle(seen_seconds)
             return
 
         # timeout FAIL
@@ -300,20 +393,32 @@ class PreflightOrchestrator:
             self._finished = True
             fr = FailureReason.FAIL_TIMEOUT
             rep_fr = _pick_failure_reason(flags)
-            self.send(
-                ResultMessage(
-                    run_id=self.ctx.repro.run_id,
+            if self.logger:
+                self.logger.log(
+                    "result",
+                    {
+                        "passed": False,
+                        "failure_reason": fr.value,
+                        "flags": [f.value for f in flags],
+                        "ratios": ratios,
+                        "scores": scores,
+                        "details": {
+                            "seen_seconds": seen_seconds,
+                            "representative_failure": rep_fr.value if rep_fr else None,
+                        },
+                    },
+                )
+            if self.artifact_saver:
+                self.artifact_saver.maybe_save(
                     passed=False,
-                    failure_reason=fr,
-                    flags=flags,
-                    ratios=ratios,
-                    scores=scores,
+                    flags=[f.value for f in flags],
+                    failure_reason=fr.value,
                     details={
                         "seen_seconds": seen_seconds,
                         "representative_failure": rep_fr.value if rep_fr else None,
                     },
-                ).model_dump()
-            )
+                )
+            self._finish_lifecycle(seen_seconds)
 
     def on_video_frame(self, frame_bgr: np.ndarray) -> None:
         if self._finished:
@@ -346,9 +451,22 @@ class PreflightOrchestrator:
             self.ctx, {"frame_wh": (W, H), "face_bboxes": fd.payload["bboxes"]}
         )
 
-        num_faces = int(fd.payload["num_faces"])
-        two_faces = num_faces == self.ctx.config.target_faces
+        # stage logs (video) - 샘플링 간격(stage_log_interval_sec)에 따라 기록됨
+        self._log_stage("frame_quality", fq)
+        self._log_stage("face_detect", fd, extra={"num_faces": num_faces})
+        self._log_stage("roi_validate", rv)
 
+        # artifact saver - 마지막 프레임 스냅샷 저장(실패 시 저장용)
+        if self.artifact_saver:
+            self.artifact_saver.update_frame(
+                frame_bgr=frame_bgr,
+                bboxes=fd.payload["bboxes"],
+                ratios=getattr(self, "_last_ratios", {}),
+                scores=getattr(self, "_last_scores", {}),
+            )
+
+        # video sample 기록
+        two_faces = num_faces == self.ctx.config.target_faces
         self._video.append(
             VideoSample(
                 t=now,
@@ -360,6 +478,18 @@ class PreflightOrchestrator:
                 roi2_has=bool(rv.payload["roi2_has_face"]),
             )
         )
+
+        if self.artifact_saver:
+            self.artifact_saver.update_frame(
+                frame_bgr,
+                bboxes=fd.payload["bboxes"],
+                ratios=getattr(self, "_last_ratios", {}),
+                scores=getattr(self, "_last_scores", {}),
+            )
+
+        self._log_stage("frame_quality", fq)
+        self._log_stage("face_detect", fd)
+        self._log_stage("roi_validate", rv)
 
         self._maybe_emit()
 
@@ -405,5 +535,6 @@ class PreflightOrchestrator:
                     noisy=bool(aq.payload["noisy"]),
                 )
             )
+            self._log_stage("audio_quality", aq)
 
             self._maybe_emit()

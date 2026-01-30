@@ -48,6 +48,13 @@ decision:
 
 # Debug / retention policy
 debug:
-  enabled: true
-  save_mismatch_only: true
+  enabled: true                 # ✅ 기본 미저장
+  save_mismatch_only: true       # preflight에서는 사실상 "fail only"로 동작
+  sample_rate: 1.0               # 실패 중 20%만 저장(원하면 1.0)
+  save_on_flags: []              # 특정 flag일 때만 저장하고 싶으면 enum 이름 넣기
   artifacts_dir: "artifacts/preflight"
+
+logs:
+  enabled: true
+  dir: "artifacts/preflight/logs"
+  stage_log_interval_sec: 1.0   # stage 이벤트 로그 샘플링(너무 많이 쌓이는 거 방지)

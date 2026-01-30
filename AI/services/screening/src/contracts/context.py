@@ -81,9 +81,15 @@ class PreflightConfig(BaseModel):
     hint_interval_sec: float = 1.0
     pass_hold_sec: float = 1.0
 
-    debug_enabled: bool = True
+    debug_enabled: bool = False
     debug_save_mismatch_only: bool = True
+    debug_sample_rate: float = 0.2
+    debug_save_on_flags: list[str] = Field(default_factory=list)
     debug_artifacts_dir: str = "artifacts/preflight"
+
+    logs_enabled: bool = True
+    logs_dir: str = "artifacts/preflight/logs"
+    stage_log_interval_sec: float = 1.0
 
 
 class RunContext(BaseModel):
