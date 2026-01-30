@@ -74,6 +74,13 @@ class PreflightConfig(BaseModel):
     roi_1: ROI
     roi_2: ROI
 
+    # Decision / UX
+    min_video_samples: int = 10
+    min_audio_samples: int = 3
+    progress_interval_sec: float = 0.3
+    hint_interval_sec: float = 1.0
+    pass_hold_sec: float = 1.0
+
     debug_enabled: bool = True
     debug_save_mismatch_only: bool = True
     debug_artifacts_dir: str = "artifacts/preflight"

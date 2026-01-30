@@ -38,6 +38,14 @@ roi:
   roi_1: { x0: 0.05, y0: 0.20, x1: 0.45, y1: 0.90 }
   roi_2: { x0: 0.55, y0: 0.20, x1: 0.95, y1: 0.90 }
 
+# UX & Decision settings
+decision:
+  min_video_samples: 10
+  min_audio_samples: 3          # audio chunk 기준(0.5초면 1.5초 정도)
+  progress_interval_sec: 0.3    # progress 송신 주기
+  hint_interval_sec: 1.0        # hint 송신 주기
+  pass_hold_sec: 1.0            # 조건 만족이 이 시간 이상 유지되면 PASS 확정
+
 # Debug / retention policy
 debug:
   enabled: true
