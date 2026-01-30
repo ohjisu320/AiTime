@@ -255,4 +255,14 @@ public class ChildServiceImpl implements ChildService{
         return ChronoUnit.MONTHS.between(birthdate, LocalDate.now());
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<Child> getChildrenByIds(List<UUID> childIds) {
+        if (childIds == null || childIds.isEmpty()) {
+            return List.of();
+        }
+
+        return childRepository.findByChildIdInAndRecordStatus(childIds, RecordStatus.ACTIVE);
+    }
+
 }

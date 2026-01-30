@@ -4,6 +4,7 @@ import com.ssafy.aitime.common.response.ApiResponse;
 import com.ssafy.aitime.domain.hospital.dto.request.HospitalStaffLoginRequest;
 import com.ssafy.aitime.domain.hospital.dto.response.DoctorListResponse;
 import com.ssafy.aitime.domain.hospital.dto.response.HospitalStaffLoginResponse;
+import com.ssafy.aitime.domain.hospital.dto.response.ReservationListResponse;
 import com.ssafy.aitime.domain.hospital.dto.response.StaffTokenResponse;
 import com.ssafy.aitime.domain.hospital.service.HospitalStaffService;
 import com.ssafy.aitime.domain.hospital.service.ReservationService;
@@ -132,6 +133,17 @@ public class HospitalStaffController {
         List<LocalDate> dates = reservationService.getHospitalReservationDates(principal.getHospitalId(), yearMonth);
 
         return ApiResponse.ok("달력 인디케이터 조회가 완료되었습니다.", dates);
+    }
+
+    @GetMapping("/reservation-list")
+    public ApiResponse<List<ReservationListResponse>> getReservationList(
+            @RequestParam LocalDate date,
+            @AuthenticationPrincipal HospitalStaffPrincipal principal
+    ) {
+        List<ReservationListResponse> reservations = reservationService
+                .getReservationList(principal.getHospitalId(), date);
+
+        return ApiResponse.ok("날짜별 환아 목록 조회가 완료되었습니다.", reservations);
     }
 
     // 더미데이터 생성 용
