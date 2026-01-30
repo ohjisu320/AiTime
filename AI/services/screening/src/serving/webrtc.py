@@ -52,6 +52,14 @@ def load_config(path: str = "configs/preflight.yaml") -> PreflightConfig:
         roi_face_ratio_min=float(raw["roi"]["roi_face_ratio_min"]),
         roi_1=ROI(**raw["roi"]["roi_1"]),
         roi_2=ROI(**raw["roi"]["roi_2"]),
+        # Decision / UX
+        min_video_samples=int(raw.get("decision", {}).get("min_video_samples", 10)),
+        min_audio_samples=int(raw.get("decision", {}).get("min_audio_samples", 3)),
+        progress_interval_sec=float(
+            raw.get("decision", {}).get("progress_interval_sec", 0.3)
+        ),
+        hint_interval_sec=float(raw.get("decision", {}).get("hint_interval_sec", 1.0)),
+        pass_hold_sec=float(raw.get("decision", {}).get("pass_hold_sec", 1.0)),
         debug_enabled=bool(raw["debug"]["enabled"]),
         debug_save_mismatch_only=bool(raw["debug"]["save_mismatch_only"]),
         debug_artifacts_dir=str(raw["debug"]["artifacts_dir"]),
@@ -90,7 +98,7 @@ async def offer(req: OfferIn, request: Request) -> dict[str, Any]:
 
     def send(msg: dict) -> None:
         if channel and channel.readyState == "open":
-            channel.send(json.dumps(msg))
+            channel.send(json.dumps(msg, ensure_ascii=False))
 
     orchestrator = PreflightOrchestrator(ctx, send=send)
 

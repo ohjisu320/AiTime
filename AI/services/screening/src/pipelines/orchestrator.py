@@ -7,7 +7,7 @@ from dataclasses import dataclass
 import numpy as np
 from src.contracts.context import FailureReason, QualityFlag, RunContext
 from src.contracts.messages import HintMessage, ProgressMessage, ResultMessage
-from src.pipelines.stages.aggregate import WindowStats, decide
+from src.pipelines.stages.aggregate import WindowStats
 from src.pipelines.stages.audio_quality import AudioQualityStage
 from src.pipelines.stages.face_detect import FaceDetectStage
 from src.pipelines.stages.frame_quality import FrameQualityStage
@@ -32,6 +32,45 @@ class AudioSample:
     t: float
     rms_dbfs: float
     noisy: bool
+
+
+def _pick_failure_reason(flags: list[QualityFlag]) -> FailureReason | None:
+    # 대표 원인 우선순위 (UX 단순화)
+    if QualityFlag.NOISE_HIGH in flags:
+        return FailureReason.FAIL_NOISE
+    if QualityFlag.LOW_LIGHT in flags:
+        return FailureReason.FAIL_LOW_LIGHT
+    if (QualityFlag.TOO_FEW_FACES in flags) or (QualityFlag.TOO_MANY_FACES in flags):
+        return FailureReason.FAIL_FACE_COUNT
+    if (QualityFlag.ROI_FACE_MISSING_1 in flags) or (
+        QualityFlag.ROI_FACE_MISSING_2 in flags
+    ):
+        return FailureReason.FAIL_ROI_MISMATCH
+    return None
+
+
+def _make_hint(flags: list[QualityFlag]) -> str:
+    # 상세 분기: TooFew vs TooMany는 반드시 구분
+    if QualityFlag.NOISE_HIGH in flags:
+        return "주변 소음이 큽니다. TV/대화를 줄이고 조용한 장소로 이동해 주세요."
+    if QualityFlag.LOW_LIGHT in flags:
+        return "화면이 어둡습니다. 조명을 켜고 역광(창문 뒤)을 피해서 촬영해 주세요."
+    if QualityFlag.TOO_MANY_FACES in flags:
+        return "화면에 사람이 2명보다 많습니다. 검사에는 2명만 나오도록 정리해 주세요."
+    if QualityFlag.TOO_FEW_FACES in flags:
+        return "화면에 2명이 모두 나오도록 카메라를 뒤로/위치 조정해 주세요."
+    if (
+        QualityFlag.ROI_FACE_MISSING_1 in flags
+        or QualityFlag.ROI_FACE_MISSING_2 in flags
+    ):
+        miss = []
+        if QualityFlag.ROI_FACE_MISSING_1 in flags:
+            miss.append("왼쪽")
+        if QualityFlag.ROI_FACE_MISSING_2 in flags:
+            miss.append("오른쪽")
+        side = "/".join(miss) if miss else "지정된"
+        return f"{side} 영역(ROI)에 얼굴이 들어오도록 위치를 맞춰 주세요."
+    return "조금만 더 위치/환경을 조정해 주세요."
 
 
 class PreflightOrchestrator:
@@ -61,6 +100,13 @@ class PreflightOrchestrator:
 
         self._audio_buf = np.zeros((0,), dtype=np.float32)
         self._audio_sr: int | None = None
+
+        # 상태 필드
+        self._last_progress_sent_t = 0.0
+        self._last_hint_sent_t = 0.0
+        self._last_flags_sig: tuple[str, ...] = ()
+        self._last_hint_text: str = ""
+        self._pass_start_t: float | None = None
 
     @property
     def finished(self) -> bool:
@@ -110,10 +156,34 @@ class PreflightOrchestrator:
         )
 
     def _maybe_emit(self) -> None:
-        stats = self._window_stats()
-        seen_seconds = self._now() - self._t_start
+        now = self._now()
+        seen_seconds = now - self._t_start
 
-        failure_reason, flags, passed = decide(self.ctx, stats, seen_seconds)
+        # ---- 0) 워밍업: 샘플 부족이면 FAIL 판단/힌트 남발 금지 ----
+        min_v = getattr(self.ctx.config, "min_video_samples", 10)
+        min_a = getattr(self.ctx.config, "min_audio_samples", 3)
+
+        if len(self._video) < min_v or len(self._audio) < min_a:
+            # progress만 천천히 보내기
+            interval = getattr(self.ctx.config, "progress_interval_sec", 0.3)
+            if now - self._last_progress_sent_t >= interval:
+                progress = float(
+                    min(1.0, seen_seconds / self.ctx.config.max_total_time_sec)
+                )
+                self.send(
+                    ProgressMessage(
+                        run_id=self.ctx.repro.run_id,
+                        progress=progress,
+                        ratios={},
+                        scores={},
+                        flags=[],
+                    ).model_dump()
+                )
+                self._last_progress_sent_t = now
+            return
+
+        # ---- 1) 윈도우 통계 계산 ----
+        stats = self._window_stats()
 
         ratios = {
             "noise_high_ratio": stats.noise_high_ratio,
@@ -127,49 +197,87 @@ class PreflightOrchestrator:
             "avg_luma_mean": stats.avg_luma_mean,
         }
 
-        # progress (0..1)
-        progress = float(min(1.0, seen_seconds / self.ctx.config.max_total_time_sec))
-        self.send(
-            ProgressMessage(
-                run_id=self.ctx.repro.run_id,
-                progress=progress,
-                ratios=ratios,
-                scores=scores,
-                flags=list(set(flags)),
-            ).model_dump()
+        # ---- 2) 현재 flags 계산 (윈도우 기반) ----
+        flags: list[QualityFlag] = []
+
+        if stats.noise_high_ratio > self.ctx.config.audio_noise_high_ratio_max:
+            flags.append(QualityFlag.NOISE_HIGH)
+
+        if stats.low_light_ratio > self.ctx.config.video_low_light_ratio_max:
+            flags.append(QualityFlag.LOW_LIGHT)
+
+        if stats.two_faces_ratio < self.ctx.config.faces_two_faces_ratio_min:
+            v = list(self._video)
+            avg_faces = sum(s.num_faces for s in v) / max(1, len(v))
+            if avg_faces > self.ctx.config.target_faces:
+                flags.append(QualityFlag.TOO_MANY_FACES)
+            else:
+                flags.append(QualityFlag.TOO_FEW_FACES)
+
+        if stats.roi1_face_ratio < self.ctx.config.roi_face_ratio_min:
+            flags.append(QualityFlag.ROI_FACE_MISSING_1)
+        if stats.roi2_face_ratio < self.ctx.config.roi_face_ratio_min:
+            flags.append(QualityFlag.ROI_FACE_MISSING_2)
+
+        # ---- 3) PASS 여부 + PASS hold(깜빡임 방지) ----
+        instant_pass = (
+            stats.noise_high_ratio <= self.ctx.config.audio_noise_high_ratio_max
+            and stats.low_light_ratio <= self.ctx.config.video_low_light_ratio_max
+            and stats.two_faces_ratio >= self.ctx.config.faces_two_faces_ratio_min
+            and stats.roi1_face_ratio >= self.ctx.config.roi_face_ratio_min
+            and stats.roi2_face_ratio >= self.ctx.config.roi_face_ratio_min
         )
 
-        # 1. 힌트 우선순위 결정 (가장 심각한 것 하나만)
-        hint = None
-        if QualityFlag.NOISE_HIGH in flags:
-            hint = (
-                "주변 소음이 큽니다. TV/대화를 줄이고 조용한 곳에서 다시 시도해 주세요."
-            )
-        elif QualityFlag.LOW_LIGHT in flags:
-            hint = "화면이 어둡습니다. 조명을 켜거나 더 밝은 곳으로 이동해 주세요."
-        elif QualityFlag.TOO_MANY_FACES in flags:
-            hint = (
-                "화면에 사람이 2명보다 많습니다. 검사에는 2명만 나오도록 정리해 주세요."
-            )
-        elif QualityFlag.TOO_FEW_FACES in flags:
-            hint = "화면에 2명이 모두 나오도록 카메라 각도를 조정해 주세요."
-        elif (
-            QualityFlag.ROI_FACE_MISSING_1 in flags
-            or QualityFlag.ROI_FACE_MISSING_2 in flags
-        ):
-            hint = "지정한 두 영역(ROI)에 얼굴이 들어오도록 위치를 조정해 주세요."
+        pass_hold_sec = getattr(self.ctx.config, "pass_hold_sec", 1.0)
+        if instant_pass:
+            if self._pass_start_t is None:
+                self._pass_start_t = now
+            held = (now - self._pass_start_t) >= pass_hold_sec
+        else:
+            self._pass_start_t = None
+            held = False
 
-        if hint:
+        # ---- 4) progress 메시지 (스팸 방지) ----
+        progress_interval = getattr(self.ctx.config, "progress_interval_sec", 0.3)
+        flags_sig = tuple(sorted([f.value for f in flags]))
+
+        if (now - self._last_progress_sent_t >= progress_interval) or (
+            flags_sig != self._last_flags_sig
+        ):
+            progress = float(
+                min(1.0, seen_seconds / self.ctx.config.max_total_time_sec)
+            )
+            self.send(
+                ProgressMessage(
+                    run_id=self.ctx.repro.run_id,
+                    progress=progress,
+                    ratios=ratios,
+                    scores=scores,
+                    flags=flags,
+                ).model_dump()
+            )
+            self._last_progress_sent_t = now
+            self._last_flags_sig = flags_sig
+
+        # ---- 5) hint 메시지 (대표 원인 + 행동 가이드, 스팸 방지) ----
+        hint_interval = getattr(self.ctx.config, "hint_interval_sec", 1.0)
+        hint = _make_hint(flags)
+        if hint and (
+            (now - self._last_hint_sent_t >= hint_interval)
+            or (hint != self._last_hint_text)
+        ):
             self.send(
                 HintMessage(
                     run_id=self.ctx.repro.run_id,
                     hint=hint,
-                    flags=list(set(flags)),
+                    flags=flags,
                 ).model_dump()
             )
+            self._last_hint_sent_t = now
+            self._last_hint_text = hint
 
-        # final result
-        if passed:
+        # ---- 6) 최종 PASS/FAIL 결정 ----
+        if held:
             self._finished = True
             self.send(
                 ResultMessage(
@@ -179,23 +287,31 @@ class PreflightOrchestrator:
                     flags=[],
                     ratios=ratios,
                     scores=scores,
-                    details={"seen_seconds": seen_seconds},
+                    details={
+                        "seen_seconds": seen_seconds,
+                        "pass_hold_sec": pass_hold_sec,
+                    },
                 ).model_dump()
             )
             return
 
-        # timeout fail
+        # timeout FAIL
         if seen_seconds >= self.ctx.config.max_total_time_sec:
             self._finished = True
+            fr = FailureReason.FAIL_TIMEOUT
+            rep_fr = _pick_failure_reason(flags)
             self.send(
                 ResultMessage(
                     run_id=self.ctx.repro.run_id,
                     passed=False,
-                    failure_reason=failure_reason or FailureReason.FAIL_TIMEOUT,
-                    flags=list(set(flags)),
+                    failure_reason=fr,
+                    flags=flags,
                     ratios=ratios,
                     scores=scores,
-                    details={"seen_seconds": seen_seconds},
+                    details={
+                        "seen_seconds": seen_seconds,
+                        "representative_failure": rep_fr.value if rep_fr else None,
+                    },
                 ).model_dump()
             )
 

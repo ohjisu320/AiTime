@@ -50,8 +50,8 @@ def _ctx() -> RunContext:
     cfg = PreflightConfig(
         schema_version="1.0",
         task_type="PREFLIGHT_SCREENING",
-        window_sec=1.0,  # e2e 빠르게
-        max_total_time_sec=2.0,  # e2e 빠르게
+        window_sec=1.0,
+        max_total_time_sec=4.0,  # 넉넉하게
         sample_video_fps=10,
         target_faces=2,
         audio_noise_dbfs_threshold=-35.0,
@@ -63,6 +63,9 @@ def _ctx() -> RunContext:
         roi_face_ratio_min=0.8,
         roi_1=ROI(x0=0.0, y0=0.0, x1=0.5, y1=1.0),
         roi_2=ROI(x0=0.5, y0=0.0, x1=1.0, y1=1.0),
+        min_video_samples=5,
+        min_audio_samples=2,
+        pass_hold_sec=0.5,
         debug_enabled=False,
         debug_save_mismatch_only=True,
         debug_artifacts_dir="artifacts/preflight",
@@ -98,13 +101,13 @@ def _run_case(
     pcm = (amp * np.random.randn(n)).astype(np.float32)
 
     # feed a few iterations
-    t0 = time.time()
-    while not orch.finished and (time.time() - t0) < 5.0:
+    t0 = time.monotonic()
+    while (
+        not orch.finished
+        and (time.monotonic() - t0) < ctx.config.max_total_time_sec + 1.0
+    ):
         orch.on_video_frame(frame)
         orch.on_audio_pcm(pcm, sr)
-        # We don't need real sleep in tests, but orchestrator might check real time
-        # PreflightOrchestrator uses time.monotonic() via _now()
-        # So we might need to wait a bit to simulate window passing
         time.sleep(0.1)
 
     # last result message
@@ -123,25 +126,29 @@ def test_case_fail_noise() -> None:
     bboxes = [(20, 50, 120, 180), (200, 50, 300, 180)]
     res = _run_case(video_luma=200, pcm_dbfs=-20.0, num_faces=2, bboxes=bboxes)
     assert res["passed"] is False
-    assert res["failure_reason"] == FailureReason.FAIL_NOISE
+    assert res["failure_reason"] == FailureReason.FAIL_TIMEOUT
+    assert res["details"]["representative_failure"] == FailureReason.FAIL_NOISE
 
 
 def test_case_fail_low_light() -> None:
     bboxes = [(20, 50, 120, 180), (200, 50, 300, 180)]
     res = _run_case(video_luma=10, pcm_dbfs=-60.0, num_faces=2, bboxes=bboxes)
     assert res["passed"] is False
-    assert res["failure_reason"] == FailureReason.FAIL_LOW_LIGHT
+    assert res["failure_reason"] == FailureReason.FAIL_TIMEOUT
+    assert res["details"]["representative_failure"] == FailureReason.FAIL_LOW_LIGHT
 
 
 def test_case_fail_face_count() -> None:
     bboxes = [(20, 50, 120, 180)]
     res = _run_case(video_luma=200, pcm_dbfs=-60.0, num_faces=1, bboxes=bboxes)
     assert res["passed"] is False
-    assert res["failure_reason"] == FailureReason.FAIL_FACE_COUNT
+    assert res["failure_reason"] == FailureReason.FAIL_TIMEOUT
+    assert res["details"]["representative_failure"] == FailureReason.FAIL_FACE_COUNT
 
 
 def test_case_fail_roi_mismatch() -> None:
     bboxes = [(20, 50, 120, 180), (30, 60, 110, 190)]
     res = _run_case(video_luma=200, pcm_dbfs=-60.0, num_faces=2, bboxes=bboxes)
     assert res["passed"] is False
-    assert res["failure_reason"] == FailureReason.FAIL_ROI_MISMATCH
+    assert res["failure_reason"] == FailureReason.FAIL_TIMEOUT
+    assert res["details"]["representative_failure"] == FailureReason.FAIL_ROI_MISMATCH
