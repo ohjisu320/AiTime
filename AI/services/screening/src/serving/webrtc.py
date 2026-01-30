@@ -1,4 +1,5 @@
 import json
+import logging
 import uuid
 from pathlib import Path
 from typing import Any
@@ -17,6 +18,7 @@ from src.contracts.context import ROI, PreflightConfig, RunContext, make_repro_k
 from src.pipelines.orchestrator import PreflightOrchestrator
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 PCS: set[RTCPeerConnection] = set()
 
@@ -112,8 +114,12 @@ async def offer(req: OfferIn, request: Request) -> dict[str, Any]:
     @pc.on("track")
     async def on_track(track: MediaStreamTrack) -> None:
         if track.kind == "video":
+            count = 0
             while not orchestrator.finished:
                 frame = await track.recv()
+                count += 1
+                if count % 30 == 0:
+                    logger.info(f"[{run_id}] video frames received: {count}")
                 img = frame.to_ndarray(format="bgr24")
                 orchestrator.on_video_frame(img)
 
