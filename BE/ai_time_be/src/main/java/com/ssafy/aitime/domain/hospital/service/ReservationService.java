@@ -3,6 +3,7 @@ package com.ssafy.aitime.domain.hospital.service;
 import com.ssafy.aitime.domain.hospital.dto.request.CalendarRequest;
 import com.ssafy.aitime.domain.hospital.dto.request.ReservationCreateRequest;
 import com.ssafy.aitime.domain.hospital.dto.response.CalendarReservationResponse;
+import com.ssafy.aitime.domain.hospital.dto.response.ReservationListResponse;
 
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -24,4 +25,6 @@ public interface ReservationService {
         해당 병원의 년/월별 예약 날짜 조회
      */
     List<LocalDate> getHospitalReservationDates(UUID hospitalId, YearMonth yearMonth);
+
+    List<ReservationListResponse> getReservationList(UUID hospitalId, LocalDate date);
 }

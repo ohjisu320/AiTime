@@ -25,8 +25,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -122,6 +124,25 @@ public class ExamServiceImpl implements ExamService {
                 childId,
                 savedExam.getExamStatus()
         );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<UUID, Exam> getLatestExamsByChildIds(List<UUID> childIds) {
+        if (childIds == null || childIds.isEmpty()) {
+            return Map.of();
+        }
+
+        // 각 아이별 최신 검사 조회
+        return childIds.stream()
+                .map(examRepository::findFirstByChild_ChildIdOrderByCreatedAtDesc)
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .collect(Collectors.toMap(
+                        exam -> exam.getChild().getChildId(),
+                        exam -> exam,
+                        (existing, replacement) -> existing // 중복 시 기존 값 유지
+                ));
     }
 
     /**
