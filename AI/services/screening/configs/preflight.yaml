@@ -1,0 +1,44 @@
+schema_version: "1.0"
+task_type: "PREFLIGHT_SCREENING"
+
+# Windowing / decision policy
+window_sec: 5.0
+max_total_time_sec: 20.0
+sample_video_fps: 10
+
+# Targets
+target_faces: 2
+
+# Thresholds (tune later)
+audio:
+  # RMS dBFS above this => noisy
+  noise_dbfs_threshold: -35.0
+  # In the recent window, noisy chunks ratio must be <= this
+  noise_high_ratio_max: 0.2
+
+video:
+  # Luma (0-255). below => too dark
+  luma_mean_threshold: 60.0
+  # In the recent window, low-light ratio must be <= this
+  low_light_ratio_max: 0.2
+
+faces:
+  # In the recent window, frames with num_faces==target_faces ratio must be >= this
+  two_faces_ratio_min: 0.8
+  # Minimum face bbox area ratio vs frame area (too small => unreliable) (optional)
+  min_face_area_ratio: 0.01
+
+roi:
+  # For each ROI, ratio of frames where ROI contains a face must be >= this
+  roi_face_ratio_min: 0.8
+
+  # Default ROI (normalized 0..1). client can override per session.
+  # roi_1 and roi_2 are rectangles: x0,y0,x1,y1
+  roi_1: { x0: 0.05, y0: 0.20, x1: 0.45, y1: 0.90 }
+  roi_2: { x0: 0.55, y0: 0.20, x1: 0.95, y1: 0.90 }
+
+# Debug / retention policy
+debug:
+  enabled: true
+  save_mismatch_only: true
+  artifacts_dir: "artifacts/preflight"
