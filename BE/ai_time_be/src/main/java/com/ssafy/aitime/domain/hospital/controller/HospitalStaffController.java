@@ -6,6 +6,7 @@ import com.ssafy.aitime.domain.hospital.dto.response.DoctorListResponse;
 import com.ssafy.aitime.domain.hospital.dto.response.HospitalStaffLoginResponse;
 import com.ssafy.aitime.domain.hospital.dto.response.StaffTokenResponse;
 import com.ssafy.aitime.domain.hospital.service.HospitalStaffService;
+import com.ssafy.aitime.domain.hospital.service.ReservationService;
 import com.ssafy.aitime.security.principal.HospitalStaffPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +15,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
 
 @RestController
@@ -22,6 +25,7 @@ import java.util.List;
 public class HospitalStaffController {
 
     private final HospitalStaffService hospitalStaffService;
+    private final ReservationService reservationService;
 
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<HospitalStaffLoginResponse>> login(
@@ -120,6 +124,15 @@ public class HospitalStaffController {
         return authorizationHeader.substring(7);
     }
 
+    @GetMapping("/calendar")
+    public ApiResponse<List<LocalDate>> getReservationDates(
+            @RequestParam YearMonth yearMonth,
+            @AuthenticationPrincipal HospitalStaffPrincipal principal
+    ) {
+        List<LocalDate> dates = reservationService.getHospitalReservationDates(principal.getHospitalId(), yearMonth);
+
+        return ApiResponse.ok("달력 인디케이터 조회가 완료되었습니다.", dates);
+    }
 
     // 더미데이터 생성 용
     @PostMapping("/dummy")
