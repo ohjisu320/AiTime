@@ -15,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
@@ -88,6 +89,25 @@ public class ReservationServiceImpl implements ReservationService {
 
         // 4. 저장
         reservationRepository.save(reservation);
+    }
+
+    @Override
+    public List<LocalDate> getHospitalReservationDates(UUID hospitalId, YearMonth yearMonth) {
+        // 1. 해당 월의 시작과 끝 계산
+        LocalDate firstDayOfMonth = yearMonth.atDay(1);
+        LocalDateTime startOfMonth = firstDayOfMonth.atStartOfDay();
+        LocalDateTime endOfMonth = yearMonth.plusMonths(1).atDay(1).atStartOfDay();
+
+        // 2. 해당 병원의 해당 월 예약 조회
+        List<Reservation> reservations = reservationRepository
+                .findReservationsByHospitalAndMonth(hospitalId, startOfMonth, endOfMonth);
+
+        // 3. scheduledAt에서 날짜만 추출하고 중복 제거
+        return reservations.stream()
+                .map(r -> r.getScheduledAt().toLocalDate())
+                .distinct()
+                .sorted()
+                .toList();
     }
 
     /**
