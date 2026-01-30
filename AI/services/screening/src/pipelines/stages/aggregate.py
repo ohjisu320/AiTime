@@ -5,6 +5,10 @@ from src.contracts.context import FailureReason, QualityFlag, RunContext
 
 @dataclass
 class WindowStats:
+    # counts
+    video_count: int
+    audio_count: int
+
     # ratios in recent window
     noise_high_ratio: float
     low_light_ratio: float
@@ -23,17 +27,11 @@ def decide(
     """
     returns: (failure_reason, flags, passed)
     """
-    flags: list[QualityFlag] = []
+    if stats.video_count == 0 or stats.audio_count == 0:
+        # Not enough data yet to decide
+        return (None, [], False)
 
-    # Hard fail by timeout
-    if seen_seconds >= ctx.config.max_total_time_sec:
-        # TIMEOUT 시점에 기본적인 환경 지표에 따른 flag는 추가할 수 있으나,
-        # 여기서는 대표적으로 NOISE/LOW_LIGHT를 예시로 넣음
-        return (
-            FailureReason.FAIL_TIMEOUT,
-            [QualityFlag.NOISE_HIGH, QualityFlag.LOW_LIGHT],
-            False,
-        )
+    flags: list[QualityFlag] = []
 
     # Collect flags based on ratios
     if stats.noise_high_ratio > ctx.config.audio_noise_high_ratio_max:
@@ -58,11 +56,22 @@ def decide(
     if passed:
         return (None, [], True)
 
-    # Pick 대표 failure_reason (UX 단순화)
+    # Not passed. Pick failure_reason
+    reason = None
     if QualityFlag.NOISE_HIGH in flags:
-        return (FailureReason.FAIL_NOISE, flags, False)
-    if QualityFlag.LOW_LIGHT in flags:
-        return (FailureReason.FAIL_LOW_LIGHT, flags, False)
-    if QualityFlag.TOO_FEW_FACES in flags or QualityFlag.TOO_MANY_FACES in flags:
-        return (FailureReason.FAIL_FACE_COUNT, flags, False)
-    return (FailureReason.FAIL_ROI_MISMATCH, flags, False)
+        reason = FailureReason.FAIL_NOISE
+    elif QualityFlag.LOW_LIGHT in flags:
+        reason = FailureReason.FAIL_LOW_LIGHT
+    elif QualityFlag.TOO_FEW_FACES in flags or QualityFlag.TOO_MANY_FACES in flags:
+        reason = FailureReason.FAIL_FACE_COUNT
+    elif (
+        QualityFlag.ROI_FACE_MISSING_1 in flags
+        or QualityFlag.ROI_FACE_MISSING_2 in flags
+    ):
+        reason = FailureReason.FAIL_ROI_MISMATCH
+
+    # If time up but no flags (should not happen usually), fallback to FAIL_TIMEOUT
+    if reason is None and seen_seconds >= ctx.config.max_total_time_sec:
+        reason = FailureReason.FAIL_TIMEOUT
+
+    return (reason, flags, False)
