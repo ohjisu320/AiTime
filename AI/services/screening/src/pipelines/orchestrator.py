@@ -94,11 +94,13 @@ class PreflightOrchestrator:
         send: Callable[[dict], None],
         run_logger: JsonlRunLogger | None = None,
         artifact_saver: DebugArtifactSaver | None = None,
+        now_fn: Callable[[], float] | None = None,
     ) -> None:
         self.ctx = ctx
         self.send = send
         self.logger = run_logger
         self.artifact_saver = artifact_saver
+        self._now_fn = now_fn
         self._last_stage_log_t: dict[str, float] = {}
 
         self.frame_stage = FrameQualityStage()
@@ -109,7 +111,7 @@ class PreflightOrchestrator:
         self._video: deque[VideoSample] = deque()
         self._audio: deque[AudioSample] = deque()
 
-        self._t_start = time.monotonic()
+        self._t_start = self._now()
         self._last_video_emit_t = 0.0
         self._finished = False
 
@@ -138,7 +140,7 @@ class PreflightOrchestrator:
         return self._finished
 
     def _now(self) -> float:
-        return time.monotonic()
+        return self._now_fn() if self._now_fn else time.monotonic()
 
     def _prune(self) -> None:
         w = self.ctx.config.window_sec
