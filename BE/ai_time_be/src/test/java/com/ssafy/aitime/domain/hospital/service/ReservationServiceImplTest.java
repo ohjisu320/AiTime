@@ -15,7 +15,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.YearMonth;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -25,6 +27,7 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 /**
@@ -297,6 +300,149 @@ class ReservationServiceImplTest {
             // then
             assertThat(response).isNotNull();
             assertThat(response.data()).isEmpty();
+        }
+    }
+
+    // 기존 Nested 클래스들 아래에 추가
+
+    @Nested
+    @DisplayName("getHospitalReservationDates - 병원별 예약 날짜 조회")
+    class GetHospitalReservationDates {
+
+        @Test
+        @DisplayName("성공: 특정 병원의 특정 년/월 예약 날짜 목록을 조회한다")
+        void getHospitalReservationDates_Success() {
+            // given
+            UUID hospitalId = UUID.randomUUID();
+            YearMonth yearMonth = YearMonth.of(2026, 1);
+
+            LocalDateTime startOfMonth = LocalDateTime.of(2026, 1, 1, 0, 0);
+            LocalDateTime endOfMonth = LocalDateTime.of(2026, 2, 1, 0, 0);
+
+            List<Reservation> mockReservations = Arrays.asList(
+                    createReservation(LocalDateTime.of(2026, 1, 5, 10, 0)),
+                    createReservation(LocalDateTime.of(2026, 1, 5, 14, 0)), // 같은 날짜
+                    createReservation(LocalDateTime.of(2026, 1, 12, 11, 0)),
+                    createReservation(LocalDateTime.of(2026, 1, 20, 15, 30))
+            );
+
+            given(reservationRepository.findReservationsByHospitalAndMonth(
+                    eq(hospitalId), any(LocalDateTime.class), any(LocalDateTime.class)))
+                    .willReturn(mockReservations);
+
+            // when
+            List<LocalDate> results = reservationService.getHospitalReservationDates(hospitalId, yearMonth);
+
+            // then
+            assertThat(results).hasSize(3); // 중복 제거되어 3개
+            assertThat(results).containsExactly(
+                    LocalDate.of(2026, 1, 5),
+                    LocalDate.of(2026, 1, 12),
+                    LocalDate.of(2026, 1, 20)
+            );
+
+            verify(reservationRepository, times(1))
+                    .findReservationsByHospitalAndMonth(eq(hospitalId), any(LocalDateTime.class), any(LocalDateTime.class));
+        }
+
+        @Test
+        @DisplayName("성공: 예약이 없는 월은 빈 리스트를 반환한다")
+        void getHospitalReservationDates_EmptyResult() {
+            // given
+            UUID hospitalId = UUID.randomUUID();
+            YearMonth yearMonth = YearMonth.of(2026, 12);
+
+            given(reservationRepository.findReservationsByHospitalAndMonth(
+                    eq(hospitalId), any(LocalDateTime.class), any(LocalDateTime.class)))
+                    .willReturn(Collections.emptyList());
+
+            // when
+            List<LocalDate> results = reservationService.getHospitalReservationDates(hospitalId, yearMonth);
+
+            // then
+            assertThat(results).isEmpty();
+        }
+
+        @Test
+        @DisplayName("성공: 날짜가 정렬되어 반환된다")
+        void getHospitalReservationDates_Sorted() {
+            // given
+            UUID hospitalId = UUID.randomUUID();
+            YearMonth yearMonth = YearMonth.of(2026, 1);
+
+            List<Reservation> mockReservations = Arrays.asList(
+                    createReservation(LocalDateTime.of(2026, 1, 20, 10, 0)),
+                    createReservation(LocalDateTime.of(2026, 1, 5, 14, 0)),
+                    createReservation(LocalDateTime.of(2026, 1, 12, 11, 0))
+            );
+
+            given(reservationRepository.findReservationsByHospitalAndMonth(
+                    eq(hospitalId), any(LocalDateTime.class), any(LocalDateTime.class)))
+                    .willReturn(mockReservations);
+
+            // when
+            List<LocalDate> results = reservationService.getHospitalReservationDates(hospitalId, yearMonth);
+
+            // then
+            assertThat(results).containsExactly(
+                    LocalDate.of(2026, 1, 5),
+                    LocalDate.of(2026, 1, 12),
+                    LocalDate.of(2026, 1, 20)
+            );
+        }
+
+        @Test
+        @DisplayName("성공: 2월의 범위를 정확하게 계산한다")
+        void getHospitalReservationDates_FebruaryRange() {
+            // given
+            UUID hospitalId = UUID.randomUUID();
+            YearMonth yearMonth = YearMonth.of(2026, 2);
+
+            List<Reservation> mockReservations = Arrays.asList(
+                    createReservation(LocalDateTime.of(2026, 2, 14, 10, 0)),
+                    createReservation(LocalDateTime.of(2026, 2, 28, 14, 0))
+            );
+
+            given(reservationRepository.findReservationsByHospitalAndMonth(
+                    eq(hospitalId), any(LocalDateTime.class), any(LocalDateTime.class)))
+                    .willReturn(mockReservations);
+
+            // when
+            List<LocalDate> results = reservationService.getHospitalReservationDates(hospitalId, yearMonth);
+
+            // then
+            assertThat(results).hasSize(2);
+            assertThat(results).containsExactly(
+                    LocalDate.of(2026, 2, 14),
+                    LocalDate.of(2026, 2, 28)
+            );
+        }
+
+        @Test
+        @DisplayName("성공: 12월의 범위를 정확하게 계산한다")
+        void getHospitalReservationDates_DecemberRange() {
+            // given
+            UUID hospitalId = UUID.randomUUID();
+            YearMonth yearMonth = YearMonth.of(2026, 12);
+
+            List<Reservation> mockReservations = Arrays.asList(
+                    createReservation(LocalDateTime.of(2026, 12, 24, 10, 0)),
+                    createReservation(LocalDateTime.of(2026, 12, 31, 23, 59))
+            );
+
+            given(reservationRepository.findReservationsByHospitalAndMonth(
+                    eq(hospitalId), any(LocalDateTime.class), any(LocalDateTime.class)))
+                    .willReturn(mockReservations);
+
+            // when
+            List<LocalDate> results = reservationService.getHospitalReservationDates(hospitalId, yearMonth);
+
+            // then
+            assertThat(results).hasSize(2);
+            assertThat(results).containsExactly(
+                    LocalDate.of(2026, 12, 24),
+                    LocalDate.of(2026, 12, 31)
+            );
         }
     }
 
