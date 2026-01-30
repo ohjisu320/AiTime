@@ -95,24 +95,25 @@ const DashboardPage = () => {
     };
 
     return (
-        <div className="flex w-full min-h-[1000px] bg-white overflow-hidden">
+        <div className="flex w-full h-screen bg-white overflow-hidden">
             <Sidebar
                 childName={data?.name || "어린이"}
                 onCodeInputClick={() => setIsCodeModalOpen(true)}
             />
 
-            <main className="flex-1 h-screen overflow-y-auto p-8 flex flex-col gap-8">
-                {/* HeroBanner - 반응형에서 더 큰 비중 */}
-                <div className="w-full">
+            <main className="flex-1 overflow-y-auto p-8 flex flex-col gap-8 justify-center">
+                {/* HeroBanner - 더 큰 크기 */}
+                <div className="w-full flex-shrink-0">
                     <HeroBanner {...heroProps} />
                 </div>
 
                 <section className="flex flex-col xl:flex-row gap-6 w-full max-w-[1350px]">
-                    {/* GuideVideo - 반응형에서 작은 비중 */}
-                    <div className="flex-1 min-h-[400px] xl:min-h-[500px]">
+                    {/* GuideVideo */}
+                    <div className="flex-1 min-h-[450px]">
                         <GuideVideo />
                     </div>
 
+                    {/* HospitalTimeline - 오른쪽 고정 */}
                     <aside className="w-full xl:w-96 flex-none">
                         {data && <HospitalTimeline hospitals={data.linkedHospitals} childName={data.name} onAddClick={() => setIsCodeModalOpen(true)} />}
                     </aside>
