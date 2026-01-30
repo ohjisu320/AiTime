@@ -38,16 +38,15 @@ public interface InviteCodeRepository extends JpaRepository<InviteCode, UUID> {
     );
 
     @Query("""
-        SELECT DISTINCT CAST(ic.scheduledAt AS date)
-        FROM InviteCode ic
-        JOIN ic.hospitalStaff hs
+        SELECT ic FROM InviteCode ic
+        JOIN FETCH ic.hospitalStaff hs
         WHERE hs.hospital.hospitalId = :hospitalId
         AND ic.inviteCodeStatus = 'ISSUED'
         AND ic.scheduledAt >= :startOfMonth
         AND ic.scheduledAt < :endOfMonth
-        ORDER BY CAST(ic.scheduledAt AS date) ASC
+        ORDER BY ic.scheduledAt ASC
     """)
-    List<LocalDate> findScheduledDatesByHospitalAndMonth(
+    List<InviteCode> findIssuedInviteCodesByHospitalAndMonth(
             @Param("hospitalId") UUID hospitalId,
             @Param("startOfMonth") LocalDateTime startOfMonth,
             @Param("endOfMonth") LocalDateTime endOfMonth
