@@ -14,6 +14,9 @@ const queryClient = new QueryClient({
 });
 
 function App() {
+  useEffect(() => {
+    testProductionAPI();
+  }, []);
   return (
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
