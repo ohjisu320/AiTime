@@ -1,6 +1,7 @@
 import json
 import logging
 import uuid
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +16,8 @@ from aiortc import (
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
 from src.contracts.context import ROI, PreflightConfig, RunContext, make_repro_keys
+from src.monitoring.artifacts import DebugArtifactSaver
+from src.monitoring.run_logger import JsonlRunLogger
 from src.pipelines.orchestrator import PreflightOrchestrator
 
 router = APIRouter()
@@ -60,9 +63,18 @@ def load_config(path: str = "configs/preflight.yaml") -> PreflightConfig:
         ),
         hint_interval_sec=float(raw.get("decision", {}).get("hint_interval_sec", 1.0)),
         pass_hold_sec=float(raw.get("decision", {}).get("pass_hold_sec", 1.0)),
-        debug_enabled=bool(raw["debug"]["enabled"]),
-        debug_save_mismatch_only=bool(raw["debug"]["save_mismatch_only"]),
-        debug_artifacts_dir=str(raw["debug"]["artifacts_dir"]),
+        debug_enabled=bool(raw["debug"].get("enabled", False)),
+        debug_save_mismatch_only=bool(raw["debug"].get("save_mismatch_only", True)),
+        debug_sample_rate=float(raw["debug"].get("sample_rate", 0.2)),
+        debug_save_on_flags=list(raw["debug"].get("save_on_flags", [])),
+        debug_artifacts_dir=str(
+            raw["debug"].get("artifacts_dir", "artifacts/preflight")
+        ),
+        logs_enabled=bool(raw.get("logs", {}).get("enabled", True)),
+        logs_dir=str(raw.get("logs", {}).get("dir", "artifacts/preflight/logs")),
+        stage_log_interval_sec=float(
+            raw.get("logs", {}).get("stage_log_interval_sec", 1.0)
+        ),
     )
     return cfg
 
@@ -100,7 +112,30 @@ async def offer(req: OfferIn, request: Request) -> dict[str, Any]:
         if channel and channel.readyState == "open":
             channel.send(json.dumps(msg, ensure_ascii=False))
 
-    orchestrator = PreflightOrchestrator(ctx, send=send)
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp_id = f"{ts}_{run_id}"
+
+    run_logger = JsonlRunLogger(
+        run_id=timestamp_id,
+        trace_id=ctx.trace_id,
+        logs_dir=ctx.config.logs_dir,
+        enabled=ctx.config.logs_enabled,
+    )
+
+    artifact_saver = DebugArtifactSaver(
+        run_id=timestamp_id,
+        base_dir=ctx.config.debug_artifacts_dir,
+        enabled=ctx.config.debug_enabled,
+        save_fail_only=ctx.config.debug_save_mismatch_only,
+        sample_rate=ctx.config.debug_sample_rate,
+        save_on_flags=ctx.config.debug_save_on_flags,
+        roi_1=ctx.roi_1,
+        roi_2=ctx.roi_2,
+    )
+
+    orchestrator = PreflightOrchestrator(
+        ctx, send=send, run_logger=run_logger, artifact_saver=artifact_saver
+    )
 
     @pc.on("datachannel")
     def on_datachannel(ch: RTCDataChannel) -> None:
