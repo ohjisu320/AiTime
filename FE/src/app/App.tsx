@@ -1,9 +1,12 @@
-// src/App.tsx 
+// src/App.tsx
+import { useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from 'react-router-dom';
 import { router } from './routes'; // 기존 라우터 연결
 
-// 1. QueryClient 인스턴스를 생성합니다. 
+import testProductionAPI from '@/utils/apiConnectionTest';
+
+// 1. QueryClient 인스턴스를 생성합니다.
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -14,6 +17,9 @@ const queryClient = new QueryClient({
 });
 
 function App() {
+  useEffect(() => {
+    testProductionAPI();
+  }, []);
   return (
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
