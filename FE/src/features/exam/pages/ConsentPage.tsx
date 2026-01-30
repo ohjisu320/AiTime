@@ -11,7 +11,8 @@ import Swal from 'sweetalert2';
 
 
 const ConsentPage = () => {
-  const navigate = useNavigate(); // 훅 호출
+  const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
   const [agreements, setAgreements] = useState({
     media: false,     // 1. 영상·음성 수집
     aiUsage: false,   // 2. AI 학습 미사용 고지
