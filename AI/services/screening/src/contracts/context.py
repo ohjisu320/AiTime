@@ -61,6 +61,7 @@ class PreflightConfig(BaseModel):
 
     audio_noise_dbfs_threshold: float = -35.0
     audio_noise_high_ratio_max: float = 0.2
+    audio_chunk_sec: float = 0.5
 
     video_luma_mean_threshold: float = 60.0
     video_low_light_ratio_max: float = 0.2

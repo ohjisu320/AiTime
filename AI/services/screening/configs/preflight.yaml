@@ -15,6 +15,7 @@ audio:
   noise_dbfs_threshold: -35.0
   # In the recent window, noisy chunks ratio must be <= this
   noise_high_ratio_max: 0.2
+  chunk_sec: 0.5
 
 video:
   # Luma (0-255). below => too dark
