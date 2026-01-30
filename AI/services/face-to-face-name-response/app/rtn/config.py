@@ -91,3 +91,15 @@ class AnalysisConfig:
     # fps sanity check / fallback
     fps_min_valid: float = 1e-3
     fallback_fps: float = 30.0
+
+
+@dataclass(frozen=True)
+class RabbitMQConfig:
+    """RabbitMQ 연결 설정"""
+
+    host: str = "localhost"
+    port: int = 5672
+    user: str = "guest"
+    password: str = "guest"
+    task_queue: str = "face_name_task_queue"
+    result_queue: str = "face_name_result_queue"
