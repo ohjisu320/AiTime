@@ -1,12 +1,11 @@
 package com.ssafy.aitime.domain.invite.service;
 
 import com.ssafy.aitime.domain.invite.dto.request.InviteCodeRequest;
-import com.ssafy.aitime.domain.invite.dto.response.InviteCodeResponse;
-import com.ssafy.aitime.domain.invite.dto.response.InviteCodeRevokeResponse;
-import com.ssafy.aitime.domain.invite.dto.response.InviteCodeStatusResponse;
-import com.ssafy.aitime.domain.invite.dto.response.InviteCodeValidationDto;
+import com.ssafy.aitime.domain.invite.dto.response.*;
 import com.ssafy.aitime.security.principal.HospitalStaffPrincipal;
 
+import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 public interface InviteCodeService {
@@ -28,4 +27,6 @@ public interface InviteCodeService {
     InviteCodeResponse generateInviteCode(InviteCodeRequest request, UUID hospitalStaffId);
     InviteCodeRevokeResponse revokeInviteCode(UUID inviteCodeId, UUID hospitalStaffId);
     InviteCodeStatusResponse getInviteCodeStatus(UUID inviteCodeId);
+    List<UnregisteredPatientResponse> getUnregisteredPatients(UUID hospitalId, int year, int month, int day);
+    List<LocalDate> getScheduledDates(UUID hospitalId, int year, int month);
 }

@@ -9,6 +9,7 @@ import com.ssafy.aitime.domain.hospital.service.HospitalStaffService;
 import com.ssafy.aitime.domain.invite.dto.request.InviteCodeRequest;
 import com.ssafy.aitime.domain.invite.dto.response.InviteCodeResponse;
 import com.ssafy.aitime.domain.invite.dto.response.InviteCodeRevokeResponse;
+import com.ssafy.aitime.domain.invite.dto.response.UnregisteredPatientResponse;
 import com.ssafy.aitime.domain.invite.entity.InviteCode;
 import com.ssafy.aitime.domain.invite.entity.enums.InviteCodeStatus;
 import com.ssafy.aitime.domain.invite.exception.AlreadyIssuedInviteCodeException;
@@ -27,6 +28,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -209,4 +211,138 @@ class InviteCodeServiceImplTest {
                 doctorId
         );
     }
+
+    @Nested
+    @DisplayName("날짜별 등록 대기 환아 목록 조회 테스트")
+    class GetUnregisteredPatients {
+
+        @Test
+        @DisplayName("성공: 특정 날짜의 미등록 환아 목록을 조회한다")
+        void getUnregisteredPatients_Success() {
+            // given
+            UUID hospitalId = testHospital.getHospitalId();
+            int year = 2026;
+            int month = 1;
+            int day = 20;
+            LocalDate targetDate = LocalDate.of(year, month, day);
+
+            // 테스트 데이터 - 14개월 된 아이 (2024년 11월 20일생)
+            InviteCode inviteCode1 = InviteCode.builder()
+                    .inviteCode("FTL-TEST-01")
+                    .hospitalStaff(deskStaff)
+                    .childName("박튼튼")
+                    .childBirthdate(LocalDate.of(2024, 11, 20))
+                    .parentPhone("01012345678")
+                    .scheduledAt(LocalDateTime.of(2026, 1, 20, 10, 0))
+                    .inviteCodeStatus(InviteCodeStatus.ISSUED)
+                    .build();
+            ReflectionTestUtils.setField(inviteCode1, "inviteCodeId", UUID.randomUUID());
+
+            // 테스트 데이터 - 19개월 된 아이 (2024년 6월 15일생)
+            InviteCode inviteCode2 = InviteCode.builder()
+                    .inviteCode("FTL-TEST-02")
+                    .hospitalStaff(deskStaff)
+                    .childName("김건강")
+                    .childBirthdate(LocalDate.of(2024, 6, 15))
+                    .parentPhone("01087654321")
+                    .scheduledAt(LocalDateTime.of(2026, 1, 20, 14, 30))
+                    .inviteCodeStatus(InviteCodeStatus.ISSUED)
+                    .build();
+            ReflectionTestUtils.setField(inviteCode2, "inviteCodeId", UUID.randomUUID());
+
+            given(inviteCodeRepository.findUnregisteredPatientsByHospitalAndDate(hospitalId, targetDate))
+                    .willReturn(List.of(inviteCode1, inviteCode2));
+
+            // when
+            List<UnregisteredPatientResponse> results = inviteCodeService
+                    .getUnregisteredPatients(hospitalId, year, month, day);
+
+            // then
+            assertThat(results).hasSize(2);
+
+            // 첫 번째 환아 검증
+            UnregisteredPatientResponse first = results.get(0);
+            assertThat(first.childName()).isEqualTo("박튼튼");
+            assertThat(first.parentPhone()).isEqualTo("01012345678");
+            assertThat(first.childMonths()).isEqualTo(14); // 2024-11-20 ~ 2026-01-20 = 14개월
+            assertThat(first.status()).isEqualTo("ISSUED");
+            assertThat(first.scheduledAt()).isEqualTo(LocalDateTime.of(2026, 1, 20, 10, 0));
+
+            // 두 번째 환아 검증
+            UnregisteredPatientResponse second = results.get(1);
+            assertThat(second.childName()).isEqualTo("김건강");
+            assertThat(second.childMonths()).isEqualTo(19); // 2024-06-15 ~ 2026-01-20 = 19개월
+
+            verify(inviteCodeRepository, times(1))
+                    .findUnregisteredPatientsByHospitalAndDate(hospitalId, targetDate);
+        }
+
+        @Test
+        @DisplayName("성공: 조회 결과가 없으면 빈 리스트를 반환한다")
+        void getUnregisteredPatients_EmptyResult() {
+            // given
+            UUID hospitalId = testHospital.getHospitalId();
+            int year = 2026;
+            int month = 12;
+            int day = 31;
+            LocalDate targetDate = LocalDate.of(year, month, day);
+
+            given(inviteCodeRepository.findUnregisteredPatientsByHospitalAndDate(hospitalId, targetDate))
+                    .willReturn(List.of());
+
+            // when
+            List<UnregisteredPatientResponse> results = inviteCodeService
+                    .getUnregisteredPatients(hospitalId, year, month, day);
+
+            // then
+            assertThat(results).isEmpty();
+            verify(inviteCodeRepository, times(1))
+                    .findUnregisteredPatientsByHospitalAndDate(hospitalId, targetDate);
+        }
+
+        @Test
+        @DisplayName("성공: 개월 수 계산이 정확하다")
+        void getUnregisteredPatients_CorrectMonthsCalculation() {
+            // given
+            UUID hospitalId = testHospital.getHospitalId();
+            LocalDate targetDate = LocalDate.of(2026, 1, 30); // 현재 날짜로 가정
+
+            // 생년월일이 정확히 1년 전 (12개월)
+            InviteCode exactOneYear = InviteCode.builder()
+                    .inviteCode("FTL-TEST-01")
+                    .hospitalStaff(deskStaff)
+                    .childName("정확1년")
+                    .childBirthdate(LocalDate.of(2025, 1, 30))
+                    .parentPhone("01011111111")
+                    .scheduledAt(LocalDateTime.of(2026, 1, 30, 10, 0))
+                    .inviteCodeStatus(InviteCodeStatus.ISSUED)
+                    .build();
+            ReflectionTestUtils.setField(exactOneYear, "inviteCodeId", UUID.randomUUID());
+
+            // 생년월일이 2개월 1일 전 (2개월로 계산되어야 함)
+            InviteCode twoMonthsOld = InviteCode.builder()
+                    .inviteCode("FTL-TEST-02")
+                    .hospitalStaff(deskStaff)
+                    .childName("두달아기")
+                    .childBirthdate(LocalDate.of(2025, 11, 29))
+                    .parentPhone("01022222222")
+                    .scheduledAt(LocalDateTime.of(2026, 1, 30, 14, 0))
+                    .inviteCodeStatus(InviteCodeStatus.ISSUED)
+                    .build();
+            ReflectionTestUtils.setField(twoMonthsOld, "inviteCodeId", UUID.randomUUID());
+
+            given(inviteCodeRepository.findUnregisteredPatientsByHospitalAndDate(hospitalId, targetDate))
+                    .willReturn(List.of(exactOneYear, twoMonthsOld));
+
+            // when
+            List<UnregisteredPatientResponse> results = inviteCodeService
+                    .getUnregisteredPatients(hospitalId, 2026, 1, 30);
+
+            // then
+            assertThat(results).hasSize(2);
+            assertThat(results.get(0).childMonths()).isEqualTo(12);
+            assertThat(results.get(1).childMonths()).isEqualTo(2);
+        }
+    }
+
 }

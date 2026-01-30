@@ -1,5 +1,6 @@
 package com.ssafy.aitime.domain.invite.controller;
 
+import com.ssafy.aitime.domain.invite.dto.response.UnregisteredPatientResponse;
 import tools.jackson.databind.ObjectMapper;
 import com.ssafy.aitime.common.enums.RecordStatus;
 import com.ssafy.aitime.domain.hospital.entity.Hospital;
@@ -35,7 +36,10 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -173,5 +177,215 @@ class InviteCodeControllerTest {
                 .andExpect(jsonPath("$.message").value("초대코드 상태 조회가 완료되었습니다."))
                 .andExpect(jsonPath("$.data.status").value("ISSUED"))
                 .andExpect(jsonPath("$.data.childName").value("박튼튼"));
+    }
+
+    @Test
+    @DisplayName("날짜별 등록 대기 환아 목록을 조회하면 200 상태코드와 환아 목록을 반환한다")
+    void getUnregisteredPatients_Success() throws Exception {
+        // given
+        int year = 2026;
+        int month = 1;
+        int day = 20;
+
+        List<UnregisteredPatientResponse> responses = List.of(
+                new UnregisteredPatientResponse(
+                        UUID.randomUUID(),
+                        "박튼튼",
+                        14,
+                        "01012345678",
+                        LocalDateTime.of(2026, 1, 20, 10, 0),
+                        "ISSUED"
+                ),
+                new UnregisteredPatientResponse(
+                        UUID.randomUUID(),
+                        "김건강",
+                        19,
+                        "01087654321",
+                        LocalDateTime.of(2026, 1, 20, 14, 30),
+                        "ISSUED"
+                )
+        );
+
+        given(inviteCodeService.getUnregisteredPatients(any(UUID.class), eq(year), eq(month), eq(day)))
+                .willReturn(responses);
+
+        // when & then
+        mockMvc.perform(get("/invite-code/patients")
+                        .param("year", String.valueOf(year))
+                        .param("month", String.valueOf(month))
+                        .param("day", String.valueOf(day)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("날짜별 등록 대기 환아 목록 조회가 완료되었습니다."))
+                .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(jsonPath("$.data[0].childName").value("박튼튼"))
+                .andExpect(jsonPath("$.data[0].childMonths").value(14))
+                .andExpect(jsonPath("$.data[0].parentPhone").value("01012345678"))
+                .andExpect(jsonPath("$.data[0].status").value("ISSUED"))
+                .andExpect(jsonPath("$.data[1].childName").value("김건강"))
+                .andExpect(jsonPath("$.data[1].childMonths").value(19));
+    }
+
+    @Test
+    @DisplayName("조회 결과가 없으면 200 상태코드와 빈 배열을 반환한다")
+    void getUnregisteredPatients_EmptyResult() throws Exception {
+        // given
+        int year = 2026;
+        int month = 12;
+        int day = 31;
+
+        given(inviteCodeService.getUnregisteredPatients(any(UUID.class), eq(year), eq(month), eq(day)))
+                .willReturn(List.of());
+
+        // when & then
+        mockMvc.perform(get("/invite-code/patients")
+                        .param("year", String.valueOf(year))
+                        .param("month", String.valueOf(month))
+                        .param("day", String.valueOf(day)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("날짜별 등록 대기 환아 목록 조회가 완료되었습니다."))
+                .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.data.length()").value(0));
+    }
+
+    @Test
+    @DisplayName("필수 파라미터가 누락되면 400 Bad Request를 반환한다")
+    void getUnregisteredPatients_MissingParameter() throws Exception {
+        // when & then - year만 있고 month, day 누락
+        mockMvc.perform(get("/invite-code/patients")
+                        .param("year", "2026"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("인증된 사용자의 병원 ID로 조회한다")
+    void getUnregisteredPatients_UsesAuthenticatedHospitalId() throws Exception {
+        // given
+        int year = 2026;
+        int month = 1;
+        int day = 20;
+
+        given(inviteCodeService.getUnregisteredPatients(eq(TEST_HOSPITAL_ID), eq(year), eq(month), eq(day)))
+                .willReturn(List.of());
+
+        // when
+        mockMvc.perform(get("/invite-code/patients")
+                        .param("year", String.valueOf(year))
+                        .param("month", String.valueOf(month))
+                        .param("day", String.valueOf(day)))
+                .andExpect(status().isOk());
+
+        // then - 인증된 사용자의 병원 ID가 사용되었는지 검증
+        verify(inviteCodeService, times(1))
+                .getUnregisteredPatients(eq(TEST_HOSPITAL_ID), eq(year), eq(month), eq(day));
+    }
+
+    // InviteCodeControllerTest.java에 추가
+
+    @Test
+    @DisplayName("캘린더 인디케이터 정보를 조회하면 200 상태코드와 날짜 목록을 반환한다")
+    void getScheduledDates_Success() throws Exception {
+        // given
+        int year = 2026;
+        int month = 1;
+
+        List<LocalDate> dates = List.of(
+                LocalDate.of(2026, 1, 10),
+                LocalDate.of(2026, 1, 15),
+                LocalDate.of(2026, 1, 20),
+                LocalDate.of(2026, 1, 25)
+        );
+
+        given(inviteCodeService.getScheduledDates(any(UUID.class), eq(year), eq(month)))
+                .willReturn(dates);
+
+        // when & then
+        mockMvc.perform(get("/invite-code/calendar")
+                        .param("year", String.valueOf(year))
+                        .param("month", String.valueOf(month)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("등록 대기 중인 예약 날짜 조회가 완료되었습니다."))
+                .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.data.length()").value(4))
+                .andExpect(jsonPath("$.data[0]").value("2026-01-10"))
+                .andExpect(jsonPath("$.data[1]").value("2026-01-15"))
+                .andExpect(jsonPath("$.data[2]").value("2026-01-20"))
+                .andExpect(jsonPath("$.data[3]").value("2026-01-25"));
+    }
+
+    @Test
+    @DisplayName("예약이 없는 월은 200 상태코드와 빈 배열을 반환한다")
+    void getScheduledDates_EmptyResult() throws Exception {
+        // given
+        int year = 2026;
+        int month = 12;
+
+        given(inviteCodeService.getScheduledDates(any(UUID.class), eq(year), eq(month)))
+                .willReturn(List.of());
+
+        // when & then
+        mockMvc.perform(get("/invite-code/calendar")
+                        .param("year", String.valueOf(year))
+                        .param("month", String.valueOf(month)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("등록 대기 중인 예약 날짜 조회가 완료되었습니다."))
+                .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.data.length()").value(0));
+    }
+
+    @Test
+    @DisplayName("필수 파라미터가 누락되면 400 Bad Request를 반환한다 - 캘린더")
+    void getScheduledDates_MissingParameter() throws Exception {
+        // when & then - year만 있고 month 누락
+        mockMvc.perform(get("/invite-code/calendar")
+                        .param("year", "2026"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("인증된 사용자의 병원 ID로 캘린더를 조회한다")
+    void getScheduledDates_UsesAuthenticatedHospitalId() throws Exception {
+        // given
+        int year = 2026;
+        int month = 1;
+
+        given(inviteCodeService.getScheduledDates(eq(TEST_HOSPITAL_ID), eq(year), eq(month)))
+                .willReturn(List.of());
+
+        // when
+        mockMvc.perform(get("/invite-code/calendar")
+                        .param("year", String.valueOf(year))
+                        .param("month", String.valueOf(month)))
+                .andExpect(status().isOk());
+
+        // then - 인증된 사용자의 병원 ID가 사용되었는지 검증
+        verify(inviteCodeService, times(1))
+                .getScheduledDates(eq(TEST_HOSPITAL_ID), eq(year), eq(month));
+    }
+
+    @Test
+    @DisplayName("다양한 월에 대해 정상적으로 조회한다")
+    void getScheduledDates_VariousMonths() throws Exception {
+        // given - 2월
+        given(inviteCodeService.getScheduledDates(any(UUID.class), eq(2026), eq(2)))
+                .willReturn(List.of(LocalDate.of(2026, 2, 14)));
+
+        // when & then - 2월
+        mockMvc.perform(get("/invite-code/calendar")
+                        .param("year", "2026")
+                        .param("month", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0]").value("2026-02-14"));
+
+        // given - 12월
+        given(inviteCodeService.getScheduledDates(any(UUID.class), eq(2026), eq(12)))
+                .willReturn(List.of(LocalDate.of(2026, 12, 25)));
+
+        // when & then - 12월
+        mockMvc.perform(get("/invite-code/calendar")
+                        .param("year", "2026")
+                        .param("month", "12"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0]").value("2026-12-25"));
     }
 }

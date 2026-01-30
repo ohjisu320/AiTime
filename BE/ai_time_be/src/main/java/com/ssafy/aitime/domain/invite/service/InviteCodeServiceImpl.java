@@ -6,10 +6,7 @@ import com.ssafy.aitime.domain.hospital.exception.HospitalStaffAccessDeniedExcep
 import com.ssafy.aitime.domain.hospital.exception.InvalidDoctorSelectionException;
 import com.ssafy.aitime.domain.hospital.service.HospitalStaffService;
 import com.ssafy.aitime.domain.invite.dto.request.InviteCodeRequest;
-import com.ssafy.aitime.domain.invite.dto.response.InviteCodeResponse;
-import com.ssafy.aitime.domain.invite.dto.response.InviteCodeRevokeResponse;
-import com.ssafy.aitime.domain.invite.dto.response.InviteCodeStatusResponse;
-import com.ssafy.aitime.domain.invite.dto.response.InviteCodeValidationDto;
+import com.ssafy.aitime.domain.invite.dto.response.*;
 import com.ssafy.aitime.domain.invite.entity.InviteCode;
 import com.ssafy.aitime.domain.invite.entity.enums.InviteCodeStatus;
 import com.ssafy.aitime.domain.invite.exception.AlreadyIssuedInviteCodeException;
@@ -22,6 +19,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.file.AccessDeniedException;
 import java.security.SecureRandom;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -175,6 +175,41 @@ public class InviteCodeServiceImpl implements InviteCodeService {
                 inviteCode.getInviteCodeStatus(),
                 inviteCode.getChildName()
         );
+    }
+
+    @Override
+    public List<UnregisteredPatientResponse> getUnregisteredPatients(UUID hospitalId, int year, int month, int day) {
+        // 1. 날짜 생성
+        LocalDate targetDate = LocalDate.of(year, month, day);
+
+        // 2. 해당 병원의 해당 날짜 미등록 환아 조회
+        List<InviteCode> inviteCodes = inviteCodeRepository
+                .findUnregisteredPatientsByHospitalAndDate(hospitalId, targetDate);
+
+        // 3. DTO 변환 및 반환
+        return inviteCodes.stream()
+                .map(UnregisteredPatientResponse::from)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<LocalDate> getScheduledDates(UUID hospitalId, int year, int month) {
+        // 1. 해당 월의 시작과 끝 계산
+        LocalDate firstDayOfMonth = LocalDate.of(year, month, 1);
+        LocalDateTime startOfMonth = firstDayOfMonth.atStartOfDay();
+        LocalDateTime endOfMonth = firstDayOfMonth.plusMonths(1).atStartOfDay();
+
+        // 2. 해당 병원의 해당 월 초대코드 조회
+        List<InviteCode> inviteCodes = inviteCodeRepository
+                .findIssuedInviteCodesByHospitalAndMonth(hospitalId, startOfMonth, endOfMonth);
+
+        // 3. scheduledAt에서 날짜만 추출하고 중복 제거 후 정렬
+        return inviteCodes.stream()
+                .map(ic -> ic.getScheduledAt().toLocalDate())
+                .distinct()
+                .sorted()
+                .toList();
     }
 
     private String createRandomCode() {
