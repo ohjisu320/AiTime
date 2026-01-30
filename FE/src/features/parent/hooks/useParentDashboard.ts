@@ -31,12 +31,19 @@ export const useParentDashboard = () => {
         return MOCK_DATA;
       }
 
+      // Get selected child ID from localStorage
+      const childId = localStorage.getItem('selectedChildId');
+
+      if (!childId) {
+        console.warn('⚠️ No childId in localStorage. Using TEST_CHILD_ID as fallback for development.');
+      }
+
       // fetchChildHomeInfo가 이미 linkedHospitals를 포함하고 있으므로
       // 별도로 fetchLinkedHospitals를 호출할 필요 없음
-      const response = await fetchChildHomeInfo(TEST_CHILD_ID);
+      const response = await fetchChildHomeInfo(childId || TEST_CHILD_ID);
 
-      setData(response.data);
-      return response.data;
+      setData(response);
+      return response;
     } catch (err) {
       console.error("Unexpected error in useParentDashboard", err);
       setIsError(true);

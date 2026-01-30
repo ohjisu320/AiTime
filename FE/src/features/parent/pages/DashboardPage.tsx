@@ -48,10 +48,14 @@ const DashboardPage = () => {
             // [DEBUG] Check data structure for childId
             console.log("Dashboard Data Debug:", data);
 
-            // Use dynamic childId if available, fallback to "child-001"
-            // Use dynamic childId if available, fallback to actual UUID
-            const childId = data?.childId || "3fa85f64-5717-4562-b3fc-2c963f66afa6";
+            // Use childId from data, fallback to localStorage
+            const childId = data?.childId || localStorage.getItem('selectedChildId') || "";
             console.log(`Using childId: ${childId}`);
+
+            if (!childId) {
+                toast.error("자녀 정보를 찾을 수 없습니다.");
+                return;
+            }
 
             const response = await registerInviteCode(childId, code);
 

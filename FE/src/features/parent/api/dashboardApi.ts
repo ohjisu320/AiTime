@@ -1,20 +1,9 @@
-import axios from 'axios';
+import api from '@/api/axiosConfig';
 
 // =================================================================
-// 🚨 DEBUGGING MODE: HARDCODED CONFIGURATION
-// 설정 파일(axiosConfig)을 거치지 않고 직접 요청을 보냅니다.
-// 테스트가 끝나면 나중에 다시 원래대로 복구해야 합니다.
+// 테스트용 UUID (localStorage에 selectedChildId가 없을 때 fallback)
 // =================================================================
-
-// 1. 여기에 진짜 토큰 넣기
-// (Bearer라는 글자는 빼고 토큰 문자열만 넣으세요)
-const REAL_TOKEN = "진짜 토큰 넣기";
-
-// 2. 테스트용 UUID (필요 시 사용)
-export const TEST_CHILD_ID = "3fa85f64-5717-4562-b3fc-2c963f66afa6";
-
-// 3. API 기본 도메인 (절대 경로)
-const API_BASE_URL = "https://i14a501.p.ssafy.io/api/v1";
+export const TEST_CHILD_ID = "136d8eb8-8264-4953-9c9c-19baf49dc8b4";
 
 // =================================================================
 // 타입 정의 (Type Definitions)
@@ -72,30 +61,23 @@ export interface HospitalLinkResponse {
  */
 export const fetchChildHomeInfo = async (childId: string) => {
     // childId가 없거나 이상하면 테스트 ID로 대체
-    const targetId = childId || TEST_CHILD_ID;
+    const targetId = childId || "65952064-7506-499d-b4fc-1b919be4db5f";
     console.log(`🚀 [GET] Dashboard Info for: ${targetId}`);
 
     try {
-        const response = await axios.get(
-            `${API_BASE_URL}/child/${targetId}`,
-            {
-                headers: {
-                    'Authorization': `Bearer ${REAL_TOKEN}`,
-                    'Content-Type': 'application/json'
-                }
-            }
-        );
+        const response = await api.get(`/child/${targetId}`);
         console.log("✅ Fetch Success:", response.data);
-        // API 응답 구조에 따라 data.data 혹은 data를 반환
-        return response.data?.data || response.data;
+        // API 응답 구조: {code, status, message, data: {...child info...}}
+        // 실제 아이 정보만 반환
+        return response.data.data;
     } catch (error) {
         // 🚨 여기가 핵심입니다! 
         // 에러를 throw 하지 않고, 콘솔에만 찍은 뒤 '가짜 데이터'를 리턴합니다.
         console.warn("⚠️ API 연결 실패 (401 등). 임시 데이터를 보여줍니다.");
         console.error("❌ fetchChildHomeInfo Error:", error);
 
-        // 화면이 죽지 않도록 Mock Data 반환
-        return MOCK_CASE_AVAILABLE;
+        // 화면이 죽지 않도록 Mock Data 반환 (data 부분만)
+        return MOCK_CASE_AVAILABLE.data;
     }
 };
 
@@ -107,15 +89,7 @@ export const fetchLinkedHospitals = async (childId: string) => {
     console.log(`🚀 [GET] Hospital List for: ${targetId}`);
 
     try {
-        const response = await axios.get(
-            `${API_BASE_URL}/child/${targetId}/hospital-list`,
-            {
-                headers: {
-                    'Authorization': `Bearer ${REAL_TOKEN}`,
-                    'Content-Type': 'application/json'
-                }
-            }
-        );
+        const response = await api.get(`/child/${targetId}/hospital-list`);
 
         // Swagger 명세상 data.data 안에 배열이 있었음
         const list = response.data?.data || [];
@@ -135,15 +109,9 @@ export const registerInviteCode = async (childId: string, inviteCode: string) =>
     console.log(`🚀 [POST] Linking Hospital... Child: ${targetId}, Code: ${inviteCode}`);
 
     try {
-        const response = await axios.post(
-            `${API_BASE_URL}/child/${targetId}/hospital-link`,
-            { inviteCode }, // Body
-            {
-                headers: {
-                    'Authorization': `Bearer ${REAL_TOKEN}`,
-                    'Content-Type': 'application/json'
-                }
-            }
+        const response = await api.post(
+            `/child/${targetId}/hospital-link`,
+            { inviteCode }
         );
 
         console.log("✅ Link Success:", response.data);

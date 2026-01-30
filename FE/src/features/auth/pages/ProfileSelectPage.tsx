@@ -53,6 +53,8 @@ export default function ProfileSelectPage() {
   };
 
   const handleProfileClick = (profile: ChildProfile) => {
+    // Store selected child ID in localStorage for dashboard to use
+    localStorage.setItem('selectedChildId', profile.childId);
     console.log("Selected Child:", profile.childId);
     navigate("/parent/dashboard");
   };
@@ -115,11 +117,10 @@ export default function ProfileSelectPage() {
         <Button
           variant="ghost"
           onClick={() => setIsManageMode(!isManageMode)}
-          className={`font-bold px-10 py-8 rounded-full text-xl transition-all shadow-sm hover:scale-105 ${
-            isManageMode
+          className={`font-bold px-10 py-8 rounded-full text-xl transition-all shadow-sm hover:scale-105 ${isManageMode
               ? "bg-[#5A55D6] text-white hover:bg-[#4844b8]"
               : "bg-purple-50 text-[#9D8AD6] hover:bg-purple-100"
-          }`}
+            }`}
         >
           {isManageMode ? "프로필 수정 완료" : "프로필 관리하기"}
         </Button>
