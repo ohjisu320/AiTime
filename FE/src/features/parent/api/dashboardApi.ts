@@ -108,16 +108,24 @@ export const registerInviteCode = async (childId: string, inviteCode: string) =>
     const targetId = childId || TEST_CHILD_ID;
     console.log(`🚀 [POST] Linking Hospital... Child: ${targetId}, Code: ${inviteCode}`);
 
+    const requestBody = { inviteCode };
+    console.log('📤 Request Body:', JSON.stringify(requestBody));
+
     try {
         const response = await api.post(
             `/child/${targetId}/hospital-link`,
-            { inviteCode }
+            requestBody
         );
 
         console.log("✅ Link Success:", response.data);
         return response.data;
-    } catch (error) {
+    } catch (error: any) {
         console.error("❌ registerInviteCode Error:", error);
+        // 에러 응답 상세 정보 출력
+        if (error.response) {
+            console.error("Error Response Data:", error.response.data);
+            console.error("Error Response Status:", error.response.status);
+        }
         throw error;
     }
 };

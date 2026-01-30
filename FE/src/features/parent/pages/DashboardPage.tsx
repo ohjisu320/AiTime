@@ -78,10 +78,11 @@ const DashboardPage = () => {
                 // 실패 메시지 (모달 유지)
                 toast.error(response.message || "병원 연동에 실패했습니다.");
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error registering invite code", error);
-            // 실패 시 모달 유지 및 에러 메시지
-            toast.error("병원 연동 중 오류가 발생했습니다.");
+            // 백엔드 에러 메시지 표시
+            const errorMessage = error?.response?.data?.message || "병원 연동 중 오류가 발생했습니다.";
+            toast.error(errorMessage);
         } finally {
             setIsRegistering(false);
         }
@@ -101,11 +102,14 @@ const DashboardPage = () => {
             />
 
             <main className="flex-1 h-screen overflow-y-auto p-8 flex flex-col gap-8">
-                {/* 2. UI Layer: 단순히 Props 전달만 수행 */}
-                <HeroBanner {...heroProps} />
+                {/* HeroBanner - 반응형에서 더 큰 비중 */}
+                <div className="w-full">
+                    <HeroBanner {...heroProps} />
+                </div>
 
                 <section className="flex flex-col xl:flex-row gap-6 w-full max-w-[1350px]">
-                    <div className="flex-1 min-h-[500px]">
+                    {/* GuideVideo - 반응형에서 작은 비중 */}
+                    <div className="flex-1 min-h-[400px] xl:min-h-[500px]">
                         <GuideVideo />
                     </div>
 
