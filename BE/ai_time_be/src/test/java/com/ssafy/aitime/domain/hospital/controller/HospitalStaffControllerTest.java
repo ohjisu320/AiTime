@@ -9,6 +9,7 @@ import com.ssafy.aitime.domain.hospital.entity.Hospital;
 import com.ssafy.aitime.domain.hospital.entity.HospitalStaff;
 import com.ssafy.aitime.domain.hospital.entity.enums.StaffRole;
 import com.ssafy.aitime.domain.hospital.service.HospitalStaffService;
+import com.ssafy.aitime.domain.hospital.service.ReservationService;
 import com.ssafy.aitime.domain.hospital.service.dto.HospitalStaffInfoDTO;
 import com.ssafy.aitime.security.principal.HospitalStaffPrincipal;
 import org.jspecify.annotations.Nullable;
@@ -30,6 +31,8 @@ import org.springframework.web.method.support.ModelAndViewContainer;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import tools.jackson.databind.ObjectMapper;
 
+import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.UUID;
 
@@ -53,6 +56,9 @@ class HospitalStaffControllerTest {
     @MockitoBean
     private HospitalStaffService hospitalStaffService;
 
+    @MockitoBean
+    private ReservationService reservationService;
+
     // 테스트용 고정 ID
     private static final UUID TEST_STAFF_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
 
@@ -75,6 +81,8 @@ class HospitalStaffControllerTest {
                                                         NativeWebRequest webRequest,
                                                         @Nullable WebDataBinderFactory binderFactory) {
                     Hospital hospital = Hospital.builder().name("테스트병원").build();
+                    ReflectionTestUtils.setField(hospital, "hospitalId", UUID.fromString("22222222-2222-2222-2222-222222222222"));
+
                     HospitalStaff staff = HospitalStaff.builder()
                             .loginId("testStaff")
                             .staffRole(StaffRole.DESK)
@@ -237,5 +245,120 @@ class HospitalStaffControllerTest {
                 .andExpect(jsonPath("$.message").value("로그아웃 되었습니다."));
 
         verify(hospitalStaffService, times(1)).logout(isNull(), isNull());
+    }
+
+
+// 기존 테스트 메서드들 아래에 추가
+
+    @Test
+    @DisplayName("캘린더 인디케이터 정보를 조회하면 200 상태코드와 날짜 목록을 반환한다")
+    void getReservationDates_Success() throws Exception {
+        // given
+        YearMonth yearMonth = YearMonth.of(2026, 1);
+
+        List<LocalDate> dates = List.of(
+                LocalDate.of(2026, 1, 5),
+                LocalDate.of(2026, 1, 12),
+                LocalDate.of(2026, 1, 20),
+                LocalDate.of(2026, 1, 21)
+        );
+
+        given(reservationService.getHospitalReservationDates(any(UUID.class), eq(yearMonth)))
+                .willReturn(dates);
+
+        // when & then
+        mockMvc.perform(get("/hospital-staff/calendar")
+                        .param("yearMonth", "2026-01"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("200 OK"))
+                .andExpect(jsonPath("$.message").value("달력 인디케이터 조회가 완료되었습니다."))
+                .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.data.length()").value(4))
+                .andExpect(jsonPath("$.data[0]").value("2026-01-05"))
+                .andExpect(jsonPath("$.data[1]").value("2026-01-12"))
+                .andExpect(jsonPath("$.data[2]").value("2026-01-20"))
+                .andExpect(jsonPath("$.data[3]").value("2026-01-21"));
+    }
+
+    @Test
+    @DisplayName("예약이 없는 월은 200 상태코드와 빈 배열을 반환한다")
+    void getReservationDates_EmptyResult() throws Exception {
+        // given
+        YearMonth yearMonth = YearMonth.of(2026, 12);
+
+        given(reservationService.getHospitalReservationDates(any(UUID.class), eq(yearMonth)))
+                .willReturn(List.of());
+
+        // when & then
+        mockMvc.perform(get("/hospital-staff/calendar")
+                        .param("yearMonth", "2026-12"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("200 OK"))
+                .andExpect(jsonPath("$.message").value("달력 인디케이터 조회가 완료되었습니다."))
+                .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.data.length()").value(0));
+    }
+
+    @Test
+    @DisplayName("인증된 사용자의 병원 ID로 캘린더를 조회한다")
+    void getReservationDates_UsesAuthenticatedHospitalId() throws Exception {
+        // given
+        YearMonth yearMonth = YearMonth.of(2026, 1);
+        UUID expectedHospitalId = UUID.fromString("22222222-2222-2222-2222-222222222222");
+
+        given(reservationService.getHospitalReservationDates(eq(expectedHospitalId), eq(yearMonth)))
+                .willReturn(List.of());
+
+        // when
+        mockMvc.perform(get("/hospital-staff/calendar")
+                        .param("yearMonth", "2026-01"))
+                .andExpect(status().isOk());
+
+        // then
+        verify(reservationService, times(1))
+                .getHospitalReservationDates(eq(expectedHospitalId), eq(yearMonth));
+    }
+
+    @Test
+    @DisplayName("잘못된 yearMonth 형식은 400 Bad Request를 반환한다")
+    void getReservationDates_InvalidYearMonthFormat() throws Exception {
+        // when & then
+        mockMvc.perform(get("/hospital-staff/calendar")
+                        .param("yearMonth", "invalid-format"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("yearMonth 파라미터가 누락되면 400 Bad Request를 반환한다")
+    void getReservationDates_MissingYearMonth() throws Exception {
+        // when & then
+        mockMvc.perform(get("/hospital-staff/calendar"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("다양한 월에 대해 정상적으로 조회한다")
+    void getReservationDates_VariousMonths() throws Exception {
+        // given - 2월
+        YearMonth feb = YearMonth.of(2026, 2);
+        given(reservationService.getHospitalReservationDates(any(UUID.class), eq(feb)))
+                .willReturn(List.of(LocalDate.of(2026, 2, 14)));
+
+        // when & then - 2월
+        mockMvc.perform(get("/hospital-staff/calendar")
+                        .param("yearMonth", "2026-02"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0]").value("2026-02-14"));
+
+        // given - 12월
+        YearMonth dec = YearMonth.of(2026, 12);
+        given(reservationService.getHospitalReservationDates(any(UUID.class), eq(dec)))
+                .willReturn(List.of(LocalDate.of(2026, 12, 25)));
+
+        // when & then - 12월
+        mockMvc.perform(get("/hospital-staff/calendar")
+                        .param("yearMonth", "2026-12"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0]").value("2026-12-25"));
     }
 }
