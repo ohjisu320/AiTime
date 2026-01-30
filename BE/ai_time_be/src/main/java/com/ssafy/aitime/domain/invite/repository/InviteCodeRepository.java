@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -34,5 +35,21 @@ public interface InviteCodeRepository extends JpaRepository<InviteCode, UUID> {
     List<InviteCode> findUnregisteredPatientsByHospitalAndDate(
             @Param("hospitalId") UUID hospitalId,
             @Param("targetDate") LocalDate targetDate
+    );
+
+    @Query("""
+        SELECT DISTINCT CAST(ic.scheduledAt AS date)
+        FROM InviteCode ic
+        JOIN ic.hospitalStaff hs
+        WHERE hs.hospital.hospitalId = :hospitalId
+        AND ic.inviteCodeStatus = 'ISSUED'
+        AND ic.scheduledAt >= :startOfMonth
+        AND ic.scheduledAt < :endOfMonth
+        ORDER BY CAST(ic.scheduledAt AS date) ASC
+    """)
+    List<LocalDate> findScheduledDatesByHospitalAndMonth(
+            @Param("hospitalId") UUID hospitalId,
+            @Param("startOfMonth") LocalDateTime startOfMonth,
+            @Param("endOfMonth") LocalDateTime endOfMonth
     );
 }
