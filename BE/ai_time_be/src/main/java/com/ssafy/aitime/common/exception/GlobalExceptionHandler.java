@@ -22,7 +22,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
-import tools.jackson.databind.exc.MismatchedInputException;
+import com.fasterxml.jackson.databind.exc.MismatchedInputException;
+
 
 import java.util.Collections;
 import java.util.stream.Collectors;
@@ -271,7 +272,9 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler({
             InvalidVideoTypeException.class,
-            InvalidExamIdFormatException.class
+            InvalidExamIdFormatException.class,
+            S3KeyMismatchException.class,
+            InvalidVideoStatusException.class
     })
     public ResponseEntity<ApiResponse<Object>> handleExamBadRequestException(RuntimeException e){
         return ResponseEntity
@@ -298,7 +301,7 @@ public class GlobalExceptionHandler {
      * 검사 상태 CONFLICT (409)
      */
     @ExceptionHandler({
-            ExamStatusNotAllowedException.class  // 추가
+            ExamStatusNotAllowedException.class
     })
     public ResponseEntity<ApiResponse<Object>> handleExamConflictException(RuntimeException e){
         return ResponseEntity
@@ -307,14 +310,26 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * S3 업로드 관련 INTERNAL_SERVER_ERROR (500)
+     * S3 업로드/검증 관련 INTERNAL_SERVER_ERROR (500)
+     * - S3 업로드 실패
+     * - S3 파일 검증 실패 (신규)
      */
     @ExceptionHandler({
-            S3UploadException.class
+            S3UploadException.class,
+            S3FileVerificationException.class
     })
-    public ResponseEntity<ApiResponse<Object>> handleS3UploadException(RuntimeException e){
+    public ResponseEntity<ApiResponse<Object>> handleS3Exception(RuntimeException e){
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.of(HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage(), null));
+    }
+
+    @ExceptionHandler({
+            ExamAccessDeniedException.class
+    })
+    public ResponseEntity<ApiResponse<Object>> handleExamForbiddenException(RuntimeException e){
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(ApiResponse.of(HttpStatus.FORBIDDEN, e.getMessage(), null));
     }
 }

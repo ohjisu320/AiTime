@@ -6,7 +6,7 @@ import java.time.LocalDateTime;
 import java.util.Map;
 
 @Builder
-public record PresignedUrlResponse(
+public record PresignedKeyResponse(
         String videoId,
         String examId,
         String videoType,
