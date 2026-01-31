@@ -5,6 +5,7 @@ import com.ssafy.aitime.common.exception.commonExceptions.InsertFailedException;
 import com.ssafy.aitime.common.exception.commonExceptions.UpdateFailedException;
 import com.ssafy.aitime.common.response.ApiResponse;
 import com.ssafy.aitime.domain.child.exception.ChildAccessDeniedException;
+import com.ssafy.aitime.domain.child.exception.ChildAgeMismatchException;
 import com.ssafy.aitime.domain.child.exception.ChildNotFoundException;
 import com.ssafy.aitime.domain.user.exception.*;
 import com.ssafy.aitime.security.exception.RefreshTokenInvalidException;
