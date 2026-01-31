@@ -60,6 +60,12 @@ dependencies {
     // Jackson (Spring Boot가 관리하는 버전 사용)
     implementation 'com.fasterxml.jackson.core:jackson-databind'
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
+
+    // LiveKit Server SDK 추가
+    implementation 'io.livekit:livekit-server:0.6.1'
+
+    // WebFlux 추가 - FastAPI
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
 }
 
 tasks.named('test') {
