@@ -2,6 +2,7 @@ package com.ssafy.aitime.domain.child.service;
 
 import com.ssafy.aitime.domain.child.dto.request.ChildCreateRequest;
 import com.ssafy.aitime.domain.child.dto.request.ChildDeleteResponse;
+import com.ssafy.aitime.domain.child.dto.response.ChildAgeInfoResponse;
 import com.ssafy.aitime.domain.child.dto.response.ChildHomeResponse;
 import com.ssafy.aitime.domain.child.dto.response.ChildInfoResponse;
 import com.ssafy.aitime.domain.exam.dto.response.ExamStartResponse;
@@ -19,4 +20,5 @@ public interface ChildService {
     List<HospitalResponseDto> getLinkedHospitals(UUID userId, UUID childId);
 
     ExamStartResponse childStartExam(UUID userId, UUID childId, Boolean videoConsent);
+    ChildAgeInfoResponse validateAndGetChildAgeInfo(UUID userId, UUID childId);
 }
