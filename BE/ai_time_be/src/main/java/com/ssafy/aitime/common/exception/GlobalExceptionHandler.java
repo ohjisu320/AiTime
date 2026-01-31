@@ -10,6 +10,9 @@ import com.ssafy.aitime.domain.hospital.exception.*;
 import com.ssafy.aitime.domain.invite.exception.AlreadyIssuedInviteCodeException;
 import com.ssafy.aitime.domain.invite.exception.InviteCodeAlreadyUsedException;
 import com.ssafy.aitime.domain.invite.exception.InviteCodeNotFoundException;
+import com.ssafy.aitime.domain.screening.exception.ActiveScreeningException;
+import com.ssafy.aitime.domain.screening.exception.LiveKitException;
+import com.ssafy.aitime.domain.screening.exception.ScreeningNotFoundException;
 import com.ssafy.aitime.domain.user.exception.*;
 import com.ssafy.aitime.security.exception.RefreshTokenInvalidException;
 import com.ssafy.aitime.security.exception.RefreshTokenMissingException;
@@ -257,4 +260,29 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.of(HttpStatus.CONFLICT, e.getMessage(), null));
 
     }
+
+    /********************************************************************************/
+    /*                        Screening CustomException                              */
+    /********************************************************************************/
+
+    @ExceptionHandler(ScreeningNotFoundException.class)
+    public ResponseEntity<ApiResponse<Object>> handleScreeningNotFoundException(ScreeningNotFoundException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.of(HttpStatus.NOT_FOUND, e.getMessage(), null));
+    }
+
+
+    @ExceptionHandler(ActiveScreeningException.class)
+    public ResponseEntity<ApiResponse<Object>> handleScreeningConflictException(ActiveScreeningException e) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.of(HttpStatus.CONFLICT, e.getMessage(), null));
+    }
+
+
+    @ExceptionHandler(LiveKitException.class)
+    public ResponseEntity<ApiResponse<Object>> handleScreeningInternalServerErrorExceptionException(LiveKitException e) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.of(HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage(), null));
+    }
+
 }
