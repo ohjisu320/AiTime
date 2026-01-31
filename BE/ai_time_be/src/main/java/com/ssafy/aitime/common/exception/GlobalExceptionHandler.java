@@ -204,7 +204,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({
             DoctorNotFoundException.class,
             HospitalNotFoundException.class,
-            HospitalStaffNotFoundException.class
+            HospitalStaffNotFoundException.class,
+            HospitalChildrenNotFoundException.class
     })
     public ResponseEntity<ApiResponse<Object>> handleHospitalNotFoundException(RuntimeException e){
         return ResponseEntity
