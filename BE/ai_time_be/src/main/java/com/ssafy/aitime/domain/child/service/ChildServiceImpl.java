@@ -4,7 +4,6 @@ import com.ssafy.aitime.common.enums.RecordStatus;
 import com.ssafy.aitime.domain.child.dto.request.ChildCreateRequest;
 import com.ssafy.aitime.domain.child.dto.request.ChildDeleteResponse;
 import com.ssafy.aitime.domain.child.dto.response.ChildHomeResponse;
-import com.ssafy.aitime.domain.child.dto.response.ChildHospitalListResponse;
 import com.ssafy.aitime.domain.child.dto.response.ChildInfoResponse;
 import com.ssafy.aitime.domain.exam.dto.response.ExamStartResponse;
 import com.ssafy.aitime.domain.exam.dto.response.ExamSummaryDTO;
@@ -167,7 +166,7 @@ public class ChildServiceImpl implements ChildService{
 
     @Override
     @Transactional(readOnly = true)
-    public ChildHospitalListResponse getLinkedHospitals(UUID userId, UUID childId) {
+    public List<HospitalResponseDto> getLinkedHospitals(UUID userId, UUID childId) {
         // 아이 주체(부모)가 유효한지 확인
         userService.getById(userId);
 
@@ -182,9 +181,7 @@ public class ChildServiceImpl implements ChildService{
         }
 
         // 연동된 병원 리스트 조회
-        List<HospitalResponseDto> hospitalResponseDtoList = hospitalChildrenService.getHospitalResponseDtosByChild(childId);
-
-        return new ChildHospitalListResponse(hospitalResponseDtoList);
+        return hospitalChildrenService.getHospitalResponseDtosByChild(childId);
     }
 
     @Override
