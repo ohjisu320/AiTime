@@ -1,6 +1,7 @@
 package com.ssafy.aitime.domain.hospital.service;
 
 import com.ssafy.aitime.domain.hospital.dto.request.CalendarRequest;
+import com.ssafy.aitime.domain.hospital.dto.request.ReservationCreateRequest;
 import com.ssafy.aitime.domain.hospital.dto.response.CalendarReservationResponse;
 
 import java.util.UUID;
@@ -15,4 +16,5 @@ public interface ReservationService {
      */
     CalendarReservationResponse getReservationDates(UUID doctorId, CalendarRequest calendarRequest);
 
+    void insertReservation(ReservationCreateRequest reservationCreateRequest);
 }
