@@ -1,6 +1,7 @@
 package com.ssafy.aitime.domain.exam.service;
 
 import com.ssafy.aitime.domain.child.entity.Child;
+import com.ssafy.aitime.domain.exam.dto.response.ExamInfoResponse;
 import com.ssafy.aitime.domain.exam.dto.response.ExamStartResponse;
 import com.ssafy.aitime.domain.exam.dto.response.ExamSummaryDTO;
 
@@ -24,4 +25,10 @@ public interface ExamService {
      * @return 생성된 검사 정보
      */
     ExamStartResponse createExam(Child child);
+
+    /**
+     * 검사 진행도 조회 - 4개의 태스크별 영상 업로드 완료 여부 확인
+     * Child 도메인에서 권한 확인 및 개월 수 검증 후 호출됨
+     */
+    ExamInfoResponse getExamInfo(UUID childId, boolean underEighteen);
 }
