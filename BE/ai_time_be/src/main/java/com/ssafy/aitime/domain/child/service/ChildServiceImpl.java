@@ -7,6 +7,7 @@ import com.ssafy.aitime.domain.child.dto.response.ChildHomeResponse;
 import com.ssafy.aitime.domain.child.dto.response.ChildInfoResponse;
 import com.ssafy.aitime.domain.exam.dto.response.ExamStartResponse;
 import com.ssafy.aitime.domain.exam.dto.response.ExamSummaryDTO;
+import com.ssafy.aitime.domain.hospital.dto.request.ReservationCreateRequest;
 import com.ssafy.aitime.domain.hospital.dto.response.HospitalInfoDTO;
 import com.ssafy.aitime.domain.child.entity.Child;
 import com.ssafy.aitime.domain.child.exception.ChildAccessDeniedException;
@@ -16,7 +17,8 @@ import com.ssafy.aitime.domain.exam.service.ExamService;
 import com.ssafy.aitime.domain.hospital.dto.response.HospitalResponseDto;
 import com.ssafy.aitime.domain.hospital.service.HospitalChildrenService;
 import com.ssafy.aitime.domain.hospital.service.HospitalService;
-import com.ssafy.aitime.domain.invite.dto.response.InviteCodeValidationDto;
+import com.ssafy.aitime.domain.hospital.service.ReservationService;
+import com.ssafy.aitime.domain.invite.dto.response.InviteCodeValidationResponse;
 import com.ssafy.aitime.domain.invite.service.InviteCodeService;
 import com.ssafy.aitime.domain.user.entity.User;
 import com.ssafy.aitime.domain.user.service.UserService;
@@ -40,6 +42,7 @@ public class ChildServiceImpl implements ChildService{
     private final HospitalService hospitalService;
     private final InviteCodeService inviteCodeService;
     private final HospitalChildrenService hospitalChildrenService;
+    private final ReservationService reservationService;
 
     @Override
     @Transactional
@@ -147,7 +150,7 @@ public class ChildServiceImpl implements ChildService{
     @Transactional
     public void registerInviteCode(UUID childId, String inviteCode, UUID userId) {
         // 1. 초대 코드 검증 (InviteCodeService에서 DTO로 반환)
-        InviteCodeValidationDto validatedCode = inviteCodeService.validateAndGetInviteCode(inviteCode);
+        InviteCodeValidationResponse validatedCode = inviteCodeService.validateAndGetInviteCode(inviteCode);
 
         // 2. 자녀 소유권 확인 (현재 로그인한 부모의 자녀가 맞는지)
         Child child = childRepository.findByChildIdAndRecordStatus(childId, RecordStatus.ACTIVE)
@@ -158,10 +161,19 @@ public class ChildServiceImpl implements ChildService{
         }
 
         // 3. 병원-자녀 연동 (HospitalService에 위임)
-        hospitalService.linkChildToHospital(childId, validatedCode.getHospitalId());
+        UUID hospital_children_id = hospitalService.linkChildToHospital(childId, validatedCode.hospitalId());
 
         // 4. 초대 코드 사용 처리 (InviteCodeService에서 처리)
         inviteCodeService.markAsUsed(inviteCode);
+
+        // 5. Reservation 테이블에 정보 추가
+        ReservationCreateRequest reservationCreateRequest = ReservationCreateRequest.builder()
+                .hospitalChildrenId(hospital_children_id)
+                .scheduledAt(validatedCode.scheduledAt())
+                .doctorId(validatedCode.doctorId())
+                .build();
+
+        reservationService.insertReservation(reservationCreateRequest);
     }
 
     @Override
