@@ -5,6 +5,7 @@ import com.ssafy.aitime.common.exception.commonExceptions.InsertFailedException;
 import com.ssafy.aitime.common.exception.commonExceptions.UpdateFailedException;
 import com.ssafy.aitime.common.response.ApiResponse;
 import com.ssafy.aitime.domain.child.exception.ChildAccessDeniedException;
+import com.ssafy.aitime.domain.child.exception.ChildAgeMismatchException;
 import com.ssafy.aitime.domain.child.exception.ChildNotFoundException;
 import com.ssafy.aitime.domain.exam.exception.*;
 import com.ssafy.aitime.domain.hospital.exception.*;
@@ -161,6 +162,14 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Object>> handleChildForbiddenException(RuntimeException e){
         return ResponseEntity
                 .status(HttpStatus.FORBIDDEN).body(ApiResponse.of(HttpStatus.FORBIDDEN, e.getMessage(), null));
+    }
+
+    @ExceptionHandler({
+            ChildAgeMismatchException.class
+    })
+    public ResponseEntity<ApiResponse<Object>> handleChildAgeMismatchException(RuntimeException e){
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST).body(ApiResponse.of(HttpStatus.BAD_REQUEST, e.getMessage(), null));
     }
 
 
