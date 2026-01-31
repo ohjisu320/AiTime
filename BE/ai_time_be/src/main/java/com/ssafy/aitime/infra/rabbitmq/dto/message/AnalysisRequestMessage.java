@@ -31,7 +31,7 @@ public class AnalysisRequestMessage {
                 .jobId(video.getExam().getExamId().toString())
                 .taskNo(mapVideoTypeToTaskNo(video.getVideoType()))
                 .ageMonths(ageMonths)
-                .s3Uri(String.format("s3://%s/%s", video.getS3Bucket(), video.getS3Key()))
+                .s3Uri(String.format("s3://%s/%s", video.getS3Bucket(), video.getS3Url()))
                 .build();
     }
 

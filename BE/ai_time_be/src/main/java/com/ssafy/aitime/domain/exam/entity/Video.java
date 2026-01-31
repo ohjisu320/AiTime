@@ -51,8 +51,8 @@ public class Video extends AuditableEntity {
     @Column(name = "s3_bucket", length = 63)
     private String s3Bucket;
 
-    @Column(name = "s3_key", nullable = false, length = 255)
-    private String s3Key;
+    @Column(name = "s3_url", nullable = false, length = 255)
+    private String s3Url;
 
     @Column(name = "duration_sec")
     private Integer durationSec;
@@ -83,14 +83,14 @@ public class Video extends AuditableEntity {
     private String failReason;
 
     @Builder
-    private Video(Exam exam, VideoType videoType, String s3Bucket, String s3Key,
+    private Video(Exam exam, VideoType videoType, String s3Bucket, String s3Url,
                   Integer durationSec, LocalDateTime recordedAt,
                   VideoStatus videoStatus, AnalysisStatus analysisStatus,
                   String modelVersion, LocalDateTime analysisRequestedAt) {
         this.exam = exam;
         this.videoType = videoType;
         this.s3Bucket = s3Bucket;
-        this.s3Key = s3Key;
+        this.s3Url = s3Url;
         this.durationSec = durationSec;
         this.recordedAt = recordedAt;
         this.videoStatus = (videoStatus == null) ? VideoStatus.PENDING_UPLOAD : videoStatus;
