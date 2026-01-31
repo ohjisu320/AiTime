@@ -3,6 +3,7 @@ package com.ssafy.aitime.domain.hospital.service;
 import com.ssafy.aitime.domain.hospital.dto.response.HospitalInfoDTO;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface HospitalService {
@@ -26,7 +27,7 @@ public interface HospitalService {
      * @param childId 자녀 ID
      * @param hospitalId 병원 ID
      */
-    void linkChildToHospital(UUID childId, UUID hospitalId);
+    UUID linkChildToHospital(UUID childId, UUID hospitalId);
 
     /**
      * 특정 아이가 병원과 연동되어 있는지 확인

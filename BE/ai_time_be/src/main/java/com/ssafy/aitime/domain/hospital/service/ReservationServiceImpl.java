@@ -1,10 +1,14 @@
 package com.ssafy.aitime.domain.hospital.service;
 
 import com.ssafy.aitime.domain.hospital.dto.request.CalendarRequest;
+import com.ssafy.aitime.domain.hospital.dto.request.ReservationCreateRequest;
 import com.ssafy.aitime.domain.hospital.dto.response.CalendarReservationResponse;
+import com.ssafy.aitime.domain.hospital.entity.HospitalChildren;
 import com.ssafy.aitime.domain.hospital.entity.Reservation;
 import com.ssafy.aitime.domain.hospital.entity.enums.ReservationStatus;
 import com.ssafy.aitime.domain.hospital.exception.DoctorNotFoundException;
+import com.ssafy.aitime.domain.hospital.exception.HospitalChildrenNotFoundException;
+import com.ssafy.aitime.domain.hospital.repository.HospitalChildrenRepository;
 import com.ssafy.aitime.domain.hospital.repository.ReservationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +27,7 @@ import java.util.UUID;
 public class ReservationServiceImpl implements ReservationService {
 
     private final ReservationRepository reservationRepository;
+    private final HospitalChildrenRepository hospitalChildrenRepository;
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     /**
@@ -64,6 +69,25 @@ public class ReservationServiceImpl implements ReservationService {
         log.info("Found {} reservation dates for doctor: {}", dates.size(), doctorId);
 
         return CalendarReservationResponse.of(dates);
+    }
+
+    @Transactional
+    @Override
+    public void insertReservation(ReservationCreateRequest request) {
+        // 1. HospitalChildren 조회 (필수!)
+        HospitalChildren hospitalChildren = hospitalChildrenRepository.findById(request.hospitalChildrenId())
+                .orElseThrow(HospitalChildrenNotFoundException::new);
+
+        // 2. Reservation 생성
+        Reservation reservation = Reservation.builder()
+                .hospitalChildren(hospitalChildren)  // 엔티티 객체 전달!
+                .scheduledAt(request.scheduledAt())
+                .doctorId(request.doctorId())
+                // .reservationStatus는 기본값(SCHEDULED)으로 자동 설정됨
+                .build();
+
+        // 4. 저장
+        reservationRepository.save(reservation);
     }
 
     /**

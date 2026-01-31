@@ -2,7 +2,6 @@ package com.ssafy.aitime.domain.invite.service;
 
 import com.ssafy.aitime.domain.invite.dto.request.InviteCodeRequest;
 import com.ssafy.aitime.domain.invite.dto.response.*;
-import com.ssafy.aitime.security.principal.HospitalStaffPrincipal;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -15,7 +14,7 @@ public interface InviteCodeService {
      * @param inviteCode 검증할 초대 코드
      * @return 검증된 초대 코드 정보 (병원 ID, 병원 엔티티)
      */
-    InviteCodeValidationDto validateAndGetInviteCode(String inviteCode);
+    InviteCodeValidationResponse validateAndGetInviteCode(String inviteCode);
 
     /**
      * 초대 코드를 사용 처리합니다.
