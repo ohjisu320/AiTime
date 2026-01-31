@@ -3,7 +3,7 @@ package com.ssafy.aitime.domain.exam.dto.request;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
 
-public record PresignedUrlRequest(
+public record PresignedKeyRequest(
         @NotBlank(message = "videoType은 필수입니다")
         String videoType,
 
@@ -14,7 +14,7 @@ public record PresignedUrlRequest(
         Long contentLength  // 선택: 용량 검증용
 ) {
         // 기본값 설정을 위한 생성자
-        public PresignedUrlRequest {
+        public PresignedKeyRequest {
                 if (contentType == null || contentType.isBlank()) {
                         contentType = "video/mp4";
                 }
