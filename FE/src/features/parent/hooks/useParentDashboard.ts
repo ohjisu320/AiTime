@@ -31,11 +31,14 @@ export const useParentDashboard = () => {
         return MOCK_DATA;
       }
 
-      // Get selected child ID from localStorage
-      const childId = localStorage.getItem('selectedChildId');
+      // Get child ID from localStorage
+      // Priority: manually set 'childId' > profile-selected 'selectedChildId'
+      const childId = localStorage.getItem('childId') || localStorage.getItem('selectedChildId');
 
       if (!childId) {
         console.warn('⚠️ No childId in localStorage. Using TEST_CHILD_ID as fallback for development.');
+      } else {
+        console.log(`✅ Using childId from localStorage: ${childId}`);
       }
 
       // fetchChildHomeInfo가 이미 linkedHospitals를 포함하고 있으므로
