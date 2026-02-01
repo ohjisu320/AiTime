@@ -3,11 +3,13 @@ package com.ssafy.aitime.domain.child.service;
 import com.ssafy.aitime.common.enums.RecordStatus;
 import com.ssafy.aitime.domain.child.dto.request.ChildCreateRequest;
 import com.ssafy.aitime.domain.child.dto.request.ChildDeleteResponse;
+import com.ssafy.aitime.domain.child.dto.response.ChildAgeInfoResponse;
 import com.ssafy.aitime.domain.child.dto.response.ChildHomeResponse;
-import com.ssafy.aitime.domain.child.dto.response.ChildHospitalListResponse;
 import com.ssafy.aitime.domain.child.dto.response.ChildInfoResponse;
+import com.ssafy.aitime.domain.child.exception.ChildAgeMismatchException;
 import com.ssafy.aitime.domain.exam.dto.response.ExamStartResponse;
 import com.ssafy.aitime.domain.exam.dto.response.ExamSummaryDTO;
+import com.ssafy.aitime.domain.hospital.dto.request.ReservationCreateRequest;
 import com.ssafy.aitime.domain.hospital.dto.response.HospitalInfoDTO;
 import com.ssafy.aitime.domain.child.entity.Child;
 import com.ssafy.aitime.domain.child.exception.ChildAccessDeniedException;
@@ -17,7 +19,8 @@ import com.ssafy.aitime.domain.exam.service.ExamService;
 import com.ssafy.aitime.domain.hospital.dto.response.HospitalResponseDto;
 import com.ssafy.aitime.domain.hospital.service.HospitalChildrenService;
 import com.ssafy.aitime.domain.hospital.service.HospitalService;
-import com.ssafy.aitime.domain.invite.dto.response.InviteCodeValidationDto;
+import com.ssafy.aitime.domain.hospital.service.ReservationService;
+import com.ssafy.aitime.domain.invite.dto.response.InviteCodeValidationResponse;
 import com.ssafy.aitime.domain.invite.service.InviteCodeService;
 import com.ssafy.aitime.domain.user.entity.User;
 import com.ssafy.aitime.domain.user.service.UserService;
@@ -41,6 +44,7 @@ public class ChildServiceImpl implements ChildService{
     private final HospitalService hospitalService;
     private final InviteCodeService inviteCodeService;
     private final HospitalChildrenService hospitalChildrenService;
+    private final ReservationService reservationService;
 
     @Override
     @Transactional
@@ -148,7 +152,7 @@ public class ChildServiceImpl implements ChildService{
     @Transactional
     public void registerInviteCode(UUID childId, String inviteCode, UUID userId) {
         // 1. 초대 코드 검증 (InviteCodeService에서 DTO로 반환)
-        InviteCodeValidationDto validatedCode = inviteCodeService.validateAndGetInviteCode(inviteCode);
+        InviteCodeValidationResponse validatedCode = inviteCodeService.validateAndGetInviteCode(inviteCode);
 
         // 2. 자녀 소유권 확인 (현재 로그인한 부모의 자녀가 맞는지)
         Child child = childRepository.findByChildIdAndRecordStatus(childId, RecordStatus.ACTIVE)
@@ -159,15 +163,24 @@ public class ChildServiceImpl implements ChildService{
         }
 
         // 3. 병원-자녀 연동 (HospitalService에 위임)
-        hospitalService.linkChildToHospital(childId, validatedCode.getHospitalId());
+        UUID hospital_children_id = hospitalService.linkChildToHospital(childId, validatedCode.hospitalId());
 
         // 4. 초대 코드 사용 처리 (InviteCodeService에서 처리)
         inviteCodeService.markAsUsed(inviteCode);
+
+        // 5. Reservation 테이블에 정보 추가
+        ReservationCreateRequest reservationCreateRequest = ReservationCreateRequest.builder()
+                .hospitalChildrenId(hospital_children_id)
+                .scheduledAt(validatedCode.scheduledAt())
+                .doctorId(validatedCode.doctorId())
+                .build();
+
+        reservationService.insertReservation(reservationCreateRequest);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public ChildHospitalListResponse getLinkedHospitals(UUID userId, UUID childId) {
+    public List<HospitalResponseDto> getLinkedHospitals(UUID userId, UUID childId) {
         // 아이 주체(부모)가 유효한지 확인
         userService.getById(userId);
 
@@ -182,9 +195,7 @@ public class ChildServiceImpl implements ChildService{
         }
 
         // 연동된 병원 리스트 조회
-        List<HospitalResponseDto> hospitalResponseDtoList = hospitalChildrenService.getHospitalResponseDtosByChild(childId);
-
-        return new ChildHospitalListResponse(hospitalResponseDtoList);
+        return hospitalChildrenService.getHospitalResponseDtosByChild(childId);
     }
 
     @Override
@@ -206,6 +217,42 @@ public class ChildServiceImpl implements ChildService{
 
         // 4. ExamService에 Child 엔티티 전달하여 검사 생성
         return examService.createExam(child);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ChildAgeInfoResponse validateAndGetChildAgeInfo(UUID userId, UUID childId) {
+        // 1. Child 조회 및 권한 확인
+        Child child = childRepository.findByChildIdAndRecordStatus(childId, RecordStatus.ACTIVE)
+                .orElseThrow(() -> new ChildNotFoundException());
+
+        if (!child.getUser().getUserId().equals(userId)) {
+            throw new ChildAccessDeniedException();
+        }
+
+        // 2. 개월 수 계산 및 검사 가능 범위 확인
+        long ageInMonths = calculateAgeInMonths(child.getBirthdate());
+        if (ageInMonths < 12 || ageInMonths >= 24) {
+            throw new ChildAgeMismatchException(
+                    "검사는 12개월 이상 24개월 미만의 아이만 가능합니다. (현재: " + ageInMonths + "개월)"
+            );
+        }
+
+        boolean underEighteen = ageInMonths < 18;
+
+        // 3. DTO 반환 (Exam 도메인에서 사용)
+        return ChildAgeInfoResponse.builder()
+                .childId(childId)
+                .ageInMonths(ageInMonths)
+                .underEighteen(underEighteen)
+                .build();
+    }
+
+    /**
+     * 생년월일로부터 개월 수 계산
+     */
+    private long calculateAgeInMonths(LocalDate birthdate) {
+        return ChronoUnit.MONTHS.between(birthdate, LocalDate.now());
     }
 
 }

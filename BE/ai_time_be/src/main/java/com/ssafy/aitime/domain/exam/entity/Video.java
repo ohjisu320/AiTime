@@ -104,9 +104,8 @@ public class Video extends AuditableEntity {
     /**
      * S3 업로드 완료 처리
      */
-    public void markUploaded(Integer durationSec) {
+    public void markUploaded() {
         this.videoStatus = VideoStatus.UPLOADED;
-        this.durationSec = durationSec;
         this.recordedAt = LocalDateTime.now();
     }
 

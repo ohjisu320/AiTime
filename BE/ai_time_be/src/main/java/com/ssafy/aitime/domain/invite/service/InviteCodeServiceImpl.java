@@ -17,7 +17,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.nio.file.AccessDeniedException;
 import java.security.SecureRandom;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -37,7 +36,7 @@ public class InviteCodeServiceImpl implements InviteCodeService {
 
     @Override
     @Transactional(readOnly = true)
-    public InviteCodeValidationDto validateAndGetInviteCode(String inviteCode) {
+    public InviteCodeValidationResponse validateAndGetInviteCode(String inviteCode) {
         // 1. 초대 코드 조회
         InviteCode codeEntity = inviteCodeRepository.findByInviteCode(inviteCode)
                 .orElseThrow(InviteCodeNotFoundException::new);
@@ -48,9 +47,11 @@ public class InviteCodeServiceImpl implements InviteCodeService {
         }
 
         // 3. 필요한 정보만 DTO로 변환하여 반환
-        return InviteCodeValidationDto.from(
+        return InviteCodeValidationResponse.from(
                 codeEntity.getInviteCode(),
-                codeEntity.getHospitalStaff().getHospital()
+                codeEntity.getHospitalStaff().getHospital(),
+                codeEntity.getScheduledAt(),
+                codeEntity.getDoctorId()
         );
     }
 

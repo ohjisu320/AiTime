@@ -1,14 +1,19 @@
 package com.ssafy.aitime.domain.exam.service;
 
+import com.ssafy.aitime.domain.child.dto.response.ChildAgeInfoResponse;
 import com.ssafy.aitime.domain.child.entity.Child;
 import com.ssafy.aitime.domain.child.entity.enums.ChildHomeStatus;
+import com.ssafy.aitime.domain.child.service.ChildService;
+import com.ssafy.aitime.domain.exam.dto.response.ExamInfoResponse;
 import com.ssafy.aitime.domain.exam.dto.response.ExamStartResponse;
 import com.ssafy.aitime.domain.exam.dto.response.ExamSummaryDTO;
 import com.ssafy.aitime.domain.exam.entity.Exam;
 import com.ssafy.aitime.domain.exam.entity.Video;
 import com.ssafy.aitime.domain.exam.entity.enums.ExamStatus;
 import com.ssafy.aitime.domain.exam.entity.enums.VideoStatus;
+import com.ssafy.aitime.domain.exam.entity.enums.VideoType;
 import com.ssafy.aitime.domain.exam.exception.ExamNotEligibleException;
+import com.ssafy.aitime.domain.exam.exception.ExamNotFoundException;
 import com.ssafy.aitime.domain.exam.repository.ExamRepository;
 import com.ssafy.aitime.domain.exam.repository.VideoRepository;
 import com.ssafy.aitime.domain.hospital.service.HospitalService;
@@ -18,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -86,9 +92,7 @@ public class ExamServiceImpl implements ExamService {
         // 2. 검사 시작 가능 상태인지 확인 (AVAILABLE 또는 AVAILABLE_EXPIRED만 허용)
         if (!(currentStatus == ChildHomeStatus.AVAILABLE
                 || currentStatus == ChildHomeStatus.AVAILABLE_EXPIRED)) {
-            throw new ExamNotEligibleException(
-                    String.format("현재 검사를 시작할 수 없는 상태입니다. 현재 상태: %s", currentStatus)
-            );
+            throw new ExamNotEligibleException();
         }
 
         // 3. AVAILABLE_EXPIRED인 경우, 기존 IN_PROGRESS 검사를 삭제 (만료된 데이터 정리)
@@ -164,5 +168,55 @@ public class ExamServiceImpl implements ExamService {
         return (int) videos.stream()
                 .filter(v -> v.getVideoStatus() == VideoStatus.UPLOADED)
                 .count();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ExamInfoResponse getExamInfo(UUID childId, boolean underEighteen) {
+        // 1. 가장 최신 검사 조회
+        Exam latestExam = examRepository.findFirstByChild_ChildIdOrderByCreatedAtDesc(childId)
+                .orElseThrow(() -> new ExamNotFoundException());
+
+        // 2. 해당 검사의 모든 비디오 조회
+        List<Video> videos = videoRepository.findByExamExamId(latestExam.getExamId());
+
+        // 3. VideoType별로 매핑
+        List<ExamInfoResponse.VideoTaskInfo> videoTasks = new ArrayList<>();
+
+        addVideoTaskInfo(videoTasks, VideoType.POSE_IMITATION, videos);
+        addVideoTaskInfo(videoTasks, VideoType.SPEECH_IMITATION, videos);
+        addVideoTaskInfo(videoTasks, VideoType.NAME_FACING, videos);
+        addVideoTaskInfo(videoTasks, VideoType.NAME_NON_FACING, videos);
+
+        // 5. 응답 생성
+        return ExamInfoResponse.builder()
+                .examId(latestExam.getExamId().toString())
+                .underEighteen(underEighteen)
+                .status(latestExam.getExamStatus())
+                .videoTasks(videoTasks)
+                .build();
+    }
+
+    private void addVideoTaskInfo(List<ExamInfoResponse.VideoTaskInfo> videoTasks,
+                                  VideoType videoType,
+                                  List<Video> videos) {
+        Video video = videos.stream()
+                .filter(v -> v.getVideoType() == videoType)
+                .findFirst()
+                .orElse(null);
+
+        if (video != null && video.getVideoStatus() == VideoStatus.UPLOADED) {
+            videoTasks.add(ExamInfoResponse.VideoTaskInfo.builder()
+                    .videoType(videoType.name())  // VideoType enum 이름 그대로 사용
+                    .status("UPLOADED")
+                    .videoId(video.getVideoId().toString())
+                    .build());
+        } else {
+            videoTasks.add(ExamInfoResponse.VideoTaskInfo.builder()
+                    .videoType(videoType.name())  // VideoType enum 이름 그대로 사용
+                    .status("EMPTY")
+                    .videoId(null)
+                    .build());
+        }
     }
 }
