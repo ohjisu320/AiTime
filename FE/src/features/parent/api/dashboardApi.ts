@@ -29,6 +29,7 @@ export interface ChildHomeResponse {
     message: string;
     data: {
         childId: string;
+        examId: string | null;             // ✅ 추가: 현재 진행 중인 검사 ID
         name: string;
         gender: 'MALE' | 'FEMALE';
         examStartedAt: string | null;      // ✅ 추가
