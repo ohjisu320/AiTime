@@ -10,6 +10,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -22,7 +24,92 @@ class HospitalStaffRepositoryTest {
     private HospitalStaffRepository hospitalStaffRepository;
 
     @Autowired
+    private HospitalRepository hospitalRepository;
+
+    @Autowired
     private EntityManager em;
+
+    @Test
+    @DisplayName("loginId와 RecordStatus로 병원 직원을 조회할 수 있다")
+    void findByLoginIdAndRecordStatus() {
+        // given
+        Hospital hospital = Hospital.builder()
+                .hospitalCode("HOSP-001")
+                .name("서울병원")
+                .address("서울시 강남구")
+                .phoneNumber("02-1234-5678")
+                .build();
+        hospitalRepository.save(hospital);
+
+        HospitalStaff staff = HospitalStaff.builder()
+                .hospital(hospital)
+                .loginId("doctor01")
+                .password("encodedPassword")
+                .name("김의사")
+                .email("doctor@hospital.com")
+                .phoneNumber("010-1234-5678")
+                .staffRole(StaffRole.DOCTOR)
+                .recordStatus(RecordStatus.ACTIVE)
+                .build();
+        hospitalStaffRepository.save(staff);
+
+        em.flush();
+        em.clear();
+
+        // when
+        Optional<HospitalStaff> result = hospitalStaffRepository
+                .findByLoginIdAndRecordStatus("doctor01", RecordStatus.ACTIVE);
+
+        // then
+        assertThat(result).isPresent();
+        assertThat(result.get().getLoginId()).isEqualTo("doctor01");
+        assertThat(result.get().getName()).isEqualTo("김의사");
+        assertThat(result.get().getStaffRole()).isEqualTo(StaffRole.DOCTOR);
+    }
+
+    @Test
+    @DisplayName("삭제된(DELETED) 직원은 조회되지 않는다")
+    void findByLoginIdAndRecordStatus_Deleted() {
+        // given
+        Hospital hospital = Hospital.builder()
+                .hospitalCode("HOSP-002")
+                .name("서울병원")
+                .address("서울시 강남구")
+                .phoneNumber("02-1234-5678")
+                .build();
+        hospitalRepository.save(hospital);
+
+        HospitalStaff staff = HospitalStaff.builder()
+                .hospital(hospital)
+                .loginId("deleted_doctor")
+                .password("encodedPassword")
+                .name("퇴사의사")
+                .staffRole(StaffRole.DOCTOR)
+                .recordStatus(RecordStatus.DELETED)
+                .build();
+        hospitalStaffRepository.save(staff);
+
+        em.flush();
+        em.clear();
+
+        // when
+        Optional<HospitalStaff> result = hospitalStaffRepository
+                .findByLoginIdAndRecordStatus("deleted_doctor", RecordStatus.ACTIVE);
+
+        // then
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 loginId로 조회하면 빈 Optional을 반환한다")
+    void findByLoginIdAndRecordStatus_NotFound() {
+        // when
+        Optional<HospitalStaff> result = hospitalStaffRepository
+                .findByLoginIdAndRecordStatus("nonexistent", RecordStatus.ACTIVE);
+
+        // then
+        assertThat(result).isEmpty();
+    }
 
     @Test
     @DisplayName("DOCTOR 역할과 ACTIVE 상태의 직원이 존재하면 true 반환")
@@ -265,5 +352,36 @@ class HospitalStaffRepositoryTest {
                 .build();
         em.persist(staff);
         return staff;
+    }
+
+    @Test
+    @DisplayName("특정 병원에 소속된 ACTIVE 상태의 의사들만 조회한다")
+    void findAllByHospital_HospitalIdAndStaffRoleAndRecordStatus_Success() {
+        // given
+        Hospital hospital1 = persistHospital("H1", "병원1", "주소", "02-1", RecordStatus.ACTIVE);
+        Hospital hospital2 = persistHospital("H2", "병원2", "주소", "02-2", RecordStatus.ACTIVE);
+
+        // 병원 1의 의사들
+        persistHospitalStaff(hospital1, "doc1", "박의사", "pw", StaffRole.DOCTOR, RecordStatus.ACTIVE);
+        persistHospitalStaff(hospital1, "doc2", "김의사", "pw", StaffRole.DOCTOR, RecordStatus.ACTIVE);
+
+        // 병원 1의 데스크 (조회되면 안됨)
+        persistHospitalStaff(hospital1, "desk1", "접수원", "pw", StaffRole.DESK, RecordStatus.ACTIVE);
+
+        // 병원 2의 의사 (조회되면 안됨)
+        persistHospitalStaff(hospital2, "doc3", "남의병원 의사", "pw", StaffRole.DOCTOR, RecordStatus.ACTIVE);
+
+        em.flush();
+        em.clear();
+
+        // when
+        List<HospitalStaff> results = hospitalStaffRepository
+                .findAllByHospital_HospitalIdAndStaffRoleAndRecordStatus(
+                        hospital1.getHospitalId(), StaffRole.DOCTOR, RecordStatus.ACTIVE);
+
+        // then
+        assertThat(results).hasSize(2);
+        assertThat(results).extracting("name").containsExactlyInAnyOrder("박의사", "김의사");
+        assertThat(results).extracting("hospital.hospitalId").containsOnly(hospital1.getHospitalId());
     }
 }

@@ -53,9 +53,8 @@ public class HospitalServiceImpl implements HospitalService {
                 );
     }
 
-    @Override
     @Transactional
-    public void linkChildToHospital(UUID childId, UUID hospitalId) {
+    public UUID linkChildToHospital(UUID childId, UUID hospitalId) {
         // 1. 중복 연동 확인
         if (isAlreadyLinked(childId, hospitalId)) {
             throw new HospitalAlreadyLinkedException();
@@ -77,5 +76,16 @@ public class HospitalServiceImpl implements HospitalService {
                 .build();
 
         hospitalChildrenRepository.save(link);
+
+        return link.getHospitalChildrenId();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean hasLinkedHospital(UUID childId) {
+        return hospitalChildrenRepository.existsByChild_ChildIdAndLinkStatus(
+                childId,
+                LinkStatus.ACTIVE
+        );
     }
 }

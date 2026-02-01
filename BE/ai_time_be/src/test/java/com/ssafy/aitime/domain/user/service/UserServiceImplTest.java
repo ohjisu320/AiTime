@@ -51,7 +51,7 @@ class UserServiceImplTest {
     @Mock
     private PasswordEncoder passwordEncoder;
     @Mock
-    private AuthenticationManager authenticationManager;
+    private AuthenticationManager userAuthenticationManager;
     @Mock
     private JwtTokenProvider jwtTokenProvider;
     @Mock
@@ -77,10 +77,13 @@ class UserServiceImplTest {
         UserLoginRequest request = new UserLoginRequest("testUser", "password123");
         Authentication auth = mock(Authentication.class);
 
-        when(authenticationManager.authenticate(any())).thenReturn(auth);
+        when(userAuthenticationManager.authenticate(any())).thenReturn(auth);
         when(auth.getPrincipal()).thenReturn(principal);
-        when(jwtTokenProvider.createAccessToken(anyString(), anyString())).thenReturn("access-token");
-        when(jwtTokenProvider.createRefreshToken(anyString())).thenReturn("refresh-token");
+
+        when(jwtTokenProvider.createAccessToken(anyString(), anyString(), eq("USER")))
+                .thenReturn("access-token");
+        when(jwtTokenProvider.createRefreshToken(anyString(), eq("USER")))
+                .thenReturn("refresh-token");
 
         // when
         TokenResponse response = userService.login(request);
@@ -95,7 +98,8 @@ class UserServiceImplTest {
     @DisplayName("비밀번호 불일치 시 InvalidPasswordException이 발생한다")
     void loginFailByPassword() {
         // given
-        when(authenticationManager.authenticate(any())).thenThrow(new BadCredentialsException("wrong password"));
+        when(userAuthenticationManager.authenticate(any()))
+                .thenThrow(new BadCredentialsException("wrong password"));
 
         // when & then
         assertThatThrownBy(() -> userService.login(new UserLoginRequest("id", "wrong")))

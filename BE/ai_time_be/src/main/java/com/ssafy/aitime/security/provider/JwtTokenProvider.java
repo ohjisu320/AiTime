@@ -1,5 +1,6 @@
 package com.ssafy.aitime.security.provider;
 
+import com.ssafy.aitime.security.service.CustomHospitalStaffDetailsService;
 import com.ssafy.aitime.security.service.CustomUserDetailsService;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
@@ -22,6 +23,7 @@ import java.util.Date;
 public class JwtTokenProvider {
 
     private final CustomUserDetailsService userDetailsService;
+    private final CustomHospitalStaffDetailsService staffDetailsService;
 
     @Value("${jwt.secret}")
     private String secretKey;
@@ -46,23 +48,24 @@ public class JwtTokenProvider {
     /**
      * Access Token 생성 (email + role 포함)
      */
-    public String createAccessToken(String loginId, String role) {
-        return buildToken(loginId, role, accessTokenExpirationMillis, true);
+    public String createAccessToken(String loginId, String role, String type) {
+        return buildToken(loginId, role, type, accessTokenExpirationMillis, true);
     }
 
     /**
      * Refresh Token 생성 (email만 포함)
      */
-    public String createRefreshToken(String loginId) {
-        return buildToken(loginId, null, refreshTokenExpirationMillis, false);
+    public String createRefreshToken(String loginId, String type) {
+        return buildToken(loginId, null, type, refreshTokenExpirationMillis, false);
     }
 
-    private String buildToken(String loginId, String role, long validityMillis, boolean includeRole) {
+    private String buildToken(String loginId, String role, String type, long validityMillis, boolean includeRole) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + validityMillis);
 
         JwtBuilder builder = Jwts.builder()
                 .setSubject(loginId)
+                .claim("type", type)
                 .setIssuedAt(now)
                 .setExpiration(expiry)
                 .signWith(key, SignatureAlgorithm.HS256);
@@ -106,12 +109,25 @@ public class JwtTokenProvider {
         return parseClaims(token).getSubject();
     }
 
+    // 타입 추출 메서드
+    public String getUserType(String token) {
+        return parseClaims(token).get("type", String.class);
+    }
     /**
      * 토큰 → Authentication (스프링 시큐리티에서 인증객체로 사용)
      */
     public Authentication getAuthentication(String token) {
-        String loginId = getLoginId(token);
-        UserDetails userDetails = userDetailsService.loadUserByUsername(loginId);
+        Claims claims = parseClaims(token);
+        String loginId = claims.getSubject();
+        String type = claims.get("type", String.class);
+
+        // type에 따라 적절한 UserDetailsService 선택
+        UserDetails userDetails;
+        if ("STAFF".equals(type)) {
+            userDetails = staffDetailsService.loadUserByUsername(loginId);
+        } else {
+            userDetails = userDetailsService.loadUserByUsername(loginId);
+        }
 
         return new UsernamePasswordAuthenticationToken(
                 userDetails,

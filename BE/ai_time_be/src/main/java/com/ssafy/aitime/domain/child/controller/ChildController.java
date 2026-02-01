@@ -5,9 +5,11 @@ import com.ssafy.aitime.domain.child.dto.request.ChildCreateRequest;
 import com.ssafy.aitime.domain.child.dto.request.ChildDeleteResponse;
 import com.ssafy.aitime.domain.child.dto.request.ChildHospitalLinkRequest;
 import com.ssafy.aitime.domain.child.dto.response.ChildHomeResponse;
-import com.ssafy.aitime.domain.child.dto.response.ChildHospitalListResponse;
 import com.ssafy.aitime.domain.child.dto.response.ChildInfoResponse;
 import com.ssafy.aitime.domain.child.service.ChildService;
+import com.ssafy.aitime.domain.exam.dto.request.ExamStartRequest;
+import com.ssafy.aitime.domain.exam.dto.response.ExamStartResponse;
+import com.ssafy.aitime.domain.hospital.dto.response.HospitalResponseDto;
 import com.ssafy.aitime.security.principal.UserPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -76,11 +78,21 @@ public class ChildController {
     }
 
     @GetMapping("/{childId}/hospital-list")
-    public ResponseEntity<ApiResponse<ChildHospitalListResponse>> getHospitalList(
+    public ResponseEntity<ApiResponse<List<HospitalResponseDto>>> getHospitalList(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable @NotNull UUID childId
     ) {
         return ResponseEntity.ok(
                 ApiResponse.ok("연동된 병원 목록 조회가 완료되었습니다.", childService.getLinkedHospitals(principal.getUserId(),childId)));
+    }
+
+    @PostMapping("/{childId}/exam")
+    public ResponseEntity<ApiResponse<ExamStartResponse>> startExam(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable @NotNull UUID childId,
+            @Valid @RequestBody ExamStartRequest request
+    ) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.created("검사가 생성되었습니다.", childService.childStartExam(principal.getUserId(), childId, request.videoConsent())));
     }
 }

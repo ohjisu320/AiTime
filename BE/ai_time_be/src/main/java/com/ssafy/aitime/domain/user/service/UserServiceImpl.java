@@ -18,6 +18,7 @@ import com.ssafy.aitime.security.entity.RefreshToken;
 import com.ssafy.aitime.security.principal.UserPrincipal;
 import com.ssafy.aitime.security.provider.JwtTokenProvider;
 import com.ssafy.aitime.security.repository.RefreshTokenRepository;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -37,7 +38,9 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
 
-    private final AuthenticationManager authenticationManager;
+    @Qualifier("userAuthenticationManager")
+    private final AuthenticationManager userAuthenticationManager;
+
     private final JwtTokenProvider jwtTokenProvider;
     private final StringRedisTemplate redisTemplate;
     private final PasswordEncoder passwordEncoder;
@@ -61,8 +64,8 @@ public class UserServiceImpl implements UserService {
         String name = userPrincipal.getName();
         UserRole role = userPrincipal.getUserRole();
 
-        String accessToken = jwtTokenProvider.createAccessToken(loginId, role.toString());
-        String refreshToken = jwtTokenProvider.createRefreshToken(loginId);
+        String accessToken = jwtTokenProvider.createAccessToken(loginId, role.toString(), "USER");
+        String refreshToken = jwtTokenProvider.createRefreshToken(loginId, "USER");
 
         // 레디스에 id와
         RefreshToken rf = RefreshToken.builder()
@@ -106,8 +109,8 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findByLoginIdAndRecordStatus(loginId, RecordStatus.ACTIVE)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
 
-        String newAccessToken = jwtTokenProvider.createAccessToken(loginId, user.getUserRole().toString());
-        String newRefreshToken = jwtTokenProvider.createRefreshToken(loginId);
+        String newAccessToken = jwtTokenProvider.createAccessToken(loginId, user.getUserRole().toString(), "USER");
+        String newRefreshToken = jwtTokenProvider.createRefreshToken(loginId, "USER");
 
         // Redis 정보 갱신 (RTR 적용)
         RefreshToken updatedRf = RefreshToken.builder()
@@ -279,7 +282,7 @@ public class UserServiceImpl implements UserService {
         try {
             UsernamePasswordAuthenticationToken authToken =
                     new UsernamePasswordAuthenticationToken(loginId, password);
-            return authenticationManager.authenticate(authToken);
+            return userAuthenticationManager.authenticate(authToken);
         } catch (BadCredentialsException e) {
             // 시큐리티 예외를 커스텀 예외로 전환하여 던짐
             throw new InvalidPasswordException();
