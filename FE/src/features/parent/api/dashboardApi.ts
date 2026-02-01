@@ -132,6 +132,7 @@ export const registerInviteCode = async (childId: string, inviteCode: string) =>
 
 const MOCK_BASE_DATA = {
     childId: TEST_CHILD_ID,
+    examId: null,
     name: "오하나",
     gender: "FEMALE" as const,
     examStatus: "AVAILABLE" as ChildDashboardStatus,  // ✅ examStatus
