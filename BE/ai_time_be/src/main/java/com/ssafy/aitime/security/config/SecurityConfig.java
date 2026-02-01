@@ -93,7 +93,9 @@ public class SecurityConfig {
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
-                                "/hospital-staff/dummy" // 더미데이터 생성용
+                                "/hospital-staff/dummy", // 더미데이터 생성용
+                                "/screening/**",          // 스크리닝
+                                "/livekit/**"             // 스크리닝
                         ).permitAll()
                         .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated()
@@ -108,7 +110,13 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
 
         // 프론트엔드 주소 허용
-        configuration.setAllowedOrigins(Collections.singletonList("http://localhost:5173"));
+        configuration.setAllowedOrigins(Arrays.asList(
+                "http://localhost:5173",
+                "http://localhost:3000",  // 테스트용
+                "http://127.0.0.1:3000",  // 127.0.0.1도 추가
+                "http://localhost:5500",  // VS Code Live Server
+                "null"                     // 파일 직접 열기 (file://)
+        ));
 
         // 허용할 HTTP 메서드
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
