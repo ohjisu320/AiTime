@@ -91,7 +91,9 @@ public class SecurityConfig {
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
-                                "/hospital-staff/dummy" // 더미데이터 생성용
+                                "/hospital-staff/dummy", // 더미데이터 생성용
+                                "/screening/**",          // 스크리닝
+                                "/livekit/**"             // 스크리닝
                         ).permitAll()
                         .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated()
@@ -109,8 +111,13 @@ public class SecurityConfig {
         // ✅ React 앱 포트 추가
         configuration.setAllowedOrigins(Arrays.asList(
                 "http://localhost:5173",  // 기존 프론트엔드
-                "http://localhost:3000"   // React 비디오 업로드 앱
+                "http://localhost:3000",   // React 비디오 업로드 앱
+                "http://127.0.0.1:3000",  // 127.0.0.1도 추가
+                "http://localhost:5500",  // VS Code Live Server
+                "null"
         ));
+
+
         // 허용할 HTTP 메서드
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
 

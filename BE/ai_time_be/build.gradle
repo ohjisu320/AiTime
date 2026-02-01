@@ -63,6 +63,12 @@ dependencies {
 
     // AWS SDK for S3 (MinIO와 호환)
     implementation 'software.amazon.awssdk:s3:2.20.26'
+
+    // LiveKit Server SDK 추가
+    implementation 'io.livekit:livekit-server:0.6.1'
+
+    // WebFlux 추가 - FastAPI
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
 }
 
 tasks.named('test') {
