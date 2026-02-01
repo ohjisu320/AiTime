@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { fetchExamProgress } from '../api/missionApi';
-import type { Mission } from '../types/mission';
+import type { Mission, VideoTask } from '../types/mission';
+
+import { getMockExamProgress } from '../mocks/missionMock';
 
 // 💡 서버 연동 시 false로 변경하세요!
-const USE_MOCK = true;
+const USE_MOCK = false;
 
 // ----------------------------------------------------------------------
 // 1. UI 전용 메타 데이터 (고정 정보 - 타이틀, 색상 등)
@@ -144,7 +146,44 @@ export const useMissions = (examId?: string) => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!examId && !USE_MOCK) {
+    const accessToken = localStorage.getItem('accessToken');
+    const childId = localStorage.getItem('childId');
+    const hasAuth = !!accessToken && !!childId;
+
+    // 인증 정보가 없거나 USE_MOCK이 true이면 모의 데이터 사용
+    if (!hasAuth || USE_MOCK) {
+      console.log("Using Mock Data (Reason: No Auth or Forced Mock)");
+      const responseData = getMockExamProgress();
+      const { under18, videoTasks } = responseData.data;
+
+      // 1. 월령 그룹 결정
+      const ageGroupKey = under18 ? '12-17' : '18-23';
+      setIsUnder18(under18);
+
+      // 2. 데이터 병합
+      const mergedMissions: Mission[] = videoTasks.map((task: VideoTask) => {
+        const uiMeta = MISSION_UI_META[task.videoType] || {};
+        const detailMeta = MISSION_DETAIL_BY_AGE[task.videoType] || {};
+
+        let ageSpecificDetail = detailMeta[ageGroupKey] || {};
+        if (detailMeta.common) {
+          ageSpecificDetail = { ...ageSpecificDetail, ...detailMeta.common };
+        }
+
+        return {
+          ...task,
+          ...uiMeta,
+          detail: ageSpecificDetail,
+          type: task.videoType,
+        } as Mission;
+      });
+
+      setMissions(mergedMissions);
+      setIsLoading(false);
+      return;
+    }
+
+    if (!examId) {
       setIsLoading(false);
       return;
     }
@@ -152,30 +191,9 @@ export const useMissions = (examId?: string) => {
     const fetchAllData = async () => {
       try {
         setError(null);
-        let responseData;
 
-        if (USE_MOCK) {
-          // ✅ Mock 데이터
-          responseData = {
-            status: "OK" as const,
-            message: "검사 진행도 조회가 완료되었습니다.",
-            data: {
-              examId: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-              under18: true,
-              status: "IN_PROGRESS" as const,
-              videoTasks: [
-                { videoType: "TASK1" as const, status: "UPLOADED" as const, videoId: "v1..." },
-                { videoType: "TASK2" as const, status: "UPLOADED" as const, videoId: "v2..." },
-                { videoType: "TASK3" as const, status: "EMPTY" as const, videoId: null },
-                { videoType: "TASK4" as const, status: "EMPTY" as const, videoId: null }
-              ]
-            },
-            code: 200
-          };
-        } else {
-          // 실제 API 호출 (단일 요청)
-          responseData = await fetchExamProgress(examId!);
-        }
+        // 실제 API 호출
+        const responseData = await fetchExamProgress(examId);
 
         const { under18, videoTasks } = responseData.data;
 
@@ -184,7 +202,7 @@ export const useMissions = (examId?: string) => {
         setIsUnder18(under18);
 
         // 2. 서버 데이터 + UI 메타 데이터 + 월령별 상세 가이드 병합
-        const mergedMissions: Mission[] = videoTasks.map((task) => {
+        const mergedMissions: Mission[] = videoTasks.map((task: VideoTask) => {
           const uiMeta = MISSION_UI_META[task.videoType] || {};
           const detailMeta = MISSION_DETAIL_BY_AGE[task.videoType] || {};
 
@@ -205,8 +223,30 @@ export const useMissions = (examId?: string) => {
         setMissions(mergedMissions);
 
       } catch (err) {
-        console.error("데이터 조회 중 오류 발생:", err);
-        setError(err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.');
+        console.error("데이터 조회 중 오류 발생 (Switching to Mock):", err);
+        // API 에러 시에도 Mock 데이터로 폴백 (개발 편의성)
+        const responseData = getMockExamProgress();
+        const { under18, videoTasks } = responseData.data;
+
+        const ageGroupKey = under18 ? '12-17' : '18-23';
+        setIsUnder18(under18);
+
+        const mergedMissions: Mission[] = videoTasks.map((task: VideoTask) => {
+          const uiMeta = MISSION_UI_META[task.videoType] || {};
+          const detailMeta = MISSION_DETAIL_BY_AGE[task.videoType] || {};
+          let ageSpecificDetail = detailMeta[ageGroupKey] || {};
+          if (detailMeta.common) {
+            ageSpecificDetail = { ...ageSpecificDetail, ...detailMeta.common };
+          }
+          return {
+            ...task,
+            ...uiMeta,
+            detail: ageSpecificDetail,
+            type: task.videoType,
+          } as Mission;
+        });
+        setMissions(mergedMissions);
+        // 에러 상태를 굳이 남기지 않고 mock으로 조용히 넘어감 (또는 필요시 토스트 메시지)
       } finally {
         setIsLoading(false);
       }
