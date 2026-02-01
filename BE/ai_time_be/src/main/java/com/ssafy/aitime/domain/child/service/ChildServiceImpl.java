@@ -3,8 +3,10 @@ package com.ssafy.aitime.domain.child.service;
 import com.ssafy.aitime.common.enums.RecordStatus;
 import com.ssafy.aitime.domain.child.dto.request.ChildCreateRequest;
 import com.ssafy.aitime.domain.child.dto.request.ChildDeleteResponse;
+import com.ssafy.aitime.domain.child.dto.response.ChildAgeInfoResponse;
 import com.ssafy.aitime.domain.child.dto.response.ChildHomeResponse;
 import com.ssafy.aitime.domain.child.dto.response.ChildInfoResponse;
+import com.ssafy.aitime.domain.child.exception.ChildAgeMismatchException;
 import com.ssafy.aitime.domain.exam.dto.response.ExamStartResponse;
 import com.ssafy.aitime.domain.exam.dto.response.ExamSummaryDTO;
 import com.ssafy.aitime.domain.hospital.dto.request.ReservationCreateRequest;
@@ -215,6 +217,42 @@ public class ChildServiceImpl implements ChildService{
 
         // 4. ExamService에 Child 엔티티 전달하여 검사 생성
         return examService.createExam(child);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ChildAgeInfoResponse validateAndGetChildAgeInfo(UUID userId, UUID childId) {
+        // 1. Child 조회 및 권한 확인
+        Child child = childRepository.findByChildIdAndRecordStatus(childId, RecordStatus.ACTIVE)
+                .orElseThrow(() -> new ChildNotFoundException());
+
+        if (!child.getUser().getUserId().equals(userId)) {
+            throw new ChildAccessDeniedException();
+        }
+
+        // 2. 개월 수 계산 및 검사 가능 범위 확인
+        long ageInMonths = calculateAgeInMonths(child.getBirthdate());
+        if (ageInMonths < 12 || ageInMonths >= 24) {
+            throw new ChildAgeMismatchException(
+                    "검사는 12개월 이상 24개월 미만의 아이만 가능합니다. (현재: " + ageInMonths + "개월)"
+            );
+        }
+
+        boolean underEighteen = ageInMonths < 18;
+
+        // 3. DTO 반환 (Exam 도메인에서 사용)
+        return ChildAgeInfoResponse.builder()
+                .childId(childId)
+                .ageInMonths(ageInMonths)
+                .underEighteen(underEighteen)
+                .build();
+    }
+
+    /**
+     * 생년월일로부터 개월 수 계산
+     */
+    private long calculateAgeInMonths(LocalDate birthdate) {
+        return ChronoUnit.MONTHS.between(birthdate, LocalDate.now());
     }
 
 }
