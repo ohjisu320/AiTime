@@ -1,27 +1,19 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/common/Button';
 import ConsentHeader from '../components/ConsentHeader';
 import EnvironmentCard from '../components/EnvironmentCard';
-import ChecklistItem from '../components/ChecklistItem';
 
 const ExamGuidePage = () => {
   const navigate = useNavigate();
 
-  // 체크리스트 상태 관리
-  const [checks, setChecks] = useState({
-    landscape: false,
-    natural: false,
-    noise: false,
-    internet: false,
-    battery: false,
-  });
-
-  const allChecked = Object.values(checks).every(Boolean);
-
-  const handleToggle = (key: keyof typeof checks) => {
-    setChecks(prev => ({ ...prev, [key]: !prev[key] }));
-  };
+  /* 체크리스트 항목 정의 (정적) */
+  const checklistItems = [
+    "태블릿을 가로 모드로 고정했나요?",
+    "아이가 편안하고 자연스러운 상태인가요?",
+    "주변의 소음이 심하지 않은 상태인가요?",
+    "인터넷 연결이 안정적인가요?",
+    "충분한 배터리 또는 충전기를 준비했나요?"
+  ];
 
   return (
     <div className="flex flex-col items-center w-full">
@@ -61,45 +53,24 @@ const ExamGuidePage = () => {
           />
         </div>
 
-        {/* 체크리스트 섹션 */}
+        {/* 정적 체크리스트 섹션 */}
         <div className="w-full max-w-[1024px] bg-white rounded-2xl shadow-lg p-10 flex flex-col gap-6 mb-10">
           <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
             📋 체크리스트
           </h2>
-          <div className="flex flex-col gap-3">
-            <ChecklistItem
-              label="태블릿을 가로 모드로 고정했나요?"
-              isChecked={checks.landscape}
-              onToggle={() => handleToggle('landscape')}
-            />
-            <ChecklistItem
-              label="아이가 편안하고 자연스러운 상태인가요?"
-              isChecked={checks.natural}
-              onToggle={() => handleToggle('natural')}
-            />
-            <ChecklistItem
-              label="주변의 소음이 심하지 않은 상태인가요?"
-              isChecked={checks.noise}
-              onToggle={() => handleToggle('noise')}
-            />
-            <ChecklistItem
-              label="인터넷 연결이 안정적인가요?"
-              isChecked={checks.internet}
-              onToggle={() => handleToggle('internet')}
-            />
-            <ChecklistItem
-              label="충분한 배터리 또는 충전기를 준비했나요?"
-              isChecked={checks.battery}
-              onToggle={() => handleToggle('battery')}
-            />
-          </div>
+          <ul className="flex flex-col gap-3">
+            {checklistItems.map((item, index) => (
+              <li key={index} className="flex items-center gap-3 p-4 bg-secondary rounded-xl shadow-sm">
+                <span className="text-lg text-secondary-foreground font-medium">{item}</span>
+              </li>
+            ))}
+          </ul>
         </div>
 
-        {/* 준비 완료 버튼 */}
+        {/* 준비 완료 버튼 (항상 활성화) - 보라색 오버라이드 */}
         <Button
-          disabled={!allChecked}
-          variant={allChecked ? "default" : "secondary"}
-          className="w-full max-w-[1024px] h-16 text-lg font-bold rounded-2xl transition-all"
+          variant="default"
+          className="w-full max-w-[1024px] h-16 text-lg font-bold rounded-2xl transition-all bg-brand-purple hover:bg-brand-purple-dark text-white"
           onClick={() => navigate('/exam/mission')}
         >
           준비 완료, 미션 선택하기
