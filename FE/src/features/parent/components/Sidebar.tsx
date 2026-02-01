@@ -42,6 +42,7 @@ const Sidebar = ({ childName, onCodeInputClick }: SidebarProps) => {
     </div>
 
       <nav className="flex-1 px-4 pt-4 pb-4 flex flex-col gap-2">
+
         <div className="h-12 pl-4 bg-gradient-to-b from-indigo-100 to-indigo-50 rounded-2xl inline-flex items-center gap-3 cursor-pointer">
           <div className="text-indigo-600 font-bold">홈</div>
         </div>
@@ -60,7 +61,7 @@ const Sidebar = ({ childName, onCodeInputClick }: SidebarProps) => {
           </div>
         </div>
 
-        <div className="mt-auto pt-4 border-t border-gray-200">
+        <div className="mb-8 mt-auto pt-4 border-t border-gray-200">
           <div className="h-32 px-4 pt-4 bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl flex flex-col gap-3">
             <div className="inline-flex items-center gap-3">
               <div className="w-10 h-10 bg-indigo-200 rounded-full flex justify-center items-center text-white text-sm">👤</div>
