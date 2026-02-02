@@ -11,6 +11,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.Period;
 import java.util.List;
 import java.util.UUID;
 
@@ -46,7 +49,19 @@ public class VideoAnalysisServiceImpl implements VideoAnalysisService {
             requestVideoAnalysis(video, ageMonths);
         }
 
-        log.info("✅ 검사 분석 요청 완료 - examId: {}, videoCount: {}", examId, videos.size());
+        // 5. 마지막 비디오 녹화 시간 찾기 (가장 최근 recordedAt)
+        LocalDateTime lastRecordedAt = videos.stream()
+                .map(Video::getRecordedAt)
+                .filter(recordedAt -> recordedAt != null)
+                .max(LocalDateTime::compareTo)
+                .orElse(null);
+
+        // 6. Exam 상태를 COMPLETED로 변경 및 다음 검사 가능일 설정
+        exam.markSubmitted(lastRecordedAt);
+        examRepository.save(exam);
+
+        log.info("✅ 검사 분석 요청 완료 - examId: {}, videoCount: {}, nextEligibleAt: {}",
+                examId, videos.size(), exam.getNextEligibleAt());
     }
 
     @Override
@@ -83,9 +98,22 @@ public class VideoAnalysisServiceImpl implements VideoAnalysisService {
      * 아이의 개월 수 계산
      */
     private Long calculateAgeMonths(Exam exam) {
-        // Child의 birthDate를 기준으로 개월 수 계산
-        // TODO: Child Entity에서 birthDate 가져와서 계산
-        // 임시로 18개월 반환
-        return 18L;
+        LocalDate birthDate = exam.getChild().getBirthdate();
+
+        if (birthDate == null) {
+            log.warn("⚠️ Child의 birthDate가 null입니다. examId: {}", exam.getExamId());
+            return 0L;
+        }
+
+        LocalDate now = LocalDate.now();
+        Period period = Period.between(birthDate, now);
+
+        // 연도와 월을 합산하여 전체 개월 수 계산
+        long totalMonths = period.getYears() * 12L + period.getMonths();
+
+        log.debug("아이 개월 수 계산 - birthDate: {}, 현재: {}, 개월수: {}",
+                birthDate, now, totalMonths);
+
+        return totalMonths;
     }
 }
