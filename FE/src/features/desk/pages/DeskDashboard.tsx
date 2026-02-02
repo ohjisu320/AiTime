@@ -107,7 +107,10 @@ export default function DeskDashboard() {
       const month = date.getMonth() + 1;
       const day = date.getDate();
 
+      console.log(`📅 [DeskDashboard] 날짜 선택됨: ${year}-${month}-${day}`);
+
       const response = await getUnregisteredPatients(year, month, day);
+      console.log('✅ [DeskDashboard] API 응답:', response);
 
       if (response.code === 200 && response.data) {
         // API 응답을 UI 모델로 변환 (필드 매핑)
@@ -120,10 +123,11 @@ export default function DeskDashboard() {
           status: (item.status as any) || "ISSUED", // 타입 호환 처리
           inviteCode: "-" // API 응답에 코드가 없다면 공란 또는 별도 처리
         }));
+        console.log(`📋 [DeskDashboard] 매핑된 리스트 (${mappedList.length}건):`, mappedList);
         setUnregisteredList(mappedList);
       }
     } catch (error) {
-      console.error("미등록 환자 목록 로드 실패:", error);
+      console.error("❌ [DeskDashboard] 미등록 환자 목록 로드 실패:", error);
     } finally {
       setIsLoading(false);
     }
