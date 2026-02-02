@@ -58,5 +58,10 @@ export const CLIENT_TO_SERVER_VIDEO_TYPE_MAP: Record<string, string> = {
   '1': 'POSE_IMITATION',
   '2': 'SPEECH_IMITATION',
   '3': 'NAME_FACING',
-  '4': 'NAME_NON_FACING'
+  '4': 'NAME_NON_FACING',
+  // Identity Mappings (이미 올바른 타입인 경우)
+  'POSE_IMITATION': 'POSE_IMITATION',
+  'SPEECH_IMITATION': 'SPEECH_IMITATION',
+  'NAME_FACING': 'NAME_FACING',
+  'NAME_NON_FACING': 'NAME_NON_FACING'
 };
