@@ -40,7 +40,7 @@ export default function AdosModal({ onClose }: Props) {
         className="w-[60%] h-[80%] bg-[#d4d0c8] border-2 border-white border-r-[#404040] border-b-[#404040] p-1 flex flex-col shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="bg-[#000080] text-white px-2 py-1 flex justify-between items-center font-bold mb-1 select-none">
+        <div className="bg-[#000080] text-black px-2 py-1 flex justify-between items-center font-bold mb-1 select-none">
           <span>ADOS-2 상세 평가 결과 - 확대 보기</span>
           <WindowsButton onClick={onClose}>X 닫기</WindowsButton>
         </div>
