@@ -20,20 +20,20 @@ const MissionListPage: React.FC = () => {
 
   // 카드 클릭 핸들러 (업로드 상태면 재촬영 모달, 아니면 가이드로 이동) 
   const handleCardClick = (task: any) => {
-    const missionNumber = task.videoType.replace('TASK', '');
+    // const missionNumber = task.videoType.replace('TASK', ''); // 숫자만 추출하던 로직 제거
     if (task.status === 'UPLOADED') {
       setRecheckModal({ isOpen: true, title: task.title, type: task.videoType });
     } else {
-      navigate(`/exam/guide/${missionNumber}`);
+      navigate(`/exam/guide/${task.videoType}`); // TASK1, TASK2 등으로 이동
     }
   };
 
   // 재촬영 확정 핸들러 
   const handleRecheckConfirm = () => {
-    const missionNumber = recheckModal.type.replace('TASK', '');
+    // const missionNumber = recheckModal.type.replace('TASK', '');
     setRecheckModal({ ...recheckModal, isOpen: false });
     // 재촬영 시에도 가이드(또는 스크리닝)부터 시작하도록 설정
-    navigate(`/exam/guide/${missionNumber}`);
+    navigate(`/exam/guide/${recheckModal.type}`);
   };
 
   // 로딩 상태 UI 
