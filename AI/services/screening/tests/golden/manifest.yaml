@@ -1,0 +1,31 @@
+config: "configs/preflight.yaml"
+cases:
+  - name: "pass_ok"
+    asset: "pass_ok.mp4"
+    expect_passed: true
+    expect_failure_reason: null
+
+  - name: "fail_low_light"
+    asset: "fail_low_light.mp4"
+    expect_passed: false
+    expect_failure_reason: "FAIL_LOW_LIGHT"
+
+  - name: "fail_noise"
+    asset: "fail_noise.mp4"
+    expect_passed: false
+    expect_failure_reason: "FAIL_NOISE"
+
+  - name: "fail_face_count_1"
+    asset: "fail_face_count_1.mp4"
+    expect_passed: false
+    expect_failure_reason: "FAIL_FACE_COUNT"
+
+  - name: "fail_face_count_3"
+    asset: "fail_face_count_3.mp4"
+    expect_passed: false
+    expect_failure_reason: "FAIL_FACE_COUNT"
+
+  - name: "fail_roi_miss"
+    asset: "fail_roi_miss.mp4"
+    expect_passed: false
+    expect_failure_reason: "FAIL_ROI_MISMATCH"

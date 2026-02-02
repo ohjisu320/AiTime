@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+livekit
+httpx
+python-dotenv
+aiortc
+av
+opencv-python
+pyyaml
+numpy
+pytest
