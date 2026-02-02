@@ -1,4 +1,5 @@
 import axios from 'axios';
+import api from '@/api/axiosConfig';
 
 // ==================== Type Definitions ====================
 
@@ -41,7 +42,7 @@ export const videoApi = {
 
     console.log(`📤 [Presigned URL 요청] examId: ${examId}, videoType: ${videoType}`);
 
-    const { data } = await axios.post(
+    const { data } = await api.post(
       `/exam/${examId}/videos/presign-upload`,
       requestBody
     );
@@ -86,7 +87,7 @@ export const videoApi = {
   updateVideoStatus: async (videoId: string, attempts: any[]) => {
     console.log(`📤 비디오 상태 업데이트: ${videoId}`);
 
-    const { data } = await axios.patch(`/video/${videoId}`, {
+    const { data } = await api.patch(`/video/${videoId}`, {
       status: "UPLOADED",
       attempts // 태스크 내 시도 구간 정보
     });
