@@ -29,33 +29,35 @@ export const useMediaRecorder = () => {
     if (!stream) return;
     chunksRef.current = [];
     currentStartRef.current = Date.now();
-    
+
     const recorder = new MediaRecorder(stream);
     recorder.ondataavailable = (e) => {
       if (e.data.size > 0) chunksRef.current.push(e.data);
     };
-    
+
     recorder.start();
     mediaRecorderRef.current = recorder;
     setIsRecording(true);
   }, [stream]);
 
   // 녹화 중지
-  const stopRecording = useCallback((): Promise<Blob> => {
+  const stopRecording = useCallback((): Promise<{ blob: Blob, attempt: AttemptMeta }> => {
     return new Promise((resolve) => {
       if (!mediaRecorderRef.current) return;
-      
+
       mediaRecorderRef.current.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: 'video/mp4' });
         const endTs = Date.now();
-        setAttempts(prev => [...prev, { 
-          attempt_start_ts: currentStartRef.current, 
-          attempt_end_ts: endTs 
-        }]);
+        const newAttempt = {
+          attempt_start_ts: currentStartRef.current,
+          attempt_end_ts: endTs
+        };
+
+        setAttempts(prev => [...prev, newAttempt]);
         setIsRecording(false);
-        resolve(blob);
+        resolve({ blob, attempt: newAttempt });
       };
-      
+
       mediaRecorderRef.current.stop();
     });
   }, []);
