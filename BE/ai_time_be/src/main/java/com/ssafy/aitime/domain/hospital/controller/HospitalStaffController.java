@@ -126,7 +126,7 @@ public class HospitalStaffController {
     }
 
     @GetMapping("/calendar")
-    public ApiResponse<List<LocalDate>> getReservationDates(
+    public ResponseEntity<ApiResponse<List<LocalDate>>> getReservationDates(
             @RequestParam int year,
             @RequestParam int month,
             @AuthenticationPrincipal HospitalStaffPrincipal principal
@@ -134,19 +134,19 @@ public class HospitalStaffController {
         List<LocalDate> dates = reservationService
                 .getHospitalReservationDates(principal.getHospitalId(), year, month);
 
-        return ApiResponse.ok("달력 인디케이터 조회가 완료되었습니다.", dates);
+        return ResponseEntity.ok().body(ApiResponse.ok("달력 인디케이터 조회가 완료되었습니다.", dates));
     }
 
 
     @GetMapping("/reservation-list")
-    public ApiResponse<List<ReservationListResponse>> getReservationList(
+    public ResponseEntity<ApiResponse<List<ReservationListResponse>>> getReservationList(
             @RequestParam LocalDate date,
             @AuthenticationPrincipal HospitalStaffPrincipal principal
     ) {
         List<ReservationListResponse> reservations = reservationService
                 .getReservationList(principal.getHospitalId(), date);
 
-        return ApiResponse.ok("날짜별 환아 목록 조회가 완료되었습니다.", reservations);
+        return ResponseEntity.ok().body(ApiResponse.ok("날짜별 환아 목록 조회가 완료되었습니다.", reservations));
     }
 
     // 더미데이터 생성 용

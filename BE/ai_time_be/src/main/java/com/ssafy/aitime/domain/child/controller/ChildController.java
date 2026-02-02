@@ -1,5 +1,6 @@
 package com.ssafy.aitime.domain.child.controller;
 
+import com.ssafy.aitime.application.invitecode.InviteCodeApplicationService;
 import com.ssafy.aitime.common.response.ApiResponse;
 import com.ssafy.aitime.domain.child.dto.request.ChildCreateRequest;
 import com.ssafy.aitime.domain.child.dto.request.ChildDeleteResponse;
@@ -27,6 +28,7 @@ import java.util.UUID;
 public class ChildController {
 
     private final ChildService childService;
+    private final InviteCodeApplicationService inviteCodeApplicationService;
 
     @PostMapping
     public ResponseEntity<ApiResponse<ChildInfoResponse>> addChild(
