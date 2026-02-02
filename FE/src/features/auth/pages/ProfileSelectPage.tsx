@@ -66,7 +66,7 @@ export default function ProfileSelectPage() {
   const handleProfileClick = (profile: ChildProfile) => {
     localStorage.setItem("selectedChildId", profile.childId);
     console.log("Selected Child:", profile.childId);
-    navigate(`/child/${profile.childId}`); // 라우팅 경로 확인 (기존: /parent/dashboard -> 변경: /child/:id)
+    navigate(`/parent/dashboard`); // 라우팅 경로 확인 (기존: /parent/dashboard -> 변경: /child/:id)
   };
 
   // 3. 프로필 추가 (API 호출)
