@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import ExamBaseLayout from '../components/layout/ExamBaseLayout';
 import ScreeningGuide from '../components/Screening/ScreeningGuide';
-import { useWebRTCScreening } from '../hooks/useWebRTCScreening';
+import { useLiveKitScreening } from '../hooks/useLiveKitScreening';
 import { SCREENING_CONTENT } from '../constants/missionData';
 
 const ExamRecordingPage: React.FC = () => {
@@ -16,27 +16,33 @@ const ExamRecordingPage: React.FC = () => {
   const currentMissionId = missionId || "1";
   const content = SCREENING_CONTENT[currentMissionId] || SCREENING_CONTENT["1"];
 
+  // TODO: 실제 childId는 Context나 props에서 가져와야 함
+  const childId = localStorage.getItem('selectedChildId') || 'mock-child-id';
+
   const handleGoToNextTask = useCallback(() => {
     navigate(`/exam/task/${currentMissionId}`);
   }, [navigate, currentMissionId]);
 
-  // 1. WebRTC 스크리닝 훅에서 필요한 상태들 추출
+  // LiveKit 스크리닝 훅
   const {
     videoRef,
     videoStream,
     isAligned,
     volume,
-    startCamera: startWebRTC,
-    stopCamera: stopWebRTC
-  } = useWebRTCScreening();
+    guideMessage,
+    status,
+    startScreening,
+    stopScreening
+  } = useLiveKitScreening();
 
+  // 컴포넌트 마운트 시 스크리닝 시작
   useEffect(() => {
-    startWebRTC();
+    startScreening(childId);
     return () => {
-      stopWebRTC();
+      stopScreening();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // 빈 배열: 마운트 시 1번만 실행
+  }, []);
 
   const handleStartExam = useCallback(() => {
     if (!isAligned || volume > 30) {
@@ -59,8 +65,7 @@ const ExamRecordingPage: React.FC = () => {
           content ? (
             <ScreeningGuide
               onStart={handleStartExam}
-              isReady={isAligned && volume <= 30}
-              // ✅ [수정 포인트] 새로 추가된 Props들을 자식에게 전달합니다.
+              isReady={isAligned && volume <= 30 && status === 'ready'}
               isAligned={isAligned}
               volume={volume}
               missionData={content}
@@ -70,7 +75,12 @@ const ExamRecordingPage: React.FC = () => {
           )
         }
       >
-        {/* 필요한 오버레이 UI 추가 가능 */}
+        {/* AI 가이드 메시지 오버레이 */}
+        {status === 'screening' && guideMessage && (
+          <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-black/70 text-white px-6 py-3 rounded-full text-lg font-medium">
+            {guideMessage}
+          </div>
+        )}
       </ExamBaseLayout>
 
       {/* 준비 미흡 안내 모달 */}

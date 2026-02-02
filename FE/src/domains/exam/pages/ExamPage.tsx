@@ -7,21 +7,15 @@ import type { VideoType } from '@/domains/video/api/videoApi';
 import ExamBaseLayout from '../components/layout/ExamBaseLayout';
 import ScreeningGuide from '../components/Screening/ScreeningGuide';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
-// ✅ 여기가 수정되었습니다!
 import { FullScreenOverlayText } from '@/components/common/FullScreenOverlayText';
-import { SCREENING_CONTENT } from '../constants/missionData';
+import { SCREENING_CONTENT, CLIENT_TO_SERVER_VIDEO_TYPE_MAP } from '../constants/missionData';
 import Swal from 'sweetalert2';
 
 // Mission ID를 VideoType으로 변환하는 헬퍼 함수
 const getVideoTypeFromMissionId = (missionId: string): VideoType => {
-  const mapping: Record<string, VideoType> = {
-    '1': 'POSE_IMITATION',      // 동작 모방
-    '2': 'SPEECH_IMITATION',    // 말소리 모방
-    '3': 'NAME_FACING',         // 얼굴 보고 이름 부르기
-    '4': 'NAME_NON_FACING'      // 얼굴 안 보고 이름 부르기
-  };
-
-  return mapping[missionId] || 'POSE_IMITATION';
+  // 상수 맵을 사용하여 변환 (TASK1 -> POSE_IMITATION, 1 -> POSE_IMITATION 모두 지원)
+  const videoType = CLIENT_TO_SERVER_VIDEO_TYPE_MAP[missionId];
+  return (videoType as VideoType) || 'POSE_IMITATION';
 };
 
 const ExamPage: React.FC = () => {
@@ -78,51 +72,31 @@ const ExamPage: React.FC = () => {
   const handleComplete = async () => {
     const videoBlob = await stopRecording();
 
-    // ✅ 1. 파일 크기 제한 검증 (100MB)
-    const MAX_SIZE = 100 * 1024 * 1024; // 100MB in bytes
-    if (videoBlob.size > MAX_SIZE) {
-      const sizeMB = (videoBlob.size / 1024 / 1024).toFixed(2);
-      Swal.fire({
-        title: '파일 크기 초과',
-        text: `녹화된 영상이 너무 큽니다. (${sizeMB}MB / 최대 100MB)`,
-        icon: 'error'
-      });
-      return;
-    }
-
     // ✅ 2. examId를 localStorage에서 동적으로 가져오기
+    // (테스트를 위해 하드코딩이 필요하다면 아래 줄을 주석 처리하고 문자열을 직접 넣으세요)
     const examId = localStorage.getItem('examId');
+
     if (!examId) {
       Swal.fire({
         title: '검사 ID 없음',
-        text: '검사 세션 정보를 찾을 수 없습니다. 다시 시작해주세요.',
+        text: '검사 세션 정보를 찾을 수 없습니다.',
         icon: 'error'
       });
-      navigate('/exam/mission');
       return;
     }
 
-    // 로컬 다운로드 - 테스트용
-    // const localUrl = URL.createObjectURL(videoBlob);
-    // const link = document.createElement('a');
-    // link.href = localUrl;
-    // link.download = `exam_mission_${missionId}_${Date.now()}.mp4`;
-    // link.click();
-
     uploadVideo({
-      examId,  // ✅ 동적으로 가져온 examId 사용
+      examId,
+      // ✅ 여기서 올바른 서버 타입(POSE_IMITATION 등)으로 변환하여 전달합니다.
       videoType: getVideoTypeFromMissionId(missionId),
       videoBlob,
       attempts
     }, {
       onSuccess: () => {
-        // URL.revokeObjectURL(localUrl); 비디오 저장- 테스트용
         navigate('/exam/mission');
       },
-      onError: (error: any) => {
-        console.error('❌ 업로드 에러:', error);
-        const errorMessage = error?.response?.data?.message || '전송 중 오류가 발생했습니다.';
-        Swal.fire('업로드 실패', errorMessage, 'error');
+      onError: () => {
+        Swal.fire('업로드 실패', '전송 중 오류가 발생했습니다. 다시 시도해주세요.', 'error');
       }
     });
   };
