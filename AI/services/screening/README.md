@@ -6,16 +6,19 @@
 
 ## 🚀 전체 실행 프로세스 (Full Execution Process)
 
-본 서비스는 클라이언트와 서버 간의 WebRTC 연결을 통해 다음과 같은 흐름으로 동작합니다.
+본 서비스는 다음 두 가지 모드 중 하나로 동작합니다.
 
-1.  **Connection**: 클라이언트가 `/webrtc/offer`에 SDP를 전송하여 WebRTC 연결을 수립합니다.
-2.  **Streaming**: 연결 수립 후, 클라이언트는 비디오/오디오 트랙을 서버로 스트리밍합니다.
-3.  **Pipeline**: 서버는 수신된 데이터를 `PreflightOrchestrator`를 통해 처리합니다.
+1.  **Connection (Legacy/Local)**: 클라이언트가 `/webrtc/offer`에 SDP를 전송하여 WebRTC 연결을 수립합니다.
+    - 빠른 로컬 테스트 및 회귀 테스트(golden)용.
+2.  **Connection (Production/LiveKit)**: 백엔드가 `/api/v1/analysis/start`를 호출하면 AI 서버가 LiveKit Room에 참가합니다.
+    - 프론트는 LiveKit JS SDK로 Room에 참가/카메라 송출.
+3.  **Streaming**: 연결 수립 후, 클라이언트는 비디오/오디오 트랙을 서버로 스트리밍합니다.
+4.  **Pipeline**: 서버는 수신된 데이터를 `PreflightOrchestrator`를 통해 처리합니다.
     - 데이터는 각 분석 스테이지(`Audio`, `Frame`, `Face`, `ROI`)를 병렬로 통과합니다.
     - `Sliding Window`(기본 5초)에 분석 결과가 축적됩니다.
-4.  **Aggregation**: 윈도우 내의 통계(성공 비율 등)를 기반으로 `AggregateStage`에서 최종 판정을 내립니다.
-5.  **Feedback**: 분석 중에는 `hint` 메시지를, 최종 판정 시에는 `result` 메시지를 클라이언트에 실시간으로 전송합니다.
-6.  **Finalize**: 실행 종료 시 모든 지표는 `JSONL` 로그로 저장되며, 필요시 디버그용 아티팩트가 생성됩니다.
+5.  **Aggregation**: 윈도우 내의 통계(성공 비율 등)를 기반으로 `AggregateStage`에서 최종 판정을 내립니다.
+6.  **Feedback**: 분석 중에는 `guide/hint` 메시지를, 최종 판정 시에는 `screening_complete/result` 메시지를 클라이언트에 실시간으로 전송합니다.
+7.  **Finalize**: 실행 종료 시 모든 지표는 `JSONL` 로그로 저장되며, 필요시 디버그용 아티팩트가 생성됩니다.
 
 ---
 
@@ -23,14 +26,14 @@
 
 본 서비스의 주요 컴포넌트와 데이터 흐름은 다음과 같습니다.
 
-![Service Architecture](diagram.svg)
+![Service Architecture](docs/diagram.svg)
 
 ---
 
 ## 💻 기술 스택 (Tech Stack)
 
 - **Backend**: Python 3.11+, FastAPI
-- **WebRTC**: aiortc
+- **WebRTC**: aiortc (legacy), LiveKit (production)
 - **Computer Vision**: OpenCV, Numpy
 - **Config**: PyYAML
 - **Logging**: JSONL, Python Standard Logging
@@ -102,13 +105,28 @@ pip install -r requirements.txt
 python -m uvicorn src.serving.app:app --host 0.0.0.0 --port 8000
 ```
 
+### 2.1 LiveKit 모드 환경변수
+`.env.example`를 참고해 `.env`를 만들고 다음을 설정하세요.
+
+- `LIVEKIT_URL` (예: `ws://localhost:7880` / 배포: `wss://livekit.your-domain.com`)
+- `BACKEND_URL` (예: `http://localhost:8080` / 배포: `https://api.your-domain.com`)
+
+### 2.2 백엔드 -> AI 분석 시작 API
+백엔드에서 다음 엔드포인트를 호출하면 AI 서버가 LiveKit room에 참가해 분석을 시작합니다.
+
+- `POST /api/v1/analysis/start`
+
+요청 바디 형식은 프로젝트의 API 명세와 동일합니다.
+
 ### 3. 테스트 클라이언트 실행
+Legacy WebRTC (`/webrtc/offer`) 테스트를 위한 클라이언트는 `tools/legacy_webrtc_client.html`로 이동되었습니다.
+
 `client.html`은 CORS 및 WebRTC 권한 보안을 위해 로컬 파일(`file://`)이 아닌 HTTP 서버로 실행하는 것이 권장됩니다.
 ```bash
 # 별도의 터미널에서 실행
 python -m http.server 5173
 ```
-이후 `http://localhost:5173/client.html`로 접속하세요.
+이후 `http://localhost:5173/tools/legacy_webrtc_client.html`로 접속하세요.
 
 ### 4. 회귀 테스트 (Regression Test) 실행
 Golden Clip(MP4)을 이용한 정밀 검증을 수행합니다.
