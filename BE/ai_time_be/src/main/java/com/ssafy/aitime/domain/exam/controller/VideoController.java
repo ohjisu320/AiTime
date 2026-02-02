@@ -5,6 +5,7 @@ import com.ssafy.aitime.domain.exam.dto.request.PresignedKeyRequest;
 import com.ssafy.aitime.domain.exam.dto.request.VideoUploadCompleteRequest;
 import com.ssafy.aitime.domain.exam.dto.response.PresignedKeyResponse;
 import com.ssafy.aitime.domain.exam.dto.response.PresignedViewUrlResponse;
+import com.ssafy.aitime.domain.exam.dto.response.VideoDeleteResponse;
 import com.ssafy.aitime.domain.exam.dto.response.VideoUploadCompleteResponse;
 import com.ssafy.aitime.domain.exam.service.VideoService;
 import com.ssafy.aitime.security.principal.UserPrincipal;
@@ -90,6 +91,25 @@ public class VideoController {
         return ResponseEntity.ok(
                 ApiResponse.ok("재생 URL이 발급되었습니다.",
                         videoService.generatePresignedViewUrl(principal, examId, videoType, expiresInSec))
+        );
+    }
+
+    @Operation(
+            summary = "특정 태스크 영상 삭제 (자녀/보호자 공통 정상 가능)",
+            description = "특정 검사(exam)의 특정 태스크 영상을 S3(MinIO)에서 삭제하고, DB의 video 상태를 DELETED로 반환한다."
+    )
+    @DeleteMapping("/{examId}/videos/{videoType}")
+    public ResponseEntity<ApiResponse<VideoDeleteResponse>> deleteVideo(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable("examId") UUID examId,
+            @PathVariable("videoType") String videoType) {
+
+        log.info("영상 삭제 요청: userId={}, examId={}, videoType={}",
+                principal.getUserId(), examId, videoType);
+
+        return ResponseEntity.ok(
+                ApiResponse.ok("영상이 삭제되었습니다.", videoService.deleteVideo(
+                        principal.getUserId(), examId, videoType))
         );
     }
 }
