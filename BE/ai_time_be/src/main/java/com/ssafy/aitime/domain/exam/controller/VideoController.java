@@ -4,12 +4,15 @@ import com.ssafy.aitime.common.response.ApiResponse;
 import com.ssafy.aitime.domain.exam.dto.request.PresignedKeyRequest;
 import com.ssafy.aitime.domain.exam.dto.request.VideoUploadCompleteRequest;
 import com.ssafy.aitime.domain.exam.dto.response.PresignedKeyResponse;
+import com.ssafy.aitime.domain.exam.dto.response.PresignedViewUrlResponse;
 import com.ssafy.aitime.domain.exam.dto.response.VideoUploadCompleteResponse;
 import com.ssafy.aitime.domain.exam.service.VideoService;
 import com.ssafy.aitime.security.principal.UserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -65,6 +68,28 @@ public class VideoController {
         return ResponseEntity.ok(
                 ApiResponse.ok("영상 업로드가 확인되었습니다.",
                         videoService.completeVideoUpload(principal.getUserId(), examId, videoId, request))
+        );
+    }
+
+    @Operation(
+            summary = "영상 재생 Presigned URL 발급",
+            description = "특정 검사/태스크 영상 조회를 위한 GET Presigned URL을 발급한다. (의료진 권한 검증 포함)"
+    )
+    @GetMapping("/{examId}/videos/{videoType}/presign-view")
+    public ResponseEntity<ApiResponse<PresignedViewUrlResponse>> getPresignedViewUrl(
+            @AuthenticationPrincipal Object principal,
+            @PathVariable("examId") UUID examId,
+            @PathVariable("videoType") String videoType,
+            @RequestParam(value = "expiresInSec", defaultValue = "300")
+            @Min(value = 1, message = "만료시간은 최소 1초 이상이어야 합니다")
+            @Max(value = 3600, message = "만료시간은 최대 3600초(1시간)를 초과할 수 없습니다")
+            int expiresInSec) {
+
+        log.info("Presigned View URL 요청: examId={}, videoType={}, expiresInSec={}",
+                examId, videoType, expiresInSec);
+        return ResponseEntity.ok(
+                ApiResponse.ok("재생 URL이 발급되었습니다.",
+                        videoService.generatePresignedViewUrl(principal, examId, videoType, expiresInSec))
         );
     }
 }
