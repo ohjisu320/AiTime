@@ -6,6 +6,8 @@ import InfoNoticeBox from '@/components/common/InfoNoticeBox';
 import BigActionButton from '@/components/common/BigActionButton';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import { useMissions } from '../hooks/useMissions';
+import { startAnalysis } from '../api/examApi';
+import Swal from 'sweetalert2';
 
 const MissionListPage: React.FC = () => {
   const navigate = useNavigate();
@@ -13,6 +15,7 @@ const MissionListPage: React.FC = () => {
 
   const [recheckModal, setRecheckModal] = useState({ isOpen: false, title: '', type: '' });
   const [submitModalOpen, setSubmitModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false); // ✅ 제출 상태 관리
 
   // 진행도 계산: 모든 미션이 UPLOADED 상태인지 확인 
   const completedCount = missions.filter(t => t.status === 'UPLOADED').length;
@@ -122,11 +125,34 @@ const MissionListPage: React.FC = () => {
       <ConfirmModal
         isOpen={submitModalOpen}
         title={<>완료된 검사리포트를<br />제출합니다.</>}
-        description="제출 후에는 수정이 불가능합니다." // 
-        confirmText="제출하기"
+        description={isSubmitting ? "제출 중입니다..." : "제출 후에는 수정이 불가능합니다."}
+        confirmText={isSubmitting ? "제출 중..." : "제출하기"}
         confirmVariant="violet"
-        onConfirm={() => navigate('/exam/success')}
-        onClose={() => setSubmitModalOpen(false)}
+        onConfirm={async () => {
+          if (isSubmitting) return;
+
+          try {
+            const examId = localStorage.getItem('examId');
+            if (!examId) {
+              Swal.fire('오류', '검사 정보를 찾을 수 없습니다.', 'error');
+              return;
+            }
+
+            setIsSubmitting(true);
+
+            // ✅ 분석 요청 API 호출
+            await startAnalysis(examId);
+
+            navigate('/parent/dashboard'); // 메인 페이지로 이동
+          } catch (error) {
+            console.error('분석 요청 실패:', error);
+            Swal.fire('제출 실패', '분석 요청 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.', 'error');
+          } finally {
+            setIsSubmitting(false);
+            setSubmitModalOpen(false);
+          }
+        }}
+        onClose={() => !isSubmitting && setSubmitModalOpen(false)}
       />
     </div>
   );
