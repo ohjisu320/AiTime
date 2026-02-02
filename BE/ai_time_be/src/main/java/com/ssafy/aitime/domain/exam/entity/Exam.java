@@ -75,14 +75,18 @@ public class Exam extends AuditableEntity {
     /**
      * 검사 완료 시 다음 검사 가능일 설정 (3개월 후)
      */
-    public void updateNextEligibleDate() {
-        this.nextEligibleAt = LocalDateTime.now().plusMonths(3);
+    public void updateNextEligibleDate(LocalDateTime lastRecordedAt) {
+        if (lastRecordedAt == null) {
+            this.nextEligibleAt = LocalDateTime.now().plusMonths(3);
+        } else {
+            this.nextEligibleAt = lastRecordedAt.plusMonths(3);
+        }
     }
 
-    public void markSubmitted() {
+    public void markSubmitted(LocalDateTime lastRecordedAt) {
         this.submitted = true;
         this.examStatus = ExamStatus.COMPLETED;
         this.completedAt = LocalDateTime.now();
-        updateNextEligibleDate(); // 다음 검사 가능일 자동 설정
+        updateNextEligibleDate(lastRecordedAt); // 다음 검사 가능일 자동 설정
     }
 }
