@@ -314,10 +314,8 @@ class ReservationServiceImplTest {
         void getHospitalReservationDates_Success() {
             // given
             UUID hospitalId = UUID.randomUUID();
-            YearMonth yearMonth = YearMonth.of(2026, 1);
-
-            LocalDateTime startOfMonth = LocalDateTime.of(2026, 1, 1, 0, 0);
-            LocalDateTime endOfMonth = LocalDateTime.of(2026, 2, 1, 0, 0);
+            int year = 2026;
+            int month = 1;
 
             List<Reservation> mockReservations = Arrays.asList(
                     createReservation(LocalDateTime.of(2026, 1, 5, 10, 0)),
@@ -331,7 +329,7 @@ class ReservationServiceImplTest {
                     .willReturn(mockReservations);
 
             // when
-            List<LocalDate> results = reservationService.getHospitalReservationDates(hospitalId, yearMonth);
+            List<LocalDate> results = reservationService.getHospitalReservationDates(hospitalId, year, month);
 
             // then
             assertThat(results).hasSize(3); // 중복 제거되어 3개
@@ -350,14 +348,15 @@ class ReservationServiceImplTest {
         void getHospitalReservationDates_EmptyResult() {
             // given
             UUID hospitalId = UUID.randomUUID();
-            YearMonth yearMonth = YearMonth.of(2026, 12);
+            int year = 2026;
+            int month = 12;
 
             given(reservationRepository.findReservationsByHospitalAndMonth(
                     eq(hospitalId), any(LocalDateTime.class), any(LocalDateTime.class)))
                     .willReturn(Collections.emptyList());
 
             // when
-            List<LocalDate> results = reservationService.getHospitalReservationDates(hospitalId, yearMonth);
+            List<LocalDate> results = reservationService.getHospitalReservationDates(hospitalId, year, month);
 
             // then
             assertThat(results).isEmpty();
@@ -368,7 +367,8 @@ class ReservationServiceImplTest {
         void getHospitalReservationDates_Sorted() {
             // given
             UUID hospitalId = UUID.randomUUID();
-            YearMonth yearMonth = YearMonth.of(2026, 1);
+            int year = 2026;
+            int month = 1;
 
             List<Reservation> mockReservations = Arrays.asList(
                     createReservation(LocalDateTime.of(2026, 1, 20, 10, 0)),
@@ -381,7 +381,7 @@ class ReservationServiceImplTest {
                     .willReturn(mockReservations);
 
             // when
-            List<LocalDate> results = reservationService.getHospitalReservationDates(hospitalId, yearMonth);
+            List<LocalDate> results = reservationService.getHospitalReservationDates(hospitalId, year, month);
 
             // then
             assertThat(results).containsExactly(
@@ -396,7 +396,8 @@ class ReservationServiceImplTest {
         void getHospitalReservationDates_FebruaryRange() {
             // given
             UUID hospitalId = UUID.randomUUID();
-            YearMonth yearMonth = YearMonth.of(2026, 2);
+            int year = 2026;
+            int month = 2;
 
             List<Reservation> mockReservations = Arrays.asList(
                     createReservation(LocalDateTime.of(2026, 2, 14, 10, 0)),
@@ -408,7 +409,7 @@ class ReservationServiceImplTest {
                     .willReturn(mockReservations);
 
             // when
-            List<LocalDate> results = reservationService.getHospitalReservationDates(hospitalId, yearMonth);
+            List<LocalDate> results = reservationService.getHospitalReservationDates(hospitalId, year, month);
 
             // then
             assertThat(results).hasSize(2);
@@ -423,7 +424,8 @@ class ReservationServiceImplTest {
         void getHospitalReservationDates_DecemberRange() {
             // given
             UUID hospitalId = UUID.randomUUID();
-            YearMonth yearMonth = YearMonth.of(2026, 12);
+            int year = 2026;
+            int month = 12;
 
             List<Reservation> mockReservations = Arrays.asList(
                     createReservation(LocalDateTime.of(2026, 12, 24, 10, 0)),
@@ -435,7 +437,7 @@ class ReservationServiceImplTest {
                     .willReturn(mockReservations);
 
             // when
-            List<LocalDate> results = reservationService.getHospitalReservationDates(hospitalId, yearMonth);
+            List<LocalDate> results = reservationService.getHospitalReservationDates(hospitalId, year, month);
 
             // then
             assertThat(results).hasSize(2);
