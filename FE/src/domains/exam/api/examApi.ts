@@ -37,7 +37,7 @@ export const startExam = async (childId: string): Promise<string> => {
 
     console.log('✅ 검사 시작 응답:', response.data);
 
-    if (response.data.code === 200 && response.data.data) {
+    if (response.data.data && response.data.data.examId) {
         const examId = response.data.data.examId;
         console.log(`✅ examId 발급: ${examId}`);
         return examId;
