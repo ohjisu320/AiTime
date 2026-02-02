@@ -9,7 +9,11 @@ if (import.meta.env.DEV) {
 
 const LIVEKIT_URL = import.meta.env.VITE_LIVEKIT_URL || 'ws://localhost:7880';
 
+<<<<<<< Updated upstream
 // Mock 모드 설정 (백엔드 미연결 시 true로 설정)
+=======
+// Mock 모드 설정 (false로 고정)
+>>>>>>> Stashed changes
 const USE_MOCK = false;
 
 export type ScreeningStatus = 'idle' | 'connecting' | 'screening' | 'ready' | 'error';
@@ -38,6 +42,7 @@ export const useLiveKitScreening = (): UseLiveKitScreeningReturn => {
     // Cleanup 함수 참조
     const cleanupRef = useRef<(() => void) | null>(null);
 
+<<<<<<< Updated upstream
     // --- Mock 모드 시뮬레이션 ---
     const runMockSimulation = useCallback(() => {
         console.warn("⚠️ [LiveKit] Mock 모드 활성화");
@@ -76,6 +81,9 @@ export const useLiveKitScreening = (): UseLiveKitScreeningReturn => {
             clearTimeout(completeTimeout);
         };
     }, []);
+=======
+    // --- Mock 모드 시뮬레이션 (삭제됨, USE_MOCK=false이므로 미사용) ---
+>>>>>>> Stashed changes
 
     // --- 실제 LiveKit 연결 ---
     const connectToLiveKit = useCallback(async (childId: string) => {
@@ -215,8 +223,12 @@ export const useLiveKitScreening = (): UseLiveKitScreeningReturn => {
             setVideoStream(localStream);
 
             if (USE_MOCK) {
+<<<<<<< Updated upstream
                 // Mock 모드
                 runMockSimulation();
+=======
+                // Mock 모드 (삭제됨)
+>>>>>>> Stashed changes
             } else {
                 // 실제 LiveKit 연결
                 setGuideMessage('AI 서버 연결 중...');
@@ -233,17 +245,25 @@ export const useLiveKitScreening = (): UseLiveKitScreeningReturn => {
                 setGuideMessage('카메라 연결에 실패했습니다.');
             }
         }
+<<<<<<< Updated upstream
     }, [runMockSimulation, connectToLiveKit]);
+=======
+    }, [connectToLiveKit]);
+>>>>>>> Stashed changes
 
     // --- 스크리닝 종료 ---
     const stopScreening = useCallback(async () => {
         console.log('🛑 [LiveKit] 스크리닝 종료');
 
+<<<<<<< Updated upstream
         // 1. Mock cleanup
         if (cleanupRef.current) {
             cleanupRef.current();
             cleanupRef.current = null;
         }
+=======
+        // 1. Mock cleanup (생략)
+>>>>>>> Stashed changes
 
         // 2. LiveKit Room 연결 해제
         if (roomRef.current) {

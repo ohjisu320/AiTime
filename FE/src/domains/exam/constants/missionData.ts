@@ -42,3 +42,21 @@ export const SCREENING_CONTENT: Record<string, any> = {
     script: { lines: ["아이의 이름을 부르고", "눈을 맞추는지", "잠깐 기다리며 확인해주세요"] }
   }
 };
+
+export const VIDEO_TYPE_MAP: Record<string, string> = {
+  'POSE_IMITATION': 'TASK1',
+  'SPEECH_IMITATION': 'TASK2',
+  'NAME_FACING': 'TASK3',
+  'NAME_NON_FACING': 'TASK4'
+};
+
+export const CLIENT_TO_SERVER_VIDEO_TYPE_MAP: Record<string, string> = {
+  'TASK1': 'POSE_IMITATION',
+  'TASK2': 'SPEECH_IMITATION',
+  'TASK3': 'NAME_FACING',
+  'TASK4': 'NAME_NON_FACING',
+  '1': 'POSE_IMITATION',
+  '2': 'SPEECH_IMITATION',
+  '3': 'NAME_FACING',
+  '4': 'NAME_NON_FACING'
+};
