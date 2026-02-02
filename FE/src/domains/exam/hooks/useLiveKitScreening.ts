@@ -11,7 +11,7 @@ const LIVEKIT_URL = import.meta.env.VITE_LIVEKIT_URL || 'ws://localhost:7880';
 
 export type ScreeningStatus = 'idle' | 'connecting' | 'screening' | 'ready' | 'error';
 
-interface UseLiveKitScreeningReturn {
+export interface UseLiveKitScreeningReturn {
     videoRef: React.RefObject<HTMLVideoElement>;
     videoStream: MediaStream | null;
     isAligned: boolean;
@@ -26,6 +26,7 @@ interface UseLiveKitScreeningReturn {
 export const useLiveKitScreening = (): UseLiveKitScreeningReturn => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const roomRef = useRef<Room | null>(null);
+    const videoStreamRef = useRef<MediaStream | null>(null); // For cleanup
 
     const [videoStream, setVideoStream] = useState<MediaStream | null>(null);
     const [isAligned, setIsAligned] = useState(false);
@@ -159,38 +160,94 @@ export const useLiveKitScreening = (): UseLiveKitScreeningReturn => {
 
     // --- 스크리닝 시작 ---
     const startScreening = useCallback(async (childId: string) => {
-        console.log('🎬 [LiveKit] 스크리닝 시작');
-        setStatus('connecting');
-        setGuideMessage('카메라 활성화 중...');
-
         try {
-            // 카메라/마이크 권한 획득
-            const localStream = await navigator.mediaDevices.getUserMedia({
-                video: { width: 1280, height: 720 },
-                audio: true
+            console.log('🎬 [LiveKit] 스크리닝 시작 요청 for Child:', childId);
+            setStatus('connecting');
+            setGuideMessage('AI 서버 연결 중...');
+
+            // 1. API로 세션 시작 및 토큰 발급
+            const sessionData = await startScreeningSession(childId);
+            const { userToken, roomName, sessionId: newSessionId } = sessionData;
+
+            console.log(`✅ [LiveKit] Session Created: ${roomName} (${newSessionId})`);
+            setSessionId(newSessionId);
+
+            // 2. Room 생성
+            const room = new Room();
+            roomRef.current = room;
+
+            // 3. 이벤트 핸들러 설정
+            room.on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => {
+                console.log(`👤 [LiveKit] 참가자 입장: ${participant.identity}`);
+                if (participant.identity.startsWith('ai-agent-')) {
+                    setStatus('screening');
+                    setGuideMessage('AI와 연결되었습니다. 가이드를 따라주세요.');
+                }
             });
 
-            console.log('✅ [LiveKit] 미디어 스트림 획득');
+            room.on(RoomEvent.DataReceived, (payload: Uint8Array) => {
+                try {
+                    const decoder = new TextDecoder();
+                    const msg = JSON.parse(decoder.decode(payload)) as ScreeningDataMessage;
+                    console.log('📨 [LiveKit] 데이터 수신:', msg);
 
-            // 비디오 요소에 스트림 연결 (미리보기용)
-            if (videoRef.current) {
-                videoRef.current.srcObject = localStream;
-            }
-            setVideoStream(localStream);
+                    if (msg.type === 'guide') {
+                        setGuideMessage(msg.message);
+                        if (msg.distance !== undefined) {
+                            setVolume(Math.min(100, Math.max(0, msg.distance / 3)));
+                        }
+                    } else if (msg.type === 'screening_complete') {
+                        setStatus('ready');
+                        setIsAligned(true);
+                        setGuideMessage('스크리닝 완료! 검사를 시작할 수 있습니다.');
+                        // 완료 API 호출
+                        if (newSessionId) {
+                            completeScreening(newSessionId, 'success').catch((e: any) => console.error("완료 API 실패", e));
+                        }
+                    } else if (msg.type === 'error') {
+                        console.error('❌ [LiveKit] AI 에러:', msg.message);
+                        setGuideMessage(`오류: ${msg.message}`);
+                    }
+                } catch (err) {
+                    console.error('Data parsing error', err);
+                }
+            });
 
             // 실제 LiveKit 연결
             setGuideMessage('AI 서버 연결 중...');
             await connectToLiveKit(childId);
 
-        } catch (error) {
-            console.error('❌ [LiveKit] 시작 실패:', error);
-            setStatus('error');
+            // 4. LiveKit 연결
+            const wsUrl = import.meta.env.VITE_LIVEKIT_URL || 'ws://localhost:7880';
+            console.log(`🔗 [LiveKit] Connecting to ${wsUrl} with token...`);
 
-            if (error instanceof Error && error.name === 'NotAllowedError') {
-                setGuideMessage('카메라 권한을 허용해주세요.');
-            } else {
-                setGuideMessage('카메라 연결에 실패했습니다.');
-            }
+            await room.connect(wsUrl, userToken);
+            console.log('✅ [LiveKit] Room Connected');
+
+            // 5. 카메라/마이크 활성화
+            await room.localParticipant.setCameraEnabled(true);
+            await room.localParticipant.setMicrophoneEnabled(true);
+
+            // 6. 비디오 엘리먼트 연결
+            setTimeout(() => {
+                const tracks = Array.from(room.localParticipant.videoTrackPublications.values());
+                const videoTrack = tracks.find(t => t.kind === 'video'); // 비디오 트랙 찾기
+
+                if (videoTrack && videoTrack.track) {
+                    if (videoRef.current) {
+                        videoTrack.track.attach(videoRef.current);
+                    }
+                    if (videoTrack.track.mediaStream) {
+                        setVideoStream(videoTrack.track.mediaStream);
+                        videoStreamRef.current = videoTrack.track.mediaStream;
+                    }
+                }
+            }, 500);
+
+        } catch (error: any) {
+            console.error('❌ [LiveKit] Error:', error);
+            setStatus('error');
+            setGuideMessage('연결 실패: ' + (error?.message || String(error)));
         }
     }, [connectToLiveKit]);
 
@@ -204,28 +261,28 @@ export const useLiveKitScreening = (): UseLiveKitScreeningReturn => {
             roomRef.current = null;
         }
 
-        // 3. MediaStream 정지
-        if (videoStream) {
-            videoStream.getTracks().forEach(track => track.stop());
-        }
-        if (videoRef.current) {
-            videoRef.current.srcObject = null;
+        // MediaStream cleanup via ref
+        if (videoStreamRef.current) {
+            videoStreamRef.current.getTracks().forEach(track => track.stop());
+            videoStreamRef.current = null;
         }
 
-        // 4. 상태 초기화
-        setVideoStream(null);
-        setIsAligned(false);
-        setVolume(0);
-        setGuideMessage('');
         setStatus('idle');
-    }, [videoStream]);
+        setVideoStream(null);
+        setGuideMessage('');
+    }, []);
 
-    // --- 컴포넌트 언마운트 시 정리 ---
+    // --- Cleanup ---
     useEffect(() => {
         return () => {
-            stopScreening();
+            if (roomRef.current) {
+                roomRef.current.disconnect();
+            }
+            if (videoStreamRef.current) {
+                videoStreamRef.current.getTracks().forEach(track => track.stop());
+            }
+            // eslint-disable-next-line react-hooks/exhaustive-deps
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     return {

@@ -42,6 +42,12 @@ const ExamRecordingPage: React.FC<ExamRecordingPageProps> = ({ missionId: propMi
 
   // 컴포넌트 마운트 시 스크리닝 시작
   useEffect(() => {
+    if (!childId || childId === 'mock-child-id') {
+      console.warn("⚠️ [ExamRecordingPage] Child ID가 없습니다. 로컬 스토리지가 비었거나 mock-child-id입니다.");
+      // alert("검사 대상 아동 정보가 없습니다. 다시 로그인하거나 선택해주세요.");
+      // return;
+    }
+
     startScreening(childId);
     return () => {
       stopScreening();
