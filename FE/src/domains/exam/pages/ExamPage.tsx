@@ -24,7 +24,7 @@ const ExamPage: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const content = SCREENING_CONTENT[missionId] || SCREENING_CONTENT["1"];
-  const { stream, isRecording, attempts, startSession, startRecording, stopRecording } = useMediaRecorder();
+  const { stream, isRecording, startSession, startRecording, stopRecording } = useMediaRecorder();
 
   const { mutate: uploadVideo, isPending } = useExamUpload();
 
@@ -70,7 +70,10 @@ const ExamPage: React.FC = () => {
   }, [countdown, startRecording]);
 
   const handleComplete = async () => {
-    const videoBlob = await stopRecording();
+    const { blob: videoBlob } = await stopRecording();
+
+    // 💡 중요: stopRecording 직후에는 attempts state가 아직 업데이트되지 않았을 수 있음 (closure)
+    // 하지만 API 변경으로 인해 더 이상 attempts를 전송하지 않으므로 변수만 제거합니다.
 
     // ✅ 2. examId를 localStorage에서 동적으로 가져오기
     // (테스트를 위해 하드코딩이 필요하다면 아래 줄을 주석 처리하고 문자열을 직접 넣으세요)
@@ -89,8 +92,7 @@ const ExamPage: React.FC = () => {
       examId,
       // ✅ 여기서 올바른 서버 타입(POSE_IMITATION 등)으로 변환하여 전달합니다.
       videoType: getVideoTypeFromMissionId(missionId),
-      videoBlob,
-      attempts
+      videoBlob
     }, {
       onSuccess: () => {
         navigate('/exam/mission');

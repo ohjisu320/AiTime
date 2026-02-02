@@ -5,7 +5,6 @@ interface UploadParams {
   examId: string;
   videoType: VideoType;
   videoBlob: Blob;
-  attempts: any[];
   onProgress?: (progress: number) => void;  // ✅ 진행률 콜백 옵션
 }
 
@@ -31,7 +30,7 @@ const retryWithDelay = async <T,>(
 
 export const useExamUpload = () => {
   return useMutation({
-    mutationFn: async ({ examId, videoType, videoBlob, attempts, onProgress }: UploadParams) => {
+    mutationFn: async ({ examId, videoType, videoBlob, onProgress }: UploadParams) => {
       console.log(`🎬 비디오 업로드 시작 - videoType: ${videoType}, size: ${(videoBlob.size / 1024 / 1024).toFixed(2)}MB`);
 
       // 1. Presigned URL 발급
@@ -54,8 +53,8 @@ export const useExamUpload = () => {
 
       console.log('✅ MinIO 업로드 완료!');
 
-      // 3. 서버 상태 완료 처리
-      return await videoApi.updateVideoStatus(presignedData.videoId, attempts);
+      // 3. 서버 상태 완료 처리 (API 변경 반영)
+      return await videoApi.updateVideoStatus(examId, presignedData.videoId, presignedData.s3Key);
     }
   });
 };
