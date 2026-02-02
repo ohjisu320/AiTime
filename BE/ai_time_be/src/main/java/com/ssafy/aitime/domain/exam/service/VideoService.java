@@ -4,6 +4,7 @@ import com.ssafy.aitime.domain.exam.dto.request.PresignedKeyRequest;
 import com.ssafy.aitime.domain.exam.dto.request.VideoUploadCompleteRequest;
 import com.ssafy.aitime.domain.exam.dto.response.PresignedKeyResponse;
 import com.ssafy.aitime.domain.exam.dto.response.PresignedViewUrlResponse;
+import com.ssafy.aitime.domain.exam.dto.response.VideoDeleteResponse;
 import com.ssafy.aitime.domain.exam.dto.response.VideoUploadCompleteResponse;
 
 import java.util.UUID;
@@ -25,4 +26,10 @@ public interface VideoService {
      * - Principal 타입에 따라 권한 검증 로직 분기
      */
     PresignedViewUrlResponse generatePresignedViewUrl(Object principal, UUID examId, String videoType, int expiresInSec);
+
+    /**
+     * 특정 영상 삭제 (자녀/보호자 권한 검증 + MinIO 파일 삭제)
+     * DB는 soft delete로 처리 (status를 DELETED로 변경)
+     */
+    VideoDeleteResponse deleteVideo(UUID userId, UUID examId, String videoType);
 }

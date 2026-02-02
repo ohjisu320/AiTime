@@ -4,6 +4,7 @@ import com.ssafy.aitime.domain.exam.dto.request.PresignedKeyRequest;
 import com.ssafy.aitime.domain.exam.dto.request.VideoUploadCompleteRequest;
 import com.ssafy.aitime.domain.exam.dto.response.PresignedKeyResponse;
 import com.ssafy.aitime.domain.exam.dto.response.PresignedViewUrlResponse;
+import com.ssafy.aitime.domain.exam.dto.response.VideoDeleteResponse;
 import com.ssafy.aitime.domain.exam.dto.response.VideoUploadCompleteResponse;
 import com.ssafy.aitime.domain.exam.entity.Exam;
 import com.ssafy.aitime.domain.exam.entity.Video;
@@ -390,5 +391,75 @@ public class VideoServiceImpl implements VideoService {
             log.error("Presigned GET URL 생성 실패 - bucket: {}, key: {}", bucket, s3Key, e);
             throw new S3UploadException(e);
         }
+    }
+
+    /**
+     * 특정 검사의 특정 태스크 영상 삭제 (자녀/보호자 권한 검증 + 삭제 가능한 상태 확인)
+     * 처리 로직:
+     * 1. 권한 확인 (자녀/보호자 본인의 검사인지)
+     * 2. DB에서 video 조회
+     * 3. 영상 상태가 삭제 가능한지 확인 (PENDING_UPLOAD, UPLOADED만 삭제 가능)
+     * 4. MinIO에서 실제 파일 삭제 (DeleteObject는 파일이 없어도 성공 반환 - 멱등성)
+     * 5. DB 업데이트 - status를 DELETED로 변경 (soft delete)
+     */
+    @Override
+    @Transactional
+    public VideoDeleteResponse deleteVideo(UUID userId, UUID examId, String videoType) {
+
+        // 1. Exam 조회 및 권한 검증
+        Exam exam = examRepository.findById(examId)
+                .orElseThrow(() -> new ExamNotFoundException(examId));
+
+        // Exam이 해당 User의 Child에 속하는지 확인
+        if (!exam.getChild().getUser().getUserId().equals(userId)) {
+            throw new ExamAccessDeniedException(examId);
+        }
+
+        // 2. VideoType 검증 및 변환
+        VideoType videoTypeEnum = validateAndParseVideoType(videoType);
+
+        // 3. Video 조회
+        Video video = videoRepository.findByExamExamIdAndVideoType(examId, videoTypeEnum)
+                .orElseThrow(VideoNotFoundException::new);
+
+        // 4. 영상 상태 확인 - 삭제 가능한 상태인지 검증
+        if (!video.canDelete()) {
+            log.warn("삭제 불가능한 영상 상태 - videoId: {}, status: {}",
+                    video.getVideoId(), video.getVideoStatus());
+            throw new InvalidVideoStatusException(video.getVideoStatus());
+        }
+
+        // 5. MinIO에서 파일 삭제
+        boolean deletedFromStorage = false;
+        try {
+            s3Client.deleteObject(builder -> builder
+                    .bucket(video.getS3Bucket())
+                    .key(video.getS3Key())
+                    .build());
+            deletedFromStorage = true;
+            log.info("MinIO 파일 삭제 완료 - bucket: {}, key: {}",
+                    video.getS3Bucket(), video.getS3Key());
+        } catch (Exception e) {
+            log.error("MinIO 파일 삭제 실패 - bucket: {}, key: {}",
+                    video.getS3Bucket(), video.getS3Key(), e);
+            // DeleteObject는 파일이 없어도 성공을 반환하므로, 여기서 예외가 발생하면 실제 오류
+            // 하지만 DB는 업데이트하도록 처리 (멱등성)
+        }
+
+        // 6. DB 업데이트 - Soft delete (상태만 변경)
+        video.markDeleted();
+        videoRepository.save(video);
+
+        log.info("Video soft delete 완료 - videoId: {}, examId: {}, status: {}",
+                video.getVideoId(), examId, video.getVideoStatus());
+
+        // 7. 응답 생성
+        return VideoDeleteResponse.builder()
+                .examId(examId.toString())
+                .videoType(videoTypeEnum.name())
+                .videoId(video.getVideoId().toString())
+                .deletedFromStorage(deletedFromStorage)
+                .status(video.getVideoStatus().name())
+                .build();
     }
 }
