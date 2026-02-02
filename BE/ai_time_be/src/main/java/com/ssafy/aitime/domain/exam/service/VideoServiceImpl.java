@@ -3,6 +3,7 @@ package com.ssafy.aitime.domain.exam.service;
 import com.ssafy.aitime.domain.exam.dto.request.PresignedKeyRequest;
 import com.ssafy.aitime.domain.exam.dto.request.VideoUploadCompleteRequest;
 import com.ssafy.aitime.domain.exam.dto.response.PresignedKeyResponse;
+import com.ssafy.aitime.domain.exam.dto.response.PresignedViewUrlResponse;
 import com.ssafy.aitime.domain.exam.dto.response.VideoUploadCompleteResponse;
 import com.ssafy.aitime.domain.exam.entity.Exam;
 import com.ssafy.aitime.domain.exam.entity.Video;
@@ -12,14 +13,20 @@ import com.ssafy.aitime.domain.exam.entity.enums.VideoType;
 import com.ssafy.aitime.domain.exam.exception.*;
 import com.ssafy.aitime.domain.exam.repository.ExamRepository;
 import com.ssafy.aitime.domain.exam.repository.VideoRepository;
+import com.ssafy.aitime.domain.hospital.service.HospitalChildrenService;
+import com.ssafy.aitime.security.principal.HospitalStaffPrincipal;
+import com.ssafy.aitime.security.principal.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
@@ -34,6 +41,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class VideoServiceImpl implements VideoService {
 
+    private final HospitalChildrenService hospitalChildrenService;
     private final VideoRepository videoRepository;
     private final ExamRepository examRepository;
     private final S3Presigner s3Presigner;
@@ -208,12 +216,13 @@ public class VideoServiceImpl implements VideoService {
                 videoId, examId, request.s3Key());
 
         // 6. 응답 생성
-        return VideoUploadCompleteResponse.of(
-                video.getVideoId().toString(),
-                video.getExam().getExamId().toString(),
-                video.getVideoStatus().name(),
-                true
-        );
+        return VideoUploadCompleteResponse
+                .builder()
+                .videoId(video.getVideoId().toString())
+                .examId(video.getExam().getExamId().toString())
+                .status(video.getVideoStatus().name())
+                .verified(true)
+                .build();
     }
 
     /**
@@ -233,6 +242,153 @@ public class VideoServiceImpl implements VideoService {
         } catch (Exception e) {
             log.error("S3 파일 검증 중 오류 발생 - bucket: {}, Key: {}", bucket, s3Key, e);
             throw new S3FileVerificationException(s3Key, e);
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PresignedViewUrlResponse generatePresignedViewUrl(Object principal, UUID examId, String videoType, int expiresInSec) {
+
+        // 1. Principal 타입 검증 및 권한 확인
+        validatePrincipalAndAuthorization(principal, examId);
+
+        // 2. VideoType 검증
+        VideoType videoTypeEnum = validateAndParseVideoType(videoType);
+
+        // 3. Exam 조회
+        Exam exam = examRepository.findById(examId)
+                .orElseThrow(() -> new ExamNotFoundException(examId));
+
+        // 4. Video 조회
+        Video video = videoRepository.findByExamExamIdAndVideoType(examId, videoTypeEnum)
+                .orElseThrow(VideoNotFoundException::new);
+
+        // 5. Video 상태 확인 - UPLOADED 상태만 조회 가능
+        if (video.getVideoStatus() != VideoStatus.UPLOADED) {
+            log.warn("업로드되지 않은 영상 조회 시도 - videoId: {}, status: {}",
+                    video.getVideoId(), video.getVideoStatus());
+            throw new VideoNotUploadedException(video.getVideoStatus());
+        }
+
+        // 6. url 생성 전 S3 파일 존재 확인
+        boolean fileExists = verifyS3FileExists(video.getS3Bucket(), video.getS3Key());
+        if (!fileExists) {
+            log.error("S3 파일이 존재하지 않음 - bucket: {}, Key: {}", video.getS3Bucket(), video.getS3Key());
+            throw new S3FileVerificationException(video.getS3Key());
+        }
+
+        // 7. Presigned GET URL 생성
+        String presignedUrl = generatePresignedGetUrl(video.getS3Bucket(), video.getS3Key(), expiresInSec);
+        LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(expiresInSec);
+
+        log.info("Presigned View URL 생성 완료 - videoId: {}, expiresAt: {}",
+                video.getVideoId(), expiresAt);
+
+        // 8. Response 생성
+        return PresignedViewUrlResponse.builder()
+            .examId(exam.getExamId().toString())
+            .videoType(videoTypeEnum.name())
+            .videoId(video.getVideoId().toString())
+            .bucket(video.getS3Bucket())
+            .s3Key(video.getS3Key())
+            .viewUrl(presignedUrl)
+            .expiresAt(expiresAt)
+            .build();
+    }
+
+    /**
+     * Principal 타입에 따라 권한 검증
+     * - UserPrincipal: 본인 또는 자녀의 exam인지 확인
+     * - HospitalStaffPrincipal: 본인 병원과 연동된 아이의 exam인지 확인
+     */
+    private void validatePrincipalAndAuthorization(Object principal, UUID examId) {
+        if (principal instanceof UserPrincipal userPrincipal) {
+            validateUserAccess(userPrincipal, examId);
+        } else if (principal instanceof HospitalStaffPrincipal staffPrincipal) {
+            validateHospitalStaffAccess(staffPrincipal, examId);
+        } else {
+            log.error("지원하지 않는 Principal 타입: {}", principal.getClass().getName());
+            throw new ExamAccessDeniedException(examId);
+        }
+    }
+
+    /**
+     * User 권한 검증: Exam이 User의 Child에 속하는지 확인
+     */
+    private void validateUserAccess(UserPrincipal userPrincipal, UUID examId) {
+        Exam exam = examRepository.findById(examId)
+                .orElseThrow(() -> new ExamNotFoundException(examId));
+
+        UUID examUserId = exam.getChild().getUser().getUserId();
+        UUID requestUserId = userPrincipal.getUserId();
+
+        if (!examUserId.equals(requestUserId)) {
+            log.warn("User 권한 없음 - userId: {}, examId: {}, examUserId: {}",
+                    requestUserId, examId, examUserId);
+            throw new ExamAccessDeniedException(examId);
+        }
+
+        log.debug("User 권한 검증 성공 - userId: {}, examId: {}", requestUserId, examId);
+    }
+
+    /**
+     * HospitalStaff 권한 검증: Exam의 Child가 Staff의 Hospital과 연동되어 있는지 확인
+     */
+    private void validateHospitalStaffAccess(HospitalStaffPrincipal staffPrincipal, UUID examId) {
+        Exam exam = examRepository.findById(examId)
+                .orElseThrow(() -> new ExamNotFoundException(examId));
+
+        UUID childId = exam.getChild().getChildId();
+        UUID hospitalId = staffPrincipal.getHospitalId();
+
+        // HospitalChildrenService를 통해 Child와 Hospital의 연동 여부 확인
+        boolean isLinked = hospitalChildrenService.isChildLinkedToHospital(childId, hospitalId);
+
+        if (!isLinked) {
+            log.warn("HospitalStaff 권한 없음 - staffId: {}, hospitalId: {}, examId: {}, childId: {}",
+                    staffPrincipal.getHospitalStaffId(), hospitalId, examId, childId);
+            throw new ExamAccessDeniedException(examId);
+        }
+
+        log.debug("HospitalStaff 권한 검증 성공 - staffId: {}, hospitalId: {}, examId: {}",
+                staffPrincipal.getHospitalStaffId(), hospitalId, examId);
+    }
+
+    /**
+     * VideoType String을 Enum으로 변환 및 검증
+     */
+    private VideoType validateAndParseVideoType(String videoType) {
+        try {
+            return VideoType.valueOf(videoType);
+        } catch (IllegalArgumentException e) {
+            log.error("유효하지 않은 VideoType: {}", videoType);
+            throw new InvalidVideoTypeException(videoType);
+        }
+    }
+
+    /**
+     * S3 Presigned GET URL 생성 (조회용)
+     */
+    private String generatePresignedGetUrl(String bucket, String s3Key, int expiresInSec) {
+        try {
+            GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+                    .bucket(bucket)
+                    .key(s3Key)
+                    .build();
+
+            Duration expiration = Duration.ofSeconds(expiresInSec);
+
+            GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
+                    .signatureDuration(expiration)
+                    .getObjectRequest(getObjectRequest)
+                    .build();
+
+            PresignedGetObjectRequest presignedRequest = s3Presigner.presignGetObject(presignRequest);
+
+            return presignedRequest.url().toString();
+        } catch (Exception e) {
+            log.error("Presigned GET URL 생성 실패 - bucket: {}, key: {}", bucket, s3Key, e);
+            throw new S3UploadException(e);
         }
     }
 }

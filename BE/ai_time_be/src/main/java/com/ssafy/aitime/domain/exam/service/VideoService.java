@@ -3,6 +3,7 @@ package com.ssafy.aitime.domain.exam.service;
 import com.ssafy.aitime.domain.exam.dto.request.PresignedKeyRequest;
 import com.ssafy.aitime.domain.exam.dto.request.VideoUploadCompleteRequest;
 import com.ssafy.aitime.domain.exam.dto.response.PresignedKeyResponse;
+import com.ssafy.aitime.domain.exam.dto.response.PresignedViewUrlResponse;
 import com.ssafy.aitime.domain.exam.dto.response.VideoUploadCompleteResponse;
 
 import java.util.UUID;
@@ -17,4 +18,11 @@ public interface VideoService {
      * 영상 업로드 완료 처리
      */
     VideoUploadCompleteResponse completeVideoUpload(UUID userId, UUID examId, UUID videoId, VideoUploadCompleteRequest request);
+
+    /**
+     * 영상 조회용 Presigned URL 생성
+     * - User 또는 HospitalStaff 모두 호출 가능
+     * - Principal 타입에 따라 권한 검증 로직 분기
+     */
+    PresignedViewUrlResponse generatePresignedViewUrl(Object principal, UUID examId, String videoType, int expiresInSec);
 }
