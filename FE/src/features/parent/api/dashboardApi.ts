@@ -29,6 +29,7 @@ export interface ChildHomeResponse {
     message: string;
     data: {
         childId: string;
+        examId: string | null;             // ✅ 추가: 현재 진행 중인 검사 ID
         name: string;
         gender: 'MALE' | 'FEMALE';
         examStartedAt: string | null;      // ✅ 추가
@@ -131,6 +132,7 @@ export const registerInviteCode = async (childId: string, inviteCode: string) =>
 
 const MOCK_BASE_DATA = {
     childId: TEST_CHILD_ID,
+    examId: null,
     name: "오하나",
     gender: "FEMALE" as const,
     examStatus: "AVAILABLE" as ChildDashboardStatus,  // ✅ examStatus
