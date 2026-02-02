@@ -247,14 +247,14 @@ class HospitalStaffControllerTest {
         verify(hospitalStaffService, times(1)).logout(isNull(), isNull());
     }
 
-
-// 기존 테스트 메서드들 아래에 추가
+// 기존 캘린더 관련 테스트들을 모두 삭제하고 아래로 교체
 
     @Test
     @DisplayName("캘린더 인디케이터 정보를 조회하면 200 상태코드와 날짜 목록을 반환한다")
     void getReservationDates_Success() throws Exception {
         // given
-        YearMonth yearMonth = YearMonth.of(2026, 1);
+        int year = 2026;
+        int month = 1;
 
         List<LocalDate> dates = List.of(
                 LocalDate.of(2026, 1, 5),
@@ -263,12 +263,13 @@ class HospitalStaffControllerTest {
                 LocalDate.of(2026, 1, 21)
         );
 
-        given(reservationService.getHospitalReservationDates(any(UUID.class), eq(yearMonth)))
+        given(reservationService.getHospitalReservationDates(any(UUID.class), eq(year), eq(month)))
                 .willReturn(dates);
 
         // when & then
         mockMvc.perform(get("/hospital-staff/calendar")
-                        .param("yearMonth", "2026-01"))
+                        .param("year", "2026")
+                        .param("month", "1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("200 OK"))
                 .andExpect(jsonPath("$.message").value("달력 인디케이터 조회가 완료되었습니다."))
@@ -284,14 +285,16 @@ class HospitalStaffControllerTest {
     @DisplayName("예약이 없는 월은 200 상태코드와 빈 배열을 반환한다")
     void getReservationDates_EmptyResult() throws Exception {
         // given
-        YearMonth yearMonth = YearMonth.of(2026, 12);
+        int year = 2026;
+        int month = 12;
 
-        given(reservationService.getHospitalReservationDates(any(UUID.class), eq(yearMonth)))
+        given(reservationService.getHospitalReservationDates(any(UUID.class), eq(year), eq(month)))
                 .willReturn(List.of());
 
         // when & then
         mockMvc.perform(get("/hospital-staff/calendar")
-                        .param("yearMonth", "2026-12"))
+                        .param("year", "2026")
+                        .param("month", "12"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("200 OK"))
                 .andExpect(jsonPath("$.message").value("달력 인디케이터 조회가 완료되었습니다."))
@@ -303,36 +306,39 @@ class HospitalStaffControllerTest {
     @DisplayName("인증된 사용자의 병원 ID로 캘린더를 조회한다")
     void getReservationDates_UsesAuthenticatedHospitalId() throws Exception {
         // given
-        YearMonth yearMonth = YearMonth.of(2026, 1);
+        int year = 2026;
+        int month = 1;
         UUID expectedHospitalId = UUID.fromString("22222222-2222-2222-2222-222222222222");
 
-        given(reservationService.getHospitalReservationDates(eq(expectedHospitalId), eq(yearMonth)))
+        given(reservationService.getHospitalReservationDates(eq(expectedHospitalId), eq(year), eq(month)))
                 .willReturn(List.of());
 
         // when
         mockMvc.perform(get("/hospital-staff/calendar")
-                        .param("yearMonth", "2026-01"))
+                        .param("year", "2026")
+                        .param("month", "1"))
                 .andExpect(status().isOk());
 
         // then
         verify(reservationService, times(1))
-                .getHospitalReservationDates(eq(expectedHospitalId), eq(yearMonth));
+                .getHospitalReservationDates(eq(expectedHospitalId), eq(year), eq(month));
     }
 
     @Test
-    @DisplayName("잘못된 yearMonth 형식은 400 Bad Request를 반환한다")
-    void getReservationDates_InvalidYearMonthFormat() throws Exception {
+    @DisplayName("year 파라미터가 누락되면 400 Bad Request를 반환한다")
+    void getReservationDates_MissingYear() throws Exception {
         // when & then
         mockMvc.perform(get("/hospital-staff/calendar")
-                        .param("yearMonth", "invalid-format"))
+                        .param("month", "1"))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
-    @DisplayName("yearMonth 파라미터가 누락되면 400 Bad Request를 반환한다")
-    void getReservationDates_MissingYearMonth() throws Exception {
+    @DisplayName("month 파라미터가 누락되면 400 Bad Request를 반환한다")
+    void getReservationDates_MissingMonth() throws Exception {
         // when & then
-        mockMvc.perform(get("/hospital-staff/calendar"))
+        mockMvc.perform(get("/hospital-staff/calendar")
+                        .param("year", "2026"))
                 .andExpect(status().isBadRequest());
     }
 
@@ -340,25 +346,27 @@ class HospitalStaffControllerTest {
     @DisplayName("다양한 월에 대해 정상적으로 조회한다")
     void getReservationDates_VariousMonths() throws Exception {
         // given - 2월
-        YearMonth feb = YearMonth.of(2026, 2);
-        given(reservationService.getHospitalReservationDates(any(UUID.class), eq(feb)))
+        given(reservationService.getHospitalReservationDates(any(UUID.class), eq(2026), eq(2)))
                 .willReturn(List.of(LocalDate.of(2026, 2, 14)));
 
         // when & then - 2월
         mockMvc.perform(get("/hospital-staff/calendar")
-                        .param("yearMonth", "2026-02"))
+                        .param("year", "2026")
+                        .param("month", "2"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0]").value("2026-02-14"));
 
         // given - 12월
-        YearMonth dec = YearMonth.of(2026, 12);
-        given(reservationService.getHospitalReservationDates(any(UUID.class), eq(dec)))
+        given(reservationService.getHospitalReservationDates(any(UUID.class), eq(2026), eq(12)))
                 .willReturn(List.of(LocalDate.of(2026, 12, 25)));
 
         // when & then - 12월
         mockMvc.perform(get("/hospital-staff/calendar")
-                        .param("yearMonth", "2026-12"))
+                        .param("year", "2026")
+                        .param("month", "12"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0]").value("2026-12-25"));
     }
+
+
 }

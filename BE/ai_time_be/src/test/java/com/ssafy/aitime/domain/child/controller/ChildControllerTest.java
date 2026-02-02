@@ -1,8 +1,10 @@
 package com.ssafy.aitime.domain.child.controller;
 
+import com.ssafy.aitime.application.invitecode.InviteCodeApplicationService;
 import com.ssafy.aitime.common.enums.RecordStatus;
 import com.ssafy.aitime.domain.child.dto.request.ChildCreateRequest;
 import com.ssafy.aitime.domain.child.dto.request.ChildDeleteResponse;
+import com.ssafy.aitime.domain.child.dto.request.ChildHospitalLinkRequest;
 import com.ssafy.aitime.domain.child.dto.response.ChildInfoResponse;
 import com.ssafy.aitime.domain.child.entity.enums.Gender;
 import com.ssafy.aitime.domain.child.service.ChildService;
@@ -36,6 +38,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -53,8 +56,12 @@ class ChildControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @MockitoBean
+    private InviteCodeApplicationService inviteCodeApplicationService;
+
     // 테스트에서 공통으로 사용할 고정 유저 ID
-    private static final UUID TEST_USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000000");
+    private static final UUID TEST_USER_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
+    private static final UUID TEST_CHILD_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
 
     /**
      * @AuthenticationPrincipal UserPrincipal 에 가짜 객체를 주입하기 위한 설정
@@ -70,8 +77,10 @@ class ChildControllerTest {
                 }
 
                 @Override
-                public @Nullable Object resolveArgument(org.springframework.core.MethodParameter parameter, @Nullable ModelAndViewContainer mavContainer, NativeWebRequest webRequest, @Nullable WebDataBinderFactory binderFactory) throws Exception {
-                    // 유효한 User 엔티티를 만들어 UserPrincipal 생성
+                public @Nullable Object resolveArgument(org.springframework.core.MethodParameter parameter,
+                                                        @Nullable ModelAndViewContainer mavContainer,
+                                                        NativeWebRequest webRequest,
+                                                        @Nullable WebDataBinderFactory binderFactory) {
                     User user = User.builder()
                             .loginId("testUser")
                             .userRole(UserRole.USER)
@@ -136,4 +145,45 @@ class ChildControllerTest {
                 .andExpect(jsonPath("$.data.childId").value(childId.toString()))
                 .andExpect(jsonPath("$.data.status").value("DELETED"));
     }
+
+    @Test
+    @DisplayName("병원 연동 성공 시 200 OK를 반환한다")
+    void registerInviteCode_Success() throws Exception {
+        // given
+        ChildHospitalLinkRequest request = new ChildHospitalLinkRequest("ABC123");
+
+        // InviteCodeApplicationService는 void 메서드이므로 별도 설정 불필요
+        // 하지만 명시적으로 작성하려면:
+        doNothing().when(inviteCodeApplicationService)
+                .registerInviteCode(eq(TEST_CHILD_ID), eq("ABC123"), eq(TEST_USER_ID));
+
+        // when & then
+        mockMvc.perform(post("/child/{childId}/hospital-link", TEST_CHILD_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("200 OK"))
+                .andExpect(jsonPath("$.message").value("병원 연동이 성공적으로 완료되었습니다."))
+                .andExpect(jsonPath("$.data").doesNotExist());
+
+        verify(inviteCodeApplicationService, times(1))
+                .registerInviteCode(eq(TEST_CHILD_ID), eq("ABC123"), eq(TEST_USER_ID));
+    }
+
+    @Test
+    @DisplayName("병원 연동 시 초대 코드가 비어있으면 400 Bad Request를 반환한다")
+    void registerInviteCode_EmptyInviteCode() throws Exception {
+        // given
+        ChildHospitalLinkRequest request = new ChildHospitalLinkRequest("");
+
+        // when & then
+        mockMvc.perform(post("/child/{childId}/hospital-link", TEST_CHILD_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+
+        verify(inviteCodeApplicationService, never())
+                .registerInviteCode(any(), any(), any());
+    }
+
 }
