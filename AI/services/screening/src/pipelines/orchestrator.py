@@ -28,6 +28,7 @@ class VideoSample:
     two_faces: bool
     roi1_has: bool
     roi2_has: bool
+    face_too_small: bool = False
 
 
 @dataclass
@@ -76,6 +77,8 @@ def _make_hint(flags: list[QualityFlag]) -> str:
             miss.append("오른쪽")
         side = "/".join(miss) if miss else "지정된"
         return f"{side} 영역(ROI)에 얼굴이 들어오도록 위치를 맞춰 주세요."
+    if QualityFlag.FACE_TOO_SMALL in flags:
+        return "얼굴이 너무 작게 보입니다. 카메라에 조금 더 가까이 다가와 주세요."
     return "조금만 더 위치/환경을 조정해 주세요."
 
 
@@ -125,6 +128,12 @@ class PreflightOrchestrator:
         self._last_hint_text: str = ""
         self._pass_start_t: float | None = None
 
+        # API 명세 필드 (프레임 카운터, person_count, distance)
+        self._total_frames: int = 0
+        self._valid_frames: int = 0
+        self._last_person_count: int = 0
+        self._last_distance: int = 0
+
         if self.logger:
             self.logger.log(
                 "lifecycle_start",
@@ -138,6 +147,23 @@ class PreflightOrchestrator:
     @property
     def finished(self) -> bool:
         return self._finished
+
+    def get_last_state(self) -> dict:
+        """Return last known ratios/scores/flags for external timeout handling."""
+        # _last_flags_sig is already a tuple of string values (sorted flag names)
+        total = self._total_frames
+        valid = self._valid_frames
+        return {
+            "ratios": getattr(self, "_last_ratios", {}),
+            "scores": getattr(self, "_last_scores", {}),
+            "flags": list(getattr(self, "_last_flags_sig", ())),
+            # API 명세 필드
+            "total_frames": total,
+            "valid_frames": valid,
+            "confidence": valid / max(1, total),
+            "person_count": self._last_person_count,
+            "distance": self._last_distance,
+        }
 
     def _now(self) -> float:
         return self._now_fn() if self._now_fn else time.monotonic()
@@ -166,6 +192,7 @@ class PreflightOrchestrator:
         two_faces_ratio = ratio([s.two_faces for s in v])
         roi1_face_ratio = ratio([s.roi1_has for s in v])
         roi2_face_ratio = ratio([s.roi2_has for s in v])
+        face_too_small_ratio = ratio([s.face_too_small for s in v])
 
         avg_rms_dbfs = float(np.mean([s.rms_dbfs for s in a])) if a else -120.0
         avg_luma_mean = float(np.mean([s.luma_mean for s in v])) if v else 0.0
@@ -178,6 +205,7 @@ class PreflightOrchestrator:
             two_faces_ratio=two_faces_ratio,
             roi1_face_ratio=roi1_face_ratio,
             roi2_face_ratio=roi2_face_ratio,
+            face_too_small_ratio=face_too_small_ratio,
             avg_rms_dbfs=avg_rms_dbfs,
             avg_luma_mean=avg_luma_mean,
         )
@@ -230,7 +258,7 @@ class PreflightOrchestrator:
                         ratios={},
                         scores={},
                         flags=[],
-                    ).model_dump()
+                    ).model_dump(mode="json")
                 )
                 self._last_progress_sent_t = now
             return
@@ -274,6 +302,10 @@ class PreflightOrchestrator:
         if stats.roi2_face_ratio < self.ctx.config.roi_face_ratio_min:
             flags.append(QualityFlag.ROI_FACE_MISSING_2)
 
+        # FACE_TOO_SMALL: 얼굴이 너무 작은 프레임 비율이 20% 초과 시
+        if stats.face_too_small_ratio > 0.2:
+            flags.append(QualityFlag.FACE_TOO_SMALL)
+
         # ---- 3) PASS 여부 + PASS hold(깜빡임 방지) ----
         instant_pass = (
             stats.noise_high_ratio <= self.ctx.config.audio_noise_high_ratio_max
@@ -309,7 +341,7 @@ class PreflightOrchestrator:
                     ratios=ratios,
                     scores=scores,
                     flags=flags,
-                ).model_dump()
+                ).model_dump(mode="json")
             )
             if self.logger:
                 self.logger.log(
@@ -336,7 +368,9 @@ class PreflightOrchestrator:
                     run_id=self.ctx.repro.run_id,
                     hint=hint,
                     flags=flags,
-                ).model_dump()
+                    person_count=self._last_person_count,
+                    distance=self._last_distance,
+                ).model_dump(mode="json")
             )
             if self.logger:
                 self.logger.log(
@@ -356,11 +390,14 @@ class PreflightOrchestrator:
                     flags=[],
                     ratios=ratios,
                     scores=scores,
+                    total_frames=self._total_frames,
+                    valid_frames=self._valid_frames,
+                    confidence=self._valid_frames / max(1, self._total_frames),
                     details={
                         "seen_seconds": seen_seconds,
                         "pass_hold_sec": pass_hold_sec,
                     },
-                ).model_dump()
+                ).model_dump(mode="json")
             )
             if self.logger:
                 self.logger.log(
@@ -395,6 +432,23 @@ class PreflightOrchestrator:
             self._finished = True
             fr = FailureReason.FAIL_TIMEOUT
             rep_fr = _pick_failure_reason(flags)
+            self.send(
+                ResultMessage(
+                    run_id=self.ctx.repro.run_id,
+                    passed=False,
+                    failure_reason=fr,
+                    flags=flags,
+                    ratios=ratios,
+                    scores=scores,
+                    total_frames=self._total_frames,
+                    valid_frames=self._valid_frames,
+                    confidence=self._valid_frames / max(1, self._total_frames),
+                    details={
+                        "seen_seconds": seen_seconds,
+                        "representative_failure": rep_fr.value if rep_fr else None,
+                    },
+                ).model_dump(mode="json")
+            )
             if self.logger:
                 self.logger.log(
                     "result",
@@ -404,6 +458,9 @@ class PreflightOrchestrator:
                         "flags": [f.value for f in flags],
                         "ratios": ratios,
                         "scores": scores,
+                        "total_frames": self._total_frames,
+                        "valid_frames": self._valid_frames,
+                        "confidence": self._valid_frames / max(1, self._total_frames),
                         "details": {
                             "seen_seconds": seen_seconds,
                             "representative_failure": rep_fr.value if rep_fr else None,
@@ -437,6 +494,12 @@ class PreflightOrchestrator:
         fq = self.frame_stage.run(self.ctx, {"frame_bgr": frame_bgr})
         fd = self.face_stage.run(self.ctx, {"frame_bgr": frame_bgr})
         num_faces = int(fd.payload["num_faces"])
+        distance = int(fd.payload.get("distance", 0))
+
+        # 프레임 카운터 및 API 명세 필드 업데이트
+        self._total_frames += 1
+        self._last_person_count = num_faces
+        self._last_distance = distance
 
         # 디버그 로그 (30프레임마다)
         self._dbg = getattr(self, "_dbg", 0) + 1
@@ -469,15 +532,25 @@ class PreflightOrchestrator:
 
         # video sample 기록
         two_faces = num_faces == self.ctx.config.target_faces
+        low_light = bool(fq.payload["low_light"])
+        roi1_has = bool(rv.payload["roi1_has_face"])
+        roi2_has = bool(rv.payload["roi2_has_face"])
+        face_too_small = QualityFlag.FACE_TOO_SMALL in fd.quality_flags
+
+        # valid_frames 카운트 (모든 조건 만족 시)
+        if two_faces and not low_light and roi1_has and roi2_has and not face_too_small:
+            self._valid_frames += 1
+
         self._video.append(
             VideoSample(
                 t=now,
                 luma_mean=float(fq.payload["luma_mean"]),
-                low_light=bool(fq.payload["low_light"]),
+                low_light=low_light,
                 num_faces=num_faces,
                 two_faces=two_faces,
-                roi1_has=bool(rv.payload["roi1_has_face"]),
-                roi2_has=bool(rv.payload["roi2_has_face"]),
+                roi1_has=roi1_has,
+                roi2_has=roi2_has,
+                face_too_small=face_too_small,
             )
         )
 
