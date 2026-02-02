@@ -1,8 +1,10 @@
-// src/features/auth/hooks/useLoginPage.ts
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
-import type { AuthTabType, LoginCredentials } from "../types"; // [수정] type 추가
+import type { AuthTabType, LoginCredentials } from "../types";
+import api from '@/api/axiosConfig';
+import type { ApiResponseUserLogin, ApiResponseHospitalStaffLogin } from '@/api/types/auth.types';
+import { StaffRole } from '@/api/types';
 
 export const useLoginPage = () => {
   const navigate = useNavigate();
@@ -17,79 +19,85 @@ export const useLoginPage = () => {
     setIsLoading(true);
 
     try {
-      // API 엔드포인트 결정
-      const endpoint = activeTab === "PARENT"
-        ? "/user/login"
-        : "/hospital-staff/login";
-
       console.log(`[${activeTab}] 로그인 요청:`, { loginId: data.loginId });
 
-      // 실제 API 호출 (axios 사용)
-      const axios = (await import('axios')).default;
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_BASE_URL}${endpoint}`,
-        {
+      let redirectUrl = "";
+
+      if (activeTab === "PARENT") {
+        // 부모(일반 사용자) 로그인
+        const response = await api.post<ApiResponseUserLogin>('/user/login', {
           loginId: data.loginId,
           password: data.password,
-        }
-      );
+        });
 
-      console.log('로그인 응답:', response.data);
+        if (response.data.code === 200) {
+          const { accessToken, refreshToken, userInfoDTO } = response.data.data;
 
-      // ✅ 성공 체크 (code 200)
-      if (response.data.code === 200) {
-        // 백엔드 응답 구조: { code, status, message, data: { accessToken, refreshToken, user } }
-        const payload = response.data.data;
-        const { accessToken, refreshToken } = payload;
+          // 토큰 저장
+          localStorage.setItem('accessToken', accessToken);
+          if (refreshToken) {
+            localStorage.setItem('refreshToken', refreshToken);
+          }
 
-        if (!accessToken) {
-          throw new Error('토큰이 없습니다.');
-        }
-
-        // ✅ localStorage에 토큰 저장
-        localStorage.setItem('accessToken', accessToken);
-        if (refreshToken) {
-          localStorage.setItem('refreshToken', refreshToken);
-        }
-
-        // ✅ 사용자 정보도 저장 (있는 경우)
-        if (payload.user) {
-          // userId를 id로도 매핑 (기존 컴포넌트 호환성)
+          // 사용자 정보 저장
           const userData = {
-            ...payload.user,
-            id: payload.user.userId || payload.user.id,
+            id: userInfoDTO.userId,
+            name: userInfoDTO.name,
+            userRole: userInfoDTO.userRole,
+            type: 'PARENT'
           };
           localStorage.setItem('user', JSON.stringify(userData));
-          console.log('✅ 사용자 정보 저장:', userData);
+
+          redirectUrl = "/parent/select-profile"; // 오타 수정: path -> parent
+        } else {
+          throw new Error(response.data.message);
         }
 
-        console.log('✅ 로그인 성공! 토큰 저장 완료');
-
-        // 탭에 따른 페이지 이동
-        switch (activeTab) {
-          case "PARENT":
-            navigate("/auth/profile-select");
-            break;
-          case "DOCTOR":
-            navigate("/doctor/dashboard");
-            break;
-          case "DESK":
-            navigate("/reception/dashboard");
-            break;
-        }
       } else {
-        // API는 성공했지만 비즈니스 로직 실패
-        const errorMessage = response.data.message || '로그인에 실패했습니다.';
-        alert(errorMessage);
+        // 병원 관계자 로그인
+        const response = await api.post<ApiResponseHospitalStaffLogin>('/hospital-staff/login', {
+          loginId: data.loginId,
+          password: data.password,
+        });
+
+        if (response.data.code === 200) {
+          const { accessToken, refreshToken, hospitalStaffInfoDTO } = response.data.data;
+
+          // 토큰 저장
+          localStorage.setItem('accessToken', accessToken);
+          if (refreshToken) {
+            localStorage.setItem('refreshToken', refreshToken);
+          }
+
+          // 직원 정보 저장
+          const userData = {
+            id: hospitalStaffInfoDTO.hospitalStaffId,
+            name: hospitalStaffInfoDTO.name,
+            staffRole: hospitalStaffInfoDTO.staffRole,
+            type: 'STAFF'
+          };
+          localStorage.setItem('user', JSON.stringify(userData));
+
+          // 역할에 따른 라우팅
+          if (hospitalStaffInfoDTO.staffRole === StaffRole.DOCTOR) {
+            redirectUrl = "/doctor/dashboard";
+          } else if (hospitalStaffInfoDTO.staffRole === StaffRole.DESK) {
+            redirectUrl = "/reception/dashboard";
+          } else {
+            redirectUrl = "/"; // Fallback
+          }
+        } else {
+          throw new Error(response.data.message);
+        }
       }
+
+      console.log('✅ 로그인 성공! 리다이렉트:', redirectUrl);
+      navigate(redirectUrl);
 
     } catch (error: any) {
       console.error('❌ 로그인 에러:', error);
-
-      // 에러 메시지 표시
       const errorMessage = error?.response?.data?.message || error.message || "로그인 중 오류가 발생했습니다.";
-      alert(errorMessage); // TODO: toast로 교체
-
+      alert(errorMessage);
     } finally {
       setIsLoading(false);
     }

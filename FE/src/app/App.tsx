@@ -2,9 +2,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from 'react-router-dom';
 import { router } from './routes'; // 기존 라우터 연결
-import { useEffect } from 'react';
 
-// 1. QueryClient 인스턴스를 생성합니다.
+
+// 1. QueryClient 인스턴스를 생성합니다. 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -15,9 +15,6 @@ const queryClient = new QueryClient({
 });
 
 function App() {
-  useEffect(() => {
-
-  }, []);
   return (
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
