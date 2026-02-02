@@ -13,6 +13,7 @@ export const getUnregisteredPatients = async (
     month: number,
     day: number
 ) => {
+    console.log(`📡 [API] 미등록 환자 조회 요청: ${year}-${month}-${day}`);
     const response = await api.get<ApiResponseUnregisteredPatients>(
         `/invite-code/patients`,
         {
