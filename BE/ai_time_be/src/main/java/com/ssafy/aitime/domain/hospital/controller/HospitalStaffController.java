@@ -4,8 +4,10 @@ import com.ssafy.aitime.common.response.ApiResponse;
 import com.ssafy.aitime.domain.hospital.dto.request.HospitalStaffLoginRequest;
 import com.ssafy.aitime.domain.hospital.dto.response.DoctorListResponse;
 import com.ssafy.aitime.domain.hospital.dto.response.HospitalStaffLoginResponse;
+import com.ssafy.aitime.domain.hospital.dto.response.ReservationListResponse;
 import com.ssafy.aitime.domain.hospital.dto.response.StaffTokenResponse;
 import com.ssafy.aitime.domain.hospital.service.HospitalStaffService;
+import com.ssafy.aitime.domain.hospital.service.ReservationService;
 import com.ssafy.aitime.security.principal.HospitalStaffPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +16,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
 
 @RestController
@@ -22,6 +26,7 @@ import java.util.List;
 public class HospitalStaffController {
 
     private final HospitalStaffService hospitalStaffService;
+    private final ReservationService reservationService;
 
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<HospitalStaffLoginResponse>> login(
@@ -120,6 +125,29 @@ public class HospitalStaffController {
         return authorizationHeader.substring(7);
     }
 
+    @GetMapping("/calendar")
+    public ResponseEntity<ApiResponse<List<LocalDate>>> getReservationDates(
+            @RequestParam int year,
+            @RequestParam int month,
+            @AuthenticationPrincipal HospitalStaffPrincipal principal
+    ) {
+        List<LocalDate> dates = reservationService
+                .getHospitalReservationDates(principal.getHospitalId(), year, month);
+
+        return ResponseEntity.ok().body(ApiResponse.ok("달력 인디케이터 조회가 완료되었습니다.", dates));
+    }
+
+
+    @GetMapping("/reservation-list")
+    public ResponseEntity<ApiResponse<List<ReservationListResponse>>> getReservationList(
+            @RequestParam LocalDate date,
+            @AuthenticationPrincipal HospitalStaffPrincipal principal
+    ) {
+        List<ReservationListResponse> reservations = reservationService
+                .getReservationList(principal.getHospitalId(), date);
+
+        return ResponseEntity.ok().body(ApiResponse.ok("날짜별 환아 목록 조회가 완료되었습니다.", reservations));
+    }
 
     // 더미데이터 생성 용
     @PostMapping("/dummy")

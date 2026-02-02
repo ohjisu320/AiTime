@@ -42,9 +42,8 @@ public class ChildServiceImpl implements ChildService{
     private final UserService userService;
     private final ExamService examService;
     private final HospitalService hospitalService;
-    private final InviteCodeService inviteCodeService;
     private final HospitalChildrenService hospitalChildrenService;
-    private final ReservationService reservationService;
+
 
     @Override
     @Transactional
@@ -148,35 +147,6 @@ public class ChildServiceImpl implements ChildService{
         return ChronoUnit.MONTHS.between(birthdate, LocalDate.now());
     }
 
-    @Override
-    @Transactional
-    public void registerInviteCode(UUID childId, String inviteCode, UUID userId) {
-        // 1. 초대 코드 검증 (InviteCodeService에서 DTO로 반환)
-        InviteCodeValidationResponse validatedCode = inviteCodeService.validateAndGetInviteCode(inviteCode);
-
-        // 2. 자녀 소유권 확인 (현재 로그인한 부모의 자녀가 맞는지)
-        Child child = childRepository.findByChildIdAndRecordStatus(childId, RecordStatus.ACTIVE)
-                .orElseThrow(ChildNotFoundException::new);
-
-        if (!child.getUser().getUserId().equals(userId)) {
-            throw new ChildAccessDeniedException();
-        }
-
-        // 3. 병원-자녀 연동 (HospitalService에 위임)
-        UUID hospital_children_id = hospitalService.linkChildToHospital(childId, validatedCode.hospitalId());
-
-        // 4. 초대 코드 사용 처리 (InviteCodeService에서 처리)
-        inviteCodeService.markAsUsed(inviteCode);
-
-        // 5. Reservation 테이블에 정보 추가
-        ReservationCreateRequest reservationCreateRequest = ReservationCreateRequest.builder()
-                .hospitalChildrenId(hospital_children_id)
-                .scheduledAt(validatedCode.scheduledAt())
-                .doctorId(validatedCode.doctorId())
-                .build();
-
-        reservationService.insertReservation(reservationCreateRequest);
-    }
 
     @Override
     @Transactional(readOnly = true)
@@ -253,6 +223,16 @@ public class ChildServiceImpl implements ChildService{
      */
     private long calculateAgeInMonths(LocalDate birthdate) {
         return ChronoUnit.MONTHS.between(birthdate, LocalDate.now());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Child> getChildrenByIds(List<UUID> childIds) {
+        if (childIds == null || childIds.isEmpty()) {
+            return List.of();
+        }
+
+        return childRepository.findByChildIdInAndRecordStatus(childIds, RecordStatus.ACTIVE);
     }
 
 }

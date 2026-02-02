@@ -4,7 +4,10 @@ import com.ssafy.aitime.domain.child.entity.Child;
 import com.ssafy.aitime.domain.exam.dto.response.ExamInfoResponse;
 import com.ssafy.aitime.domain.exam.dto.response.ExamStartResponse;
 import com.ssafy.aitime.domain.exam.dto.response.ExamSummaryDTO;
+import com.ssafy.aitime.domain.exam.entity.Exam;
 
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 public interface ExamService {
@@ -25,6 +28,7 @@ public interface ExamService {
      * @return 생성된 검사 정보
      */
     ExamStartResponse createExam(Child child);
+    Map<UUID, Exam> getLatestExamsByChildIds(List<UUID> childIds);
 
     /**
      * 검사 진행도 조회 - 4개의 태스크별 영상 업로드 완료 여부 확인
