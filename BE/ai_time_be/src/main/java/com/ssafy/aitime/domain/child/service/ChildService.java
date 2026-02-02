@@ -17,7 +17,6 @@ public interface ChildService {
     List<ChildInfoResponse> getChildList(UUID userId);
     ChildDeleteResponse deleteChild(UUID userId, UUID childId);
     ChildHomeResponse getChildHomeInfo(UUID userId, UUID childId);
-    void registerInviteCode(UUID childId, String inviteCode, UUID userId);
     List<HospitalResponseDto> getLinkedHospitals(UUID userId, UUID childId);
 
     ExamStartResponse childStartExam(UUID userId, UUID childId, Boolean videoConsent);
