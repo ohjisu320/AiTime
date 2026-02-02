@@ -100,7 +100,9 @@ api.interceptors.response.use(
         const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
         // 401 에러이고, 아직 재시도하지 않은 요청인 경우
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        const isLoginRequest = originalRequest.url?.includes('/user/login') || originalRequest.url?.includes('/hospital-staff/login');
+
+        if (error.response?.status === 401 && !originalRequest._retry && !isLoginRequest) {
             // 이미 토큰 갱신 중이면 대기열에 추가
             if (isRefreshing) {
                 return new Promise((resolve, reject) => {
