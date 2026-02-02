@@ -41,6 +41,19 @@ export const hyoseokRoutes: RouteObject[] = [
       },
     ],
   },
+  
+  // ▼▼▼ [필수 추가] 자녀별 대시보드 경로 ▼▼▼
+  // 이 부분이 있어야 ProfileSelectPage에서 이동 가능합니다.
+  {
+    path: "/child/:childId",
+    element: <MobileLayout />,
+    children: [
+      { index: true, element: <DashboardPage /> }, // /child/{uuid} 로 접속 시 대시보드 뜸
+    ],
+  },
+  // ▲▲▲ [추가 끝] ▲▲▲
+
+
   // 의사용 (데스크탑)
   {
     path: "/doctor",
