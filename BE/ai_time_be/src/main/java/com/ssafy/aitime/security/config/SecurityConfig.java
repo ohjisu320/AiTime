@@ -110,11 +110,12 @@ public class SecurityConfig {
         // 프론트엔드 주소 허용
         // ✅ React 앱 포트 추가
         configuration.setAllowedOrigins(Arrays.asList(
-                "http://localhost:5173",  // 기존 프론트엔드
-                "http://localhost:3000",   // React 비디오 업로드 앱
+                "http://localhost:5173",  // 기존 프론트엔드_효석이꺼
+                "http://localhost:5174",  // 기존 프론트엔드_지수꺼
+                "http://localhost:3000",  // React 비디오 업로드 앱
                 "http://127.0.0.1:3000",  // 127.0.0.1도 추가
                 "http://localhost:5500",  // VS Code Live Server
-                "null"
+                "http://127.0.0.1:8000"
         ));
 
 

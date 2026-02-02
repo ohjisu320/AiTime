@@ -1,5 +1,6 @@
 package com.ssafy.aitime.domain.child.controller;
 
+import com.ssafy.aitime.application.invitecode.InviteCodeApplicationService;
 import com.ssafy.aitime.common.response.ApiResponse;
 import com.ssafy.aitime.domain.child.dto.request.ChildCreateRequest;
 import com.ssafy.aitime.domain.child.dto.request.ChildDeleteResponse;
@@ -28,6 +29,7 @@ import java.util.UUID;
 public class ChildController {
 
     private final ChildService childService;
+    private final InviteCodeApplicationService inviteCodeApplicationService;
 
     @PostMapping
     public ResponseEntity<ApiResponse<ChildInfoResponse>> addChild(
@@ -72,7 +74,12 @@ public class ChildController {
             @PathVariable @NotNull UUID childId, // null 체크
             @Valid @RequestBody ChildHospitalLinkRequest request
     ) {
-        childService.registerInviteCode(childId, request.inviteCode(), principal.getUserId());
+        inviteCodeApplicationService.registerInviteCode(
+                childId,
+                request.inviteCode(),
+                principal.getUserId()
+        );
+
         return ResponseEntity.ok(
                 ApiResponse.ok("병원 연동이 성공적으로 완료되었습니다.", null));
     }

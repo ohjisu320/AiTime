@@ -5,6 +5,7 @@ import com.ssafy.aitime.domain.child.dto.request.ChildDeleteResponse;
 import com.ssafy.aitime.domain.child.dto.response.ChildAgeInfoResponse;
 import com.ssafy.aitime.domain.child.dto.response.ChildHomeResponse;
 import com.ssafy.aitime.domain.child.dto.response.ChildInfoResponse;
+import com.ssafy.aitime.domain.child.entity.Child;
 import com.ssafy.aitime.domain.exam.dto.response.ExamStartResponse;
 import com.ssafy.aitime.domain.hospital.dto.response.HospitalResponseDto;
 
@@ -16,9 +17,9 @@ public interface ChildService {
     List<ChildInfoResponse> getChildList(UUID userId);
     ChildDeleteResponse deleteChild(UUID userId, UUID childId);
     ChildHomeResponse getChildHomeInfo(UUID userId, UUID childId);
-    void registerInviteCode(UUID childId, String inviteCode, UUID userId);
     List<HospitalResponseDto> getLinkedHospitals(UUID userId, UUID childId);
 
     ExamStartResponse childStartExam(UUID userId, UUID childId, Boolean videoConsent);
     ChildAgeInfoResponse validateAndGetChildAgeInfo(UUID userId, UUID childId);
+    List<Child> getChildrenByIds(List<UUID> childIds);
 }
