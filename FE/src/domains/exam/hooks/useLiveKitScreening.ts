@@ -1,6 +1,6 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { Room, RoomEvent, RemoteParticipant, setLogLevel, LogLevel } from 'livekit-client';
-import { startScreeningSession, type ScreeningDataMessage } from '../api/screeningApi';
+import { startScreeningSession, completeScreening, type ScreeningDataMessage } from '../api/screeningApi';
 
 // 개발 환경에서 LiveKit 디버그 로그 활성화
 if (import.meta.env.DEV) {
@@ -8,13 +8,6 @@ if (import.meta.env.DEV) {
 }
 
 const LIVEKIT_URL = import.meta.env.VITE_LIVEKIT_URL || 'ws://localhost:7880';
-
-<<<<<<< Updated upstream
-// Mock 모드 설정 (백엔드 미연결 시 true로 설정)
-=======
-// Mock 모드 설정 (false로 고정)
->>>>>>> Stashed changes
-const USE_MOCK = false;
 
 export type ScreeningStatus = 'idle' | 'connecting' | 'screening' | 'ready' | 'error';
 
@@ -25,6 +18,7 @@ interface UseLiveKitScreeningReturn {
     volume: number;
     guideMessage: string;
     status: ScreeningStatus;
+    sessionId: string | null; // Added sessionId
     startScreening: (childId: string) => Promise<void>;
     stopScreening: () => Promise<void>;
 }
@@ -38,52 +32,7 @@ export const useLiveKitScreening = (): UseLiveKitScreeningReturn => {
     const [volume, setVolume] = useState(0);
     const [guideMessage, setGuideMessage] = useState('');
     const [status, setStatus] = useState<ScreeningStatus>('idle');
-
-    // Cleanup 함수 참조
-    const cleanupRef = useRef<(() => void) | null>(null);
-
-<<<<<<< Updated upstream
-    // --- Mock 모드 시뮬레이션 ---
-    const runMockSimulation = useCallback(() => {
-        console.warn("⚠️ [LiveKit] Mock 모드 활성화");
-        setStatus('screening');
-        setGuideMessage('Mock 모드: AI 연결 시뮬레이션 중...');
-
-        // 볼륨 시뮬레이션
-        const volumeInterval = setInterval(() => {
-            setVolume(Math.floor(Math.random() * 45));
-        }, 100);
-
-        // 가이드 메시지 시뮬레이션
-        const messages = [
-            '가까이 오세요',
-            '좋아요! 조금만 더 왼쪽으로',
-            '얼굴을 화면 중앙에 맞춰주세요',
-            '완벽합니다!',
-        ];
-        let msgIndex = 0;
-        const messageInterval = setInterval(() => {
-            setGuideMessage(messages[msgIndex % messages.length]);
-            msgIndex++;
-        }, 2000);
-
-        // 3초 후 스크리닝 완료
-        const completeTimeout = setTimeout(() => {
-            setIsAligned(true);
-            setStatus('ready');
-            setGuideMessage('스크리닝 완료! 검사를 시작할 수 있습니다.');
-            console.log("✅ [Mock] 스크리닝 통과!");
-        }, 5000);
-
-        cleanupRef.current = () => {
-            clearInterval(volumeInterval);
-            clearInterval(messageInterval);
-            clearTimeout(completeTimeout);
-        };
-    }, []);
-=======
-    // --- Mock 모드 시뮬레이션 (삭제됨, USE_MOCK=false이므로 미사용) ---
->>>>>>> Stashed changes
+    const [sessionId, setSessionId] = useState<string | null>(null);
 
     // --- 실제 LiveKit 연결 ---
     const connectToLiveKit = useCallback(async (childId: string) => {
@@ -91,9 +40,11 @@ export const useLiveKitScreening = (): UseLiveKitScreeningReturn => {
             // 1. 백엔드에서 토큰 받기
             console.log('📤 [LiveKit] 세션 시작 요청...');
             const sessionData = await startScreeningSession(childId);
-            const { userToken, roomName } = sessionData;
+            const { userToken, roomName, sessionId: newSessionId } = sessionData;
 
-            console.log(`✅ [LiveKit] 세션 생성: ${roomName}`);
+            setSessionId(newSessionId);
+
+            console.log(`✅ [LiveKit] 세션 생성: ${roomName} (ID: ${newSessionId})`);
 
             // 2. LiveKit Room 생성
             const room = new Room();
@@ -116,33 +67,38 @@ export const useLiveKitScreening = (): UseLiveKitScreeningReturn => {
             });
 
             // 5. AI로부터 메시지 수신 (Data Channel)
-            room.on(RoomEvent.DataReceived, (payload: Uint8Array) => {
+            room.on(RoomEvent.DataReceived, async (payload: Uint8Array) => {
                 try {
                     const decoder = new TextDecoder();
-                    const message: ScreeningDataMessage = JSON.parse(decoder.decode(payload));
+                    const jsonString = decoder.decode(payload);
+                    const message = JSON.parse(jsonString) as ScreeningDataMessage;
 
                     console.log('📨 [LiveKit] 데이터 수신:', message);
 
-                    switch (message.type) {
-                        case 'guide':
-                            setGuideMessage(message.message);
-                            if (message.distance !== undefined) {
-                                // 거리 정보를 볼륨처럼 사용 (0-100 스케일)
-                                setVolume(Math.min(100, Math.max(0, message.distance / 3)));
+                    if (message.type === 'guide') {
+                        setGuideMessage(message.message);
+                        if (message.distance !== undefined) {
+                            // 거리 정보를 볼륨처럼 사용 (0-100 스케일)
+                            setVolume(Math.min(100, Math.max(0, message.distance / 3)));
+                        }
+                    } else if (message.type === 'screening_complete') {
+                        setIsAligned(true);
+                        setStatus('ready');
+                        setGuideMessage('스크리닝 완료! 검사를 시작할 수 있습니다.');
+                        console.log('✅ [LiveKit] 스크리닝 완료!');
+
+                        // API로 완료 요청 전송
+                        if (newSessionId) {
+                            try {
+                                await completeScreening(newSessionId, 'success');
+                            } catch (apiErr) {
+                                console.error('❌ [LiveKit] 완료 API 호출 실패:', apiErr);
                             }
-                            break;
-
-                        case 'screening_complete':
-                            setIsAligned(true);
-                            setStatus('ready');
-                            setGuideMessage('스크리닝 완료! 검사를 시작할 수 있습니다.');
-                            console.log('✅ [LiveKit] 스크리닝 완료!');
-                            break;
-
-                        case 'error':
-                            console.error('❌ [LiveKit] AI 에러:', message.message);
-                            setGuideMessage(`오류: ${message.message}`);
-                            break;
+                        }
+                    } else if (message.type === 'error') {
+                        const errorMsg = message.message;
+                        console.error('❌ [LiveKit] AI 에러:', errorMsg);
+                        setGuideMessage(`오류: ${errorMsg}`);
                     }
                 } catch (err) {
                     console.error('❌ [LiveKit] 데이터 파싱 실패:', err);
@@ -222,18 +178,9 @@ export const useLiveKitScreening = (): UseLiveKitScreeningReturn => {
             }
             setVideoStream(localStream);
 
-            if (USE_MOCK) {
-<<<<<<< Updated upstream
-                // Mock 모드
-                runMockSimulation();
-=======
-                // Mock 모드 (삭제됨)
->>>>>>> Stashed changes
-            } else {
-                // 실제 LiveKit 연결
-                setGuideMessage('AI 서버 연결 중...');
-                await connectToLiveKit(childId);
-            }
+            // 실제 LiveKit 연결
+            setGuideMessage('AI 서버 연결 중...');
+            await connectToLiveKit(childId);
 
         } catch (error) {
             console.error('❌ [LiveKit] 시작 실패:', error);
@@ -245,25 +192,11 @@ export const useLiveKitScreening = (): UseLiveKitScreeningReturn => {
                 setGuideMessage('카메라 연결에 실패했습니다.');
             }
         }
-<<<<<<< Updated upstream
-    }, [runMockSimulation, connectToLiveKit]);
-=======
     }, [connectToLiveKit]);
->>>>>>> Stashed changes
 
     // --- 스크리닝 종료 ---
     const stopScreening = useCallback(async () => {
         console.log('🛑 [LiveKit] 스크리닝 종료');
-
-<<<<<<< Updated upstream
-        // 1. Mock cleanup
-        if (cleanupRef.current) {
-            cleanupRef.current();
-            cleanupRef.current = null;
-        }
-=======
-        // 1. Mock cleanup (생략)
->>>>>>> Stashed changes
 
         // 2. LiveKit Room 연결 해제
         if (roomRef.current) {
@@ -302,6 +235,7 @@ export const useLiveKitScreening = (): UseLiveKitScreeningReturn => {
         volume,
         guideMessage,
         status,
+        sessionId, // Added sessionId
         startScreening,
         stopScreening
     };
