@@ -9,9 +9,8 @@ import DashboardPage from "@/features/parent/pages/DashboardPage";
 import ProfileSelectPage from "@/features/auth/pages/ProfileSelectPage";
 
 //의사
-import DoctorDashboard from "@/features/doctor/pages/DoctorDashboard";
-import DoctorExamReportPage from "@/features/doctor/pages/DoctorExamReportPage";
-import DoctorTaskVideoPage from "@/features/doctor/pages/DoctorTaskVideoPage";
+import DoctorDashboardPage from "@/features/doctor/pages/DoctorDashboardPage";
+
 
 //데스크
 import DeskDashboard from "@/features/desk/pages/DeskDashboard";
@@ -47,11 +46,8 @@ export const hyoseokRoutes: RouteObject[] = [
     path: "/doctor",
   
     children: [
-      { path: "dashboard", element: <DoctorDashboard /> },
-      { path: "patients", element: <div>환자 목록</div> },
-      // :id 는 URL 파라미터입니다 (예: /doctor/report/uuid-1)
-      { path: "report/:id", element: <DoctorExamReportPage /> },
-      { path: "report/:id/videos", element: <DoctorTaskVideoPage /> },
+      { path: "dashboard", element: <DoctorDashboardPage /> },
+
     ],
   },
 
