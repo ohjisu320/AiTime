@@ -45,6 +45,14 @@ export const useParentDashboard = () => {
       // API 호출 - 응답이 올 때까지 무한정 대기
       const response = await fetchChildHomeInfo(childId || TEST_CHILD_ID);
 
+      // ✅ examId가 있으면 localStorage에 저장 (검사 세션에서 사용)
+      if (response.examId) {
+        localStorage.setItem('examId', response.examId);
+        console.log(`✅ examId 저장: ${response.examId}`);
+      } else {
+        console.warn('⚠️ examId가 없습니다.');
+      }
+
       setData(response);
       return response;
     } catch (err) {
