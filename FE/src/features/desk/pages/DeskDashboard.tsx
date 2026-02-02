@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Plus } from "lucide-react";
 
 // 공용 컴포넌트 import
@@ -21,6 +21,9 @@ import InviteCodeModal, {
   type InviteCodeFormData,
 } from "../components/modal/InviteCodeModal";
 
+// API
+import { getUnregisteredPatients } from "@/features/desk/api/inviteCodeApi";
+
 // UI 컴포넌트
 import { Button } from "@/components/ui/button";
 
@@ -29,12 +32,13 @@ export default function DeskDashboard() {
     "UNREGISTERED",
   );
   const [selectedDate, setSelectedDate] = useState<Date>(
-    new Date("2026-01-19"),
+    new Date(), // 오늘 날짜로 초기화
   );
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // 모달 열림 상태 관리
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   // 검색 필터 상태
   const [filters, setFilters] = useState({
@@ -50,40 +54,12 @@ export default function DeskDashboard() {
     status: "all",
   });
 
-  // Mock Data (미등록자)
+  // 미등록자 리스트 (API)
   const [unregisteredList, setUnregisteredList] = useState<
     InviteCodePatientItem[]
-  >([
-    {
-      inviteCodeId: "inv-1",
-      childName: "김미등록",
-      childMonths: 15,
-      parentPhone: "010-1111-2222",
-      scheduledAt: "2026-01-19T10:00:00",
-      status: "ISSUED",
-      inviteCode: "AB12-34CD",
-    },
-    {
-      inviteCodeId: "inv-2",
-      childName: "이대기",
-      childMonths: 20,
-      parentPhone: "010-3333-4444",
-      scheduledAt: "2026-01-19T14:00:00",
-      status: "ISSUED",
-      inviteCode: "EF56-78GH",
-    },
-    {
-      inviteCodeId: "inv-3",
-      childName: "박취소",
-      childMonths: 18,
-      parentPhone: "010-5555-6666",
-      scheduledAt: "2026-01-20T11:00:00",
-      status: "REVOKED",
-      inviteCode: "IJ90-12KL",
-    },
-  ]);
+  >([]);
 
-  // Mock Data (등록자)
+  // Mock Data (등록자 - 추후 API 연동 필요)
   const [registeredList, setRegisteredList] = useState<ReservationChildItem[]>([
     {
       hospitalChildrenId: "h-child-1",
@@ -122,6 +98,43 @@ export default function DeskDashboard() {
       birthDate: "2024.07.20",
     },
   ]);
+
+  // --- API Fetching ---
+  const fetchUnregisteredPatients = async (date: Date) => {
+    try {
+      setIsLoading(true);
+      const year = date.getFullYear();
+      const month = date.getMonth() + 1;
+      const day = date.getDate();
+
+      const response = await getUnregisteredPatients(year, month, day);
+
+      if (response.code === 200 && response.data) {
+        // API 응답을 UI 모델로 변환 (필드 매핑)
+        const mappedList: InviteCodePatientItem[] = response.data.map(item => ({
+          inviteCodeId: item.inviteCodeId,
+          childName: item.childName,
+          childMonths: item.childMonths,
+          parentPhone: item.parentPhone,
+          scheduledAt: item.scheduledAt,
+          status: (item.status as any) || "ISSUED", // 타입 호환 처리
+          inviteCode: "-" // API 응답에 코드가 없다면 공란 또는 별도 처리
+        }));
+        setUnregisteredList(mappedList);
+      }
+    } catch (error) {
+      console.error("미등록 환자 목록 로드 실패:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 날짜 변경 시 API 호출
+  useEffect(() => {
+    if (activeTab === "UNREGISTERED") {
+      fetchUnregisteredPatients(selectedDate);
+    }
+  }, [selectedDate, activeTab]);
 
   // --- Handlers ---
   const handleSidebarDateSelect = (date: Date) => {
