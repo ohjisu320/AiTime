@@ -1,7 +1,7 @@
 // src/domains/exam/constants/missionData.ts 
 
 export const SCREENING_CONTENT: Record<string, any> = {
-  "1": { // TASK1: 동작 모방 (12-17개월 예시) 
+  "POSE_IMITATION": { // TASK1: 동작 모방
     step: "01",
     engTitle: "Action Imitation",
     korTitle: "동작 모방하기",
@@ -11,7 +11,7 @@ export const SCREENING_CONTENT: Record<string, any> = {
     ],
     script: { lines: ["자, 엄마(아빠) 봐봐!", "짝! 짝! 짝!", "우리 ㅇㅇ이도 해볼까?"] }
   },
-  "2": { // TASK2: 언어/발화 모방 
+  "SPEECH_IMITATION": { // TASK2: 언어/발화 모방
     step: "02",
     engTitle: "Vocal Imitation",
     korTitle: "발화 모방 자극",
@@ -21,7 +21,7 @@ export const SCREENING_CONTENT: Record<string, any> = {
     ],
     script: { lines: ["좋아요. 화면에 보이는", "자극(예: 맘마, 까꿍)을", "한 번만 말해 주세요."] }
   },
-  "3": { // TASK3: 비대면 호명 반응 
+  "NAME_NON_FACING": { // TASK3: 비대면 호명 반응
     step: "03",
     engTitle: "Name Response (Offline)",
     korTitle: "비대면 호명 반응",
@@ -31,7 +31,7 @@ export const SCREENING_CONTENT: Record<string, any> = {
     ],
     script: { lines: ["평소 목소리 톤으로", "아이의 이름을", "ㅇㅇ아! 라고 불러주세요"] }
   },
-  "4": { // TASK4: 대면 호명 반응 
+  "NAME_FACING": { // TASK4: 대면 호명 반응
     step: "04",
     engTitle: "Name Response (Visual)",
     korTitle: "대면 호명 반응",
@@ -58,5 +58,10 @@ export const CLIENT_TO_SERVER_VIDEO_TYPE_MAP: Record<string, string> = {
   '1': 'POSE_IMITATION',
   '2': 'SPEECH_IMITATION',
   '3': 'NAME_FACING',
-  '4': 'NAME_NON_FACING'
+  '4': 'NAME_NON_FACING',
+  // Identity Mappings (이미 올바른 타입인 경우)
+  'POSE_IMITATION': 'POSE_IMITATION',
+  'SPEECH_IMITATION': 'SPEECH_IMITATION',
+  'NAME_FACING': 'NAME_FACING',
+  'NAME_NON_FACING': 'NAME_NON_FACING'
 };

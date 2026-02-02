@@ -6,15 +6,20 @@ import ScreeningGuide from '../components/Screening/ScreeningGuide';
 import { useLiveKitScreening } from '../hooks/useLiveKitScreening';
 import { SCREENING_CONTENT } from '../constants/missionData';
 
-const ExamRecordingPage: React.FC = () => {
+interface ExamRecordingPageProps {
+  missionId?: string;
+}
+
+const ExamRecordingPage: React.FC<ExamRecordingPageProps> = ({ missionId: propMissionId }) => {
   const navigate = useNavigate();
-  const { missionId } = useParams<{ missionId: string }>();
+  const { missionId: paramMissionId } = useParams<{ missionId: string }>();
+
+  // 1. Props -> 2. Params -> 3. Default 순서로 결정
+  const currentMissionId = propMissionId || paramMissionId || "POSE_IMITATION";
 
   const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
   const [isPassModalOpen, setIsPassModalOpen] = useState(false);
-
-  const currentMissionId = missionId || "1";
-  const content = SCREENING_CONTENT[currentMissionId] || SCREENING_CONTENT["1"];
+  const content = SCREENING_CONTENT[currentMissionId] || SCREENING_CONTENT["POSE_IMITATION"];
 
   // TODO: 실제 childId는 Context나 props에서 가져와야 함
   const childId = localStorage.getItem('selectedChildId') || 'mock-child-id';
