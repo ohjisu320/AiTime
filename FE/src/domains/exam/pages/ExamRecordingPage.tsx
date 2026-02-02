@@ -42,24 +42,32 @@ const ExamRecordingPage: React.FC<ExamRecordingPageProps> = ({ missionId: propMi
 
   // 컴포넌트 마운트 시 스크리닝 시작
   useEffect(() => {
+    console.log("👀 [ExamRecordingPage] Mounted. ChildId:", childId, "Mission:", currentMissionId);
+
     if (!childId || childId === 'mock-child-id') {
       console.warn("⚠️ [ExamRecordingPage] Child ID가 없습니다. 로컬 스토리지가 비었거나 mock-child-id입니다.");
-      // alert("검사 대상 아동 정보가 없습니다. 다시 로그인하거나 선택해주세요.");
-      // return;
     }
 
     startScreening(childId);
     return () => {
+      console.log("👋 [ExamRecordingPage] Unmounting... Stopping screening.");
       stopScreening();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // 상태 변경 로그
+  useEffect(() => {
+    console.log(`📊 [ExamRecordingPage] Status: ${status}, Stream: ${videoStream ? 'Active' : 'Null'}, Aligned: ${isAligned}, Volume: ${volume}`);
+  }, [status, videoStream, isAligned, volume]);
+
   const handleStartExam = useCallback(() => {
     if (!isAligned || volume > 30) {
+      console.log("🚫 [ExamRecordingPage] 준비 미흡 - Aligned:", isAligned, "Volume:", volume);
       setIsAlertModalOpen(true);
       return;
     }
+    console.log("✅ [ExamRecordingPage] 테스트 통과!");
     setIsPassModalOpen(true);
   }, [isAligned, volume]);
 

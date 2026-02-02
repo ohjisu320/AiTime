@@ -38,11 +38,12 @@ const ExamPage: React.FC = () => {
     });
   }, [startSession, navigate]);
 
-  useEffect(() => {
-    if (videoRef.current && stream) {
-      videoRef.current.srcObject = stream;
-    }
-  }, [stream]);
+  // 삭제: VideoPreview에서 이미 처리하므로 중복 할당 방지
+  // useEffect(() => {
+  //   if (videoRef.current && stream) {
+  //     videoRef.current.srcObject = stream;
+  //   }
+  // }, [stream]);
 
   // ⚡ 자동 시작 로직: 스트림 연결 -> 카운트다운 시작
   useEffect(() => {
