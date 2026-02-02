@@ -27,7 +27,7 @@ faces:
   # In the recent window, frames with num_faces==target_faces ratio must be >= this
   two_faces_ratio_min: 0.8
   # Minimum face bbox area ratio vs frame area (too small => unreliable) (optional)
-  min_face_area_ratio: 0.01
+  min_face_area_ratio: 0.7
 
 roi:
   # For each ROI, ratio of frames where ROI contains a face must be >= this

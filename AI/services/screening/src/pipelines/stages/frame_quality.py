@@ -42,8 +42,8 @@ class FrameQualityStage(Stage[FramePayload, FrameOut]):
         luma_p10 = float(np.percentile(gray, 10))
 
         thr = ctx.config.video_luma_mean_threshold
-        # 어두움 판단: mean이 낮거나, p10이 매우 낮으면 어둡다고 봄
-        low_light = (luma_mean < thr) or (luma_p10 < max(30.0, thr * 0.6))
+        # 어두움 판단: mean이 낮으면 어둡다고 봄 (p10 조건 제거 - 검은 배경에 민감함)
+        low_light = luma_mean < thr
 
         if low_light:
             flags.append(QualityFlag.LOW_LIGHT)

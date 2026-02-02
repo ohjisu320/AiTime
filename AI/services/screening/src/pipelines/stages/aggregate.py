@@ -20,6 +20,9 @@ class WindowStats:
     avg_rms_dbfs: float
     avg_luma_mean: float
 
+    # optional (with default)
+    face_too_small_ratio: float = 0.0  # ratio of frames with face too small
+
 
 def decide(
     ctx: RunContext, stats: WindowStats, seen_seconds: float

@@ -29,6 +29,9 @@ class HintMessage(BaseMessage):
     type: MsgType = MsgType.HINT
     hint: str
     flags: list[QualityFlag] = Field(default_factory=list)
+    # API 명세 필드
+    person_count: int = 0
+    distance: int = 0
 
 
 class ResultMessage(BaseMessage):
@@ -40,6 +43,11 @@ class ResultMessage(BaseMessage):
     # 요약 지표
     ratios: dict[str, float] = Field(default_factory=dict)
     scores: dict[str, float] = Field(default_factory=dict)
+
+    # API 명세 필드 (프레임 통계)
+    total_frames: int = 0
+    valid_frames: int = 0
+    confidence: float = 0.0
 
     # 디버깅/분석용
     details: dict[str, Any] = Field(default_factory=dict)
