@@ -200,3 +200,28 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+class RabbitMQConfig:
+    """
+    RabbitMQ 연결 설정 클래스.
+    
+    settings에서 값을 가져오되, 생성자에서 오버라이드 가능.
+    의존성 주입 패턴을 통해 테스트 용이성 확보.
+    """
+    
+    def __init__(
+        self,
+        host: str | None = None,
+        port: int | None = None,
+        user: str | None = None,
+        password: str | None = None,
+        task_queue: str | None = None,
+        result_queue: str | None = None,
+    ):
+        self.host = host or settings.RABBITMQ_HOST
+        self.port = port or settings.RABBITMQ_PORT
+        self.user = user or settings.RABBITMQ_USER
+        self.password = password or settings.RABBITMQ_PASSWORD
+        self.task_queue = task_queue or settings.TASK_QUEUE
+        self.result_queue = result_queue or settings.RESULT_QUEUE
