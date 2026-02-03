@@ -454,3 +454,120 @@ Output: 화자별 발화 구간 + 텍스트 + 타임스탬프
     ↓
 반응 구간 결과 (ChildVoiceReaction)
 ```
+
+
+
+## 음성 반응 결과 확인
+
+```
+$ python test/test_audio_pipeline.py --video sample_video/name_calling.mp4 --name "은연"
+2026-01-29 12:49:58,060 - __main__ - INFO - ============================================================
+2026-01-29 12:49:58,060 - __main__ - INFO - 🎬 오디오 파이프라인 테스트
+2026-01-29 12:49:58,060 - __main__ - INFO - ============================================================
+2026-01-29 12:49:58,060 - __main__ - INFO - 
+📋 단위 테스트 실행...
+2026-01-29 12:49:58,245 - __main__ - INFO - ✅ Config 테스트 통과
+2026-01-29 12:49:58,247 - __main__ - INFO - ✅ Audio Utils 테스트 통과
+2026-01-29 12:49:59,501 - app.models.base - INFO - VoiceActivityDetector 모델 로딩 시작...
+2026-01-29 12:49:59,501 - app.models.vad - INFO - Silero VAD 모델 로딩...
+Using cache found in C:\Users\SSAFY/.cache\torch\hub\snakers4_silero-vad_master
+2026-01-29 12:49:59,834 - app.models.vad - INFO - Silero VAD 모델 로드 완료
+2026-01-29 12:49:59,834 - app.models.base - INFO - VoiceActivityDetector 모델 로딩 완료
+2026-01-29 12:49:59,927 - __main__ - INFO - ✅ VAD 테스트 통과
+2026-01-29 12:49:59,927 - app.models.base - INFO - SpeechRecognizer 모델 로딩 시작...
+2026-01-29 12:49:59,928 - app.models.speech_recognizer - INFO - Whisper 모델 로딩: large-v3      
+2026-01-29 12:50:00,589 - httpx - INFO - HTTP Request: GET https://huggingface.co/api/models/Systran/faster-whisper-large-v3/revision/main "HTTP/1.1 200 OK"
+2026-01-29 12:50:05,395 - app.models.speech_recognizer - INFO - Whisper 모델 로드 완료 (cpu)
+2026-01-29 12:50:05,395 - app.models.base - INFO - SpeechRecognizer 모델 로딩 완료
+2026-01-29 12:50:05,395 - __main__ - INFO - ✅ SpeechRecognizer 테스트 통과
+2026-01-29 12:50:05,395 - __main__ - INFO - ✅ SpeakerDiarizer (Mock) 테스트 통과
+2026-01-29 12:50:05,395 - __main__ - INFO - ✅ ChildVoiceAnalyzer 구조 테스트 통과
+2026-01-29 12:50:05,395 - __main__ - INFO -
+✅ 모든 단위 테스트 통과!
+```
+
+
+
+```
+2026-01-29 12:50:05,395 - __main__ - INFO -
+============================================================
+
+2026-01-29 12:50:05,395 - __main__ - INFO - 🔗 통합 테스트 실행...
+2026-01-29 12:50:05,395 - __main__ - INFO - ============================================================
+
+2026-01-29 12:50:05,396 - __main__ - INFO - 🎬 통합 테스트 시작: sample_video/name_calling.mp4   
+2026-01-29 12:50:05,396 - __main__ - INFO - 👶 아이 이름: 은연
+2026-01-29 12:50:05,396 - __main__ - INFO - 🎬 오디오 추출 중...
+2026-01-29 12:50:05,396 - app.utils.audio - INFO - ⭕ FFmpeg 오디오 추출: sample_video\name_calling.mp4 -> C:\Users\SSAFY\AppData\Local\Temp\tmpsam0e_e7.wav
+2026-01-29 12:50:05,461 - app.utils.audio - INFO - ⭕ 오디오 추출 완료: C:\Users\SSAFY\AppData\Local\Temp\tmpsam0e_e7.wav
+C:\Users\SSAFY\miniforge3\envs\name_call\Lib\site-packages\torchaudio\_backend\utils.py:213: UserWarning: In 2.9, this function's implementation will be changed to use torchaudio.load_with_torchcodec` under the hood. Some parameters like ``normalize``, ``format``, ``buffer_size``, and ``backend`` will be ignored. We recommend that you port your code to rely directly on TorchCodec's decoder instead: https://docs.pytorch.org/torchcodec/stable/generated/torchcodec.decoders.AudioDecoder.html#torchcodec.decoders.AudioDecoder.
+  warnings.warn(
+2026-01-29 12:50:05,464 - __main__ - INFO -   - 샘플레이트: 16000 Hz
+2026-01-29 12:50:05,464 - __main__ - INFO -   - 오디오 길이: 4.60초
+2026-01-29 12:50:05,464 - __main__ - INFO - 🎬 VAD 분석 중...
+2026-01-29 12:50:05,536 - __main__ - INFO -   - 감지된 음성 구간: 2개
+2026-01-29 12:50:05,536 - __main__ - INFO -     [1] 0.74s ~ 1.92s (duration: 1.18s)
+2026-01-29 12:50:05,536 - __main__ - INFO -     [2] 2.31s ~ 3.04s (duration: 0.73s)
+2026-01-29 12:50:05,536 - __main__ - INFO - 🎬 음성 인식 중...
+2026-01-29 12:50:05,536 - faster_whisper - INFO - Processing audio with duration 00:04.598       
+2026-01-29 12:50:05,619 - faster_whisper - INFO - VAD filter removed 00:00.368 of audio
+2026-01-29 12:50:13,079 - __main__ - INFO -   - 감지 언어: ko (100.00%)
+2026-01-29 12:50:13,081 - __main__ - INFO -   - 전체 텍스트: 은연아 안녕...
+2026-01-29 12:50:13,081 - app.models.speech_recognizer - INFO - 호명 탐지 완료: 1개 호명 이벤트  
+2026-01-29 12:50:13,081 - __main__ - INFO -   - 호명 감지: 1회
+2026-01-29 12:50:13,081 - __main__ - INFO -     [1] '은연아' @ 0.37s ~ 1.21s
+2026-01-29 12:50:13,081 - __main__ - INFO - 👥 화자 분리 테스트...
+2026-01-29 12:50:13,081 - app.models.base - INFO - SpeakerDiarizer 모델 로딩 시작...
+2026-01-29 12:50:13,081 - app.models.speaker_diarizer - INFO - 🫡 pyannote 화자 분리 파이프라인   로딩...
+C:\Users\SSAFY\miniforge3\envs\name_call\Lib\site-packages\pyannote\audio\core\io.py:47: UserWarning:
+torchcodec is not installed correctly so built-in audio decoding will fail. Solutions are:       
+
+* use audio preloaded in-memory as a {'waveform': (channel, time) torch.Tensor, 'sample_rate': int} dictionary;
+* fix torchcodec installation. Error message was:
+
+Could not load libtorchcodec. Likely causes:
+          1. FFmpeg is not properly installed in your environment. We support
+             versions 4, 5, 6 and 7.
+          2. The PyTorch version (2.8.0+cpu) is not compatible with
+             this version of TorchCodec. Refer to the version compatibility
+             table:
+             https://github.com/pytorch/torchcodec?tab=readme-ov-file#installing-torchcodec.     
+          3. Another runtime dependency; see exceptions below.
+        The following exceptions were raised as we tried to load libtorchcodec:
+
+[start of libtorchcodec loading traceback]
+FFmpeg version 7: Could not find module 'C:\Users\SSAFY\miniforge3\envs\name_call\Lib\site-packages\torchcodec\libtorchcodec_core7.dll' (or one of its dependencies). Try using the full path with constructor syntax.
+er-diarization-3.1/resolve/main/config.yaml "HTTP/1.1 200 OK"
+er-diarization-3.1/resolve/main/config.yaml "HTTP/1.1 200 OK"
+2026-01-29 12:50:17,362 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/pyannote/segmentation-3.0/resolve/main/pytorch_model.bin "HTTP/1.1 302 Found"
+er-diarization-3.1/resolve/main/config.yaml "HTTP/1.1 200 OK"
+er-diarization-3.1/resolve/main/config.yaml "HTTP/1.1 200 OK"
+2026-01-29 12:50:17,362 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/pyannote/segmentation-3.0/resolve/main/pytorch_model.bin "HTTP/1.1 302 Found"
+2026-01-29 12:50:17,807 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/pyannote/speaker-diarization-community-1/resolve/main/plda/xvec_transform.npz "HTTP/1.1 302 Found"
+er-diarization-3.1/resolve/main/config.yaml "HTTP/1.1 200 OK"
+2026-01-29 12:50:17,362 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/pyannote/segmentation-3.0/resolve/main/pytorch_model.bin "HTTP/1.1 302 Found"
+2026-01-29 12:50:17,807 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/pyannote/speaker-diarization-community-1/resolve/main/plda/xvec_transform.npz "HTTP/1.1 302 Found"
+2026-01-29 12:50:18,017 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/pyannote/speaker-diarization-community-1/resolve/main/plda/plda.npz "HTTP/1.1 302 Found"
+2026-01-29 12:50:18,393 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/pyannote/wespeaker-voxceleb-resnet34-LM/resolve/main/pytorch_model.bin "HTTP/1.1 302 Found"       
+er-diarization-3.1/resolve/main/config.yaml "HTTP/1.1 200 OK"
+2026-01-29 12:50:17,362 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/pyannote/segmentation-3.0/resolve/main/pytorch_model.bin "HTTP/1.1 302 Found"
+2026-01-29 12:50:17,807 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/pyannote/speaker-diarization-community-1/resolve/main/plda/xvec_transform.npz "HTTP/1.1 302 Found"
+2026-01-29 12:50:18,017 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/pyannote/speaker-diarization-community-1/resolve/main/plda/plda.npz "HTTP/1.1 302 Found"
+2026-01-29 12:50:17,362 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/pyannote/segmentation-3.0/resolve/main/pytorch_model.bin "HTTP/1.1 302 Found"
+2026-01-29 12:50:17,807 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/pyannote/speaker-diarization-community-1/resolve/main/plda/xvec_transform.npz "HTTP/1.1 302 Found"
+2026-01-29 12:50:18,017 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/pyannote/speaker-diarization-community-1/resolve/main/plda/plda.npz "HTTP/1.1 302 Found"
+2026-01-29 12:50:18,393 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/pyannote/wespeaker-voxceleb-resnet34-LM/resolve/main/pytorch_model.bin "HTTP/1.1 302 Found"       
+2026-01-29 12:50:18,482 - app.models.speaker_diarizer - INFO - 🫡 pyannote CPU 모드로 실행
+2026-01-29 12:50:18,482 - app.models.speaker_diarizer - INFO - 🫡 pyannote 파이프라인 로드 완료
+2026-01-29 12:50:18,482 - app.models.base - INFO - SpeakerDiarizer 모델 로딩 완료
+C:\Users\SSAFY\miniforge3\envs\name_call\Lib\site-packages\pyannote\audio\models\blocks\pooling.py:103: UserWarning: std(): degrees of freedom is <= 0. Correction should be strictly less than the reduction factor (input numel divided by output numel). (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\aten\src\ATen\native\ReduceOps.cpp:1839.)
+  std = sequences.std(dim=-1, correction=1)
+2026-01-29 12:50:19,130 - app.models.speaker_diarizer - INFO - 화자 분리 완료: 1개 구간, 1명 화자
+2026-01-29 12:50:19,133 - __main__ - INFO -   - 화자 수: 1
+2026-01-29 12:50:19,133 - __main__ - INFO -   - 화자 매핑: {}
+2026-01-29 12:50:19,133 - __main__ - INFO - 👶 아이 음성 반응 분석...
+2026-01-29 12:50:19,133 - app.models.child_voice_analyzer - INFO - 😸 ChildVoiceAnalyzer 초기화 완료
+2026-01-29 12:50:19,184 - __main__ - INFO -   [1] ❌ 반응 없음
+2026-01-29 12:50:19,184 - __main__ - INFO - 🎉 통합 테스트 완료!
+```
+
