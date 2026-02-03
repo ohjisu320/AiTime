@@ -54,7 +54,7 @@ export const useExamUpload = () => {
       console.log('✅ MinIO 업로드 완료!');
 
       // 3. 서버 상태 완료 처리 (API 변경 반영)
-      return await videoApi.updateVideoStatus(examId, presignedData.videoId, presignedData.s3Key);
+      return await videoApi.updateVideoStatus(examId, presignedData.videoId, presignedData.s3Key, videoType);
     }
   });
 };

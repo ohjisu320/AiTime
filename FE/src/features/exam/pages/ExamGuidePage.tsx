@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/common/Button';
-import ConsentHeader from '../components/ConsentHeader';
-import EnvironmentCard from '../components/EnvironmentCard';
+import ConsentHeader from '@/domains/exam/components/Consent/ConsentHeader';
+import EnvironmentCard from '@/domains/exam/components/Guide/EnvironmentCard';
 
 const ExamGuidePage = () => {
   const navigate = useNavigate();

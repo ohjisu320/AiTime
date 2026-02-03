@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import MissionCard from '../components/MissionCard';
-import ConsentHeader from '../components/ConsentHeader';
+import MissionCard from '@/domains/exam/components/MissionCard';
+import ConsentHeader from '@/domains/exam/components/Consent/ConsentHeader';
 import InfoNoticeBox from '@/components/common/InfoNoticeBox';
 import BigActionButton from '@/components/common/BigActionButton';
 import ConfirmModal from '@/components/common/ConfirmModal';
-import { useMissions } from '../hooks/useMissions';
-import { startAnalysis } from '../api/examApi';
-import Swal from 'sweetalert2';
+import { useMissions } from '@/domains/exam/hooks/useMissions';
 
 const MissionListPage: React.FC = () => {
   const navigate = useNavigate();

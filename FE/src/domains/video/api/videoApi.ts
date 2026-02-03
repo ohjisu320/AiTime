@@ -115,33 +115,46 @@ export const videoApi = {
   },
 
   /** 3단계: 백엔드 상태 업데이트 */
+  /** 3단계: 백엔드 상태 업데이트 */
   updateVideoStatus: async (
     examId: string,
     videoId: string,
-    s3Key: string
+    s3Key: string,
+    videoType: VideoType
   ) => {
-    console.log(`📤 비디오 상태 업데이트: ${videoId} (Exam: ${examId})`);
+    console.log(`📤 비디오 상태 업데이트: ${videoId} (Exam: ${examId}, Type: ${videoType})`);
 
     try {
-      console.log(`📤 완료 요청 Payload:`, { s3Key }); // Payload 확인용 로그
-      const { data } = await api.post(`/exam/${examId}/videos/${videoId}/complete`, {
-        s3Key
+      console.log(`📤 완료 요청 Payload:`, { videoId, s3Key, videoType });
+      // "Invalid UUID string: complete" -> 서버는 /videos/{videoId} 형태를 기대함 (POST)
+      // /complete가 붙으면 404가 뜸 -> /complete 경로가 없음
+      // 결론: POST /exam/{examId}/videos/{videoId} 가 올바른 엔드포인트일 확률 99%
+      const { data } = await api.post(`/exam/${examId}/videos/${videoId}`, {
+        s3Key,
+        videoType
       });
 
       console.log('✅ 상태 업데이트 완료');
       return data.data;
     } catch (error: any) {
       console.error('❌ 비디오 상태 업데이트 실패:', error);
-      if (error.response) {
-        console.error('응답 데이터 (JSON):', JSON.stringify(error.response.data, null, 2));
-
-        // 이미 업로드 완료된 상태라면 에러를 무시하고 성공으로 처리
-        if (error.response.data?.message?.includes("현재 비디오 상태(UPLOADED)에서는")) {
-          console.log('⚠️ 이미 업로드 완료된 비디오입니다. (성공 처리)');
-          return { status: 'ALREADY_UPLOADED' };
-        }
-      }
       throw error;
     }
+  },
+
+  /** 4단계: 영상 삭제 (DELETE) */
+  deleteVideo: async (examId: string, videoId: string) => {
+    console.log(`🗑️ 비디오 삭제 요청: ${videoId} (Exam: ${examId})`);
+    const { data } = await api.delete(`/exam/${examId}/videos/${videoId}`);
+    return data.data;
+  },
+
+  /** 5단계: 영상 조회 Presigned URL (GET) */
+  getVideoUrl: async (examId: string, videoId: string, expiresInSec: number = 300) => {
+    console.log(`🔗 비디오 조회 URL 요청: ${videoId}`);
+    const { data } = await api.get(`/exam/${examId}/videos/${videoId}`, {
+      params: { expiresInSec }
+    });
+    return data.data; // Expected: { videoUrl: "..." }
   }
 };
