@@ -1,5 +1,4 @@
-import { Mail, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { X } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import StatusBadge from "@/components/common/StatusBadge";
 import EmptyState from "@/components/common/EmptyState";
@@ -99,9 +98,7 @@ export default function DeskUnregisteredList({
                 {patient.inviteCode}
               </div>
               <div className="w-[20%] flex justify-end gap-2 items-center">
-                <Button className="bg-sky-500 hover:bg-sky-600 h-8 px-3 text-xs font-bold text-white gap-1">
-                  <Mail className="w-3 h-3" /> 재전송
-                </Button>
+
                 <button
                   onClick={() => onDelete(patient.inviteCodeId)}
                   className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
