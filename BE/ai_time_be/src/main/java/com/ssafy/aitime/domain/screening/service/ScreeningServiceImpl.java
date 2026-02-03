@@ -15,6 +15,7 @@ import com.ssafy.aitime.infra.livekit.service.LiveKitService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -72,7 +73,19 @@ public class ScreeningServiceImpl implements ScreeningService {
         sessionRepository.save(session);
 
         // 6. AI 서버에 분석 시작 요청 (비동기)
-        aiServerService.startAnalysis(roomName, aiToken, sessionId.getMostSignificantBits());
+        // 6. AI 서버에 분석 시작 요청 (비동기)
+        aiServerService.startAnalysis(roomName, aiToken, sessionId.getMostSignificantBits())
+                .doOnError(error -> {
+                    // AI 서버 호출 실패 시 세션 삭제
+                    log.error("AI server call failed, cleaning up session: {}", sessionId, error);
+                    sessionRepository.deleteWithUserMapping(roomName, userId);
+                })
+                .onErrorResume(e -> {
+                    // 에러 발생해도 계속 진행 (세션 삭제 후 빈 Mono 반환)
+                    log.warn("AI server call failed, session cleaned up");
+                    return Mono.empty();
+                })
+                .subscribe();  //
 
         log.info("Started screening session: {} for user: {}", sessionId, userId);
 
