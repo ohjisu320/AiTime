@@ -1,9 +1,22 @@
 # Pose Estimation Service
 
+# 도커 실행 법
+```bash
+# 전체 서비스 실행
+docker-compose up -d
+
+# Worker만 실행 (RabbitMQ 외부 사용시)
+docker-compose up -d pose-worker
+
+# 로그 확인
+docker-compose logs -f pose-worker
+```
+
 # 목표 응답 구조
 ```json
 {
-  "request_id": "uuid",
+  "exam_id": "uuid",
+  "video_type": "POSE_IMITATION",
   "analyzed_at": "YYYY-MM-DDTHH:mm:ss+09:00",
   "status": "completed",
   "metrics": {

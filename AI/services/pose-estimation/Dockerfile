@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y \
     python3.11-venv \
     libgl1-mesa-glx \
     libglib2.0-0 \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Python 기본 설정
@@ -25,8 +26,16 @@ COPY app/ ./app/
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
 
-# 포트 노출
+# RabbitMQ 환경 변수 (docker-compose에서 오버라이드 가능)
+ENV RABBITMQ_HOST=rabbitmq
+ENV RABBITMQ_PORT=5672
+ENV RABBITMQ_USER=guest
+ENV RABBITMQ_PASSWORD=guest
+ENV TASK_QUEUE=pose_task_queue
+ENV RESULT_QUEUE=pose_result_queue
+
+# Health check용 포트 (선택적)
 EXPOSE 8000
 
-# 기본 명령어 (FastAPI 서버)
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# 기본 명령어: Worker 실행
+CMD ["python", "-m", "app.worker"]
