@@ -1,4 +1,3 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
 import { Plus } from "lucide-react";
 
 // 공용 컴포넌트 import
@@ -9,18 +8,11 @@ import DashboardHeader, {
 } from "@/components/common/DashboardHeader";
 
 // 데스크 전용 리스트 컴포넌트 import
-import DeskUnregisteredList, {
-  type InviteCodePatientItem,
-} from "../components/DeskUnregisteredList";
+import DeskUnregisteredList from "../components/DeskUnregisteredList"; // Type is inferred or imported internally if needed, logic moved to hook so strict type usage here might be less critical or handled via hook return type
 
-
-// 모달 컴포넌트 import (경로 확인 필요)
+// 모달 컴포넌트 import
 import InviteCodeModal from "../components/modal/InviteCodeModal";
 import InviteCodeResultModal from "../components/modal/InviteCodeResultModal";
-
-// API
-import { getUnregisteredPatients, createInviteCode, getScheduledDates, revokeInviteCode } from "@/features/desk/api/inviteCodeApi";
-import { getHospitalStaffProfile } from "@/features/desk/api/hospitalStaffApi";
 
 // UI 컴포넌트
 import { Button } from "@/components/ui/button";
@@ -34,7 +26,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { toast } from "sonner";
+
+// Custom Hook
+import { useDeskDashboard } from "../hooks/useDeskDashboard";
 
 export default function DeskDashboard() {
   const [activeTab, setActiveTab] = useState<"UNREGISTERED" | "REGISTERED">(
@@ -340,14 +334,40 @@ export default function DeskDashboard() {
   }, [
     activeTab,
     selectedDate,
-    appliedFilters,
-    unregisteredList,
-  ]);
+    selectedIds,
+    userInfo,
+    scheduledDates,
+    isModalOpen,
+    isResultModalOpen,
+    resultModalData,
+    modalError,
+    deleteTargetId,
+    filters,
+    filteredList,
+    dateLabel
+  } = state;
+
+  const {
+    setActiveTab,
+    setSelectedDate,
+    setFilters,
+    setIsModalOpen,
+    setIsResultModalOpen,
+    setModalError,
+    setDeleteTargetId,
+    handleSearchClick,
+    handleResetSearch,
+    handleSelectOne,
+    handleDelete,
+    handleConfirmDelete,
+    handleCreateInviteCode,
+    handleMonthChange,
+    onSelectAllChange
+  } = actions;
 
   // 탭 설정
   const deskTabs: DashboardTab[] = [
     { value: "UNREGISTERED", label: "초대 코드 미등록자" },
-
   ];
 
   return (
@@ -355,7 +375,7 @@ export default function DeskDashboard() {
       {/* 1. 사이드바 */}
       <AppSidebar
         selectedDate={selectedDate}
-        onDateSelect={handleSidebarDateSelect}
+        onDateSelect={setSelectedDate}
         markedDates={scheduledDates}
         onMonthChange={handleMonthChange}
         userInfo={userInfo}
@@ -368,7 +388,7 @@ export default function DeskDashboard() {
           description="초대코드 및 분석을 미진행한 환자를 조회합니다"
           tabs={deskTabs}
           activeTab={activeTab}
-          onTabChange={handleTabChange}
+          onTabChange={(val) => setActiveTab(val)}
         >
           {/* 버튼 클릭 시 모달 Open */}
           <Button
@@ -383,7 +403,7 @@ export default function DeskDashboard() {
           {/* 3. 검색바 */}
           <SearchBar
             filters={filters}
-            onFilterChange={handleFilterChange}
+            onFilterChange={setFilters}
             onSearch={handleSearchClick}
             onReset={handleResetSearch}
           />
@@ -392,10 +412,10 @@ export default function DeskDashboard() {
           <DeskUnregisteredList
             patients={filteredList}
             selectedIds={selectedIds}
-            onSelectAll={handleSelectAll}
+            onSelectAll={onSelectAllChange}
             onSelectOne={handleSelectOne}
             onDelete={handleDelete}
-            dateLabel={formatDateDot(selectedDate)}
+            dateLabel={dateLabel}
             emptyMessage="해당 날짜에 조회된 환자가 없습니다."
           />
         </div>
@@ -420,7 +440,10 @@ export default function DeskDashboard() {
       />
 
       {/* 7. 삭제 확인 모달 */}
-      <AlertDialog open={!!deleteTargetId} onOpenChange={(open) => !open && setDeleteTargetId(null)}>
+      <AlertDialog
+        open={!!deleteTargetId}
+        onOpenChange={(open) => !open && setDeleteTargetId(null)}
+      >
         <AlertDialogContent className="bg-white">
           <AlertDialogHeader>
             <AlertDialogTitle>초대코드 삭제</AlertDialogTitle>
@@ -429,8 +452,13 @@ export default function DeskDashboard() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDeleteTargetId(null)}>취소</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-500 hover:bg-red-600 text-white border-0">
+            <AlertDialogCancel onClick={() => setDeleteTargetId(null)}>
+              취소
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-red-500 hover:bg-red-600 text-white border-0"
+            >
               삭제
             </AlertDialogAction>
           </AlertDialogFooter>

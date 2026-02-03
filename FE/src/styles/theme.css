@@ -25,6 +25,7 @@
   /* Purple Brand Colors (Requested for specific buttons) */
   --brand-purple: #6366F1;
   --brand-purple-dark: #4F46E5;
+  --brand-deep-blue: #5A55D6;
 
   /* Other Colors (Standard/Derived) */
   --card: oklch(1 0 0);
@@ -132,6 +133,7 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-brand-purple: var(--brand-purple);
   --color-brand-purple-dark: var(--brand-purple-dark);
+  --color-brand-deep-blue: var(--brand-deep-blue);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 }
