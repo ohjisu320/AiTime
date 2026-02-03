@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  spring:
+    build:
+      context: ../BE/ai_time_be
+      dockerfile: ../../docker/dockerfiles/Dockerfile.backend
+    container_name: spring-app
+    ports:
+      - "127.0.0.1:8081:8080"
+    env_file:
+      - .env  # 모든 환경변수를 .env에서 읽음
+    environment:
+      # Docker에서만 다른 값들 (DB 호스트명 등)
+      DB_HOST: mysql
+      REDIS_HOST: redis
+      RABBITMQ_HOST: rabbitmq
+      MINIO_ENDPOINT: http://minio:9000
+      LIVEKIT_URL: http://livekit-server:7880
+      AI_SERVER_URL: http://screening:8000
+      
+      # Timezone
+      TZ: ${TZ:-Asia/Seoul}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - cmn-network
+    restart: unless-stopped
+
+networks:
+  cmn-network:
+    external: true
+    name: cmn-network
