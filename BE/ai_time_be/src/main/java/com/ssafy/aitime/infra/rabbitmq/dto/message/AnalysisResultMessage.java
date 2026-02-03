@@ -1,49 +1,78 @@
 package com.ssafy.aitime.infra.rabbitmq.dto.message;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.Getter;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
-import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.UUID;
 
-@Getter
+/**
+ * AI 분석 결과 메시지 DTO
+ * API 명세서에 맞게 수정됨
+ */
+@Data
+@Builder
 @NoArgsConstructor
+@AllArgsConstructor
 public class AnalysisResultMessage {
 
-    @JsonProperty("schema_version")
-    private String schemaVersion;
+    @JsonProperty("examId")
+    private UUID examId;
 
-    @JsonProperty("job_id")
-    private String jobId;
+    @JsonProperty("videoId")
+    private UUID videoId;
 
-    @JsonProperty("task_no")
-    private Integer taskNo;
+    @JsonProperty("videoType")
+    private String videoType;
+
+    @JsonProperty("analyzedAt")
+    private String analyzedAt;
 
     @JsonProperty("status")
-    private String status;  // "success" or "failed"
-
-    @JsonProperty("analyzed_at")
-    private ZonedDateTime analyzedAt;
+    private String status;
 
     @JsonProperty("metrics")
-    private Metrics metrics;
+    private MetricsData metrics;
 
-    @JsonProperty("error")
-    private ErrorInfo error;
+    @JsonProperty("ADOS")
+    private AdosData ados;
 
-    @Getter
+    // Task 번호를 videoType에서 추출
+    public Integer getTaskNo() {
+        if (videoType == null) return null;
+
+        return switch (videoType) {
+            case "POSE_IMITATION" -> 1;
+            case "SPEECH_IMITATION" -> 2;
+            case "NAME_FACING" -> 3;
+            case "NAME_NON_FACING" -> 4;
+            default -> null;
+        };
+    }
+
+    /**
+     * Metrics 데이터
+     */
+    @Data
     @NoArgsConstructor
-    public static class Metrics {
+    @AllArgsConstructor
+    public static class MetricsData {
         @JsonProperty("per_trial")
         private List<TrialMetric> perTrial;
     }
 
-    @Getter
+    /**
+     * Trial별 메트릭 데이터
+     * 모든 Task의 필드를 포함 (각 Task는 필요한 필드만 사용)
+     */
+    @Data
     @NoArgsConstructor
+    @AllArgsConstructor
     public static class TrialMetric {
-        // ========== 공통 필드 ==========
+        // 공통 필드
         @JsonProperty("trial_index")
         private Integer trialIndex;
 
@@ -53,9 +82,24 @@ public class AnalysisResultMessage {
         @JsonProperty("latency_s")
         private Double latencyS;
 
-        // ========== task1: 동작 모방행동 (POSE_IMITATION) ==========
+        // ========== Task 1: PoseImitation 필드 ==========
+        @JsonProperty("action_type")
+        private String actionType;
+
         @JsonProperty("similarity_score")
         private Double similarityScore;
+
+        @JsonProperty("parent_start_time")
+        private Double parentStartTime;
+
+        @JsonProperty("parent_end_time")
+        private Double parentEndTime;
+
+        @JsonProperty("child_start_time")
+        private Double childStartTime;
+
+        @JsonProperty("child_end_time")
+        private Double childEndTime;
 
         @JsonProperty("duration_s")
         private Double durationS;
@@ -63,7 +107,13 @@ public class AnalysisResultMessage {
         @JsonProperty("attention_ratio")
         private Double attentionRatio;
 
-        // ========== task2: 발화 모방행동 (SPEECH_IMITATION) ==========
+        // ========== Task 2: SpeechImitation 필드 ==========
+        @JsonProperty("trial_start_s")
+        private Double trialStartS;
+
+        @JsonProperty("trial_end_s")
+        private Double trialEndS;
+
         @JsonProperty("stimulus_id")
         private String stimulusId;
 
@@ -76,17 +126,44 @@ public class AnalysisResultMessage {
         @JsonProperty("failure_reason")
         private String failureReason;
 
-        // ========== task3: 대면 호명반응 (NAME_FACING) ==========
-        @JsonProperty("trial_start_s")
-        private Double trialStartS;
+        @JsonProperty("freq_abnormal")
+        private Boolean freqAbnormal;
 
-        @JsonProperty("trial_end_s")
-        private Double trialEndS;
-
+        // ========== Task 3: NameFacing 필드 ==========
         @JsonProperty("gaze_duration_s")
         private Double gazeDurationS;
 
-        // ========== task4: 비대면 호명반응 (NAME_NON_FACING) ==========
+        @JsonProperty("emotion")
+        private String emotion;
+
+        // ========== Task 4: NameNonFacing 필드 ==========
+        @JsonProperty("trigger_start_s")
+        private Double triggerStartS;
+
+        @JsonProperty("trigger_end_s")
+        private Double triggerEndS;
+
+        @JsonProperty("trigger_text")
+        private String triggerText;
+
+        @JsonProperty("voice_detected")
+        private Boolean voiceDetected;
+
+        @JsonProperty("voice_start_s")
+        private Double voiceStartS;
+
+        @JsonProperty("voice_end_s")
+        private Double voiceEndS;
+
+        @JsonProperty("voice_duration_s")
+        private Double voiceDurationS;
+
+        @JsonProperty("voice_confidence")
+        private Double voiceConfidence;
+
+        @JsonProperty("gaze_match")
+        private Boolean gazeMatch;
+
         @JsonProperty("head_yaw_deg")
         private Double headYawDeg;
 
@@ -94,21 +171,40 @@ public class AnalysisResultMessage {
         private Double headPitchDeg;
     }
 
-    @Getter
+    /**
+     * ADOS 데이터
+     * API에서 Boolean 또는 Integer로 전송됨
+     */
+    @Data
     @NoArgsConstructor
-    public static class ErrorInfo {
-        @JsonProperty("code")
-        private String code;
+    @AllArgsConstructor
+    public static class AdosData {
+        // Task 1: PoseImitation
+        @JsonProperty("B6")
+        private Object b6;      // Boolean (TRUE/FALSE)
 
-        @JsonProperty("message")
-        private String message;
-    }
+        @JsonProperty("A8")
+        private Object a8;      // Integer (0-3)
 
-    public boolean isSuccess() {
-        return "success".equalsIgnoreCase(status);
-    }
+        @JsonProperty("B18")
+        private Object b18;     // Boolean (TRUE/FALSE)
 
-    public boolean isFailed() {
-        return "failed".equalsIgnoreCase(status);
+        // Task 2: SpeechImitation
+        @JsonProperty("A3")
+        private Object a3;      // Integer (0-3)
+
+        // Task 3: NameFacing
+        @JsonProperty("B1")
+        private Object b1;      // Integer (0-3)
+
+        @JsonProperty("B4")
+        private Object b4;      // Integer (0-3)
+
+        // Task 4: NameNonFacing
+        @JsonProperty("B7")
+        private Object b7;      // Integer (0-3)
+
+        // 모든 필드를 Object로 선언하여 유연하게 처리
+        // 실제 타입은 서비스에서 변환
     }
 }
