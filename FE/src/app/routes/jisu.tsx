@@ -6,9 +6,11 @@ import MobileLayout from '@/components/layout/MobileLayout';
 const ConsentPage = lazy(() => import('@/domains/exam/pages/ConsentPage'));
 const ExamGuidePage = lazy(() => import('@/domains/exam/pages/ExamGuidePage'));
 const MissionListPage = lazy(() => import('@/domains/exam/pages/MissionListPage'));
-const ExamScreeningPage = lazy(() => import('@/domains/exam/pages/ExamRecordingPage'));
+const ExamRecordingPage = lazy(() => import('@/domains/exam/pages/ExamRecordingPage'));
 const ExamGuideVideoPage = lazy(() => import('@/domains/exam/pages/ExamGuideVideoPage'));
 const ExamPage = lazy(() => import('@/domains/exam/pages/ExamPage'));
+
+
 
 const ExamLayout = () => {
   return (
@@ -50,7 +52,7 @@ export const jisuRoutes: RouteObject[] = [
       },
       {
         path: "screening/:missionId",
-        element: <ExamScreeningPage />
+        element: <ExamRecordingPage />
       },
 
       {

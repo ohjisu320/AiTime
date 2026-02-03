@@ -6,7 +6,7 @@ import ConsentHeader from '../components/ConsentHeader';
 import ConsentItem from '../components/ConsentItem';
 import ConsentNotice from '../components/ConsentNotice';
 import { startExam } from '../api/examApi';
-import { TEST_CHILD_ID } from '@/features/parent/api/dashboardApi';
+import Swal from 'sweetalert2';
 
 const ConsentPage = () => {
   const navigate = useNavigate();
@@ -27,54 +27,38 @@ const ConsentPage = () => {
   const handleStartExam = async () => {
     if (!allRequiredAgreed) return;
 
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      // localStorage에서 childId 가져오기 (없으면 테스트 ID 사용)
-      const childId = localStorage.getItem('selectedChildId') || TEST_CHILD_ID;
-
+      // ✅ 1. childId 가져오기
+      const childId = localStorage.getItem('childId') || localStorage.getItem('selectedChildId');
       if (!childId) {
-        alert('아동 정보가 선택되지 않았습니다. 메인 화면으로 이동합니다.');
+        Swal.fire({
+          title: '자녀 정보 없음',
+          text: '자녀 정보를 찾을 수 없습니다. 홈 화면으로 돌아갑니다.',
+          icon: 'error'
+        });
         navigate('/parent/dashboard');
         return;
       }
 
-      const response = await startExam(childId, {
-        videoConsent: agreements.media // 영상 촬영 동의 여부
-      });
+      // ✅ 2. 검사 시작 API 호출 - examId 받기
+      const examId = await startExam(childId);
 
-      if (response.code === 200) {
-        const { examId } = response.data;
-        // examId 저장 (이후 단계에서 사용)
-        localStorage.setItem('currentExamId', examId);
-        navigate('/exam/guide');
-      } else {
-        alert(response.message || '검사 시작에 실패했습니다.');
-      }
+      // ✅ 3. examId를 localStorage에 저장
+      localStorage.setItem('examId', examId);
+      localStorage.setItem('currentExamId', examId);
+      console.log(`✅ examId 저장 완료: ${examId}`);
+
+      // ✅ 4. 가이드 페이지로 이동
+      navigate('/exam/guide');
     } catch (error: any) {
-      console.error('Failed to start exam:', error);
-
-      const errorData = error?.response?.data || {};
-      const errorMessage = errorData.message || ''; // [추가] alert에서 사용하기 위해 정의
-      const errorString = JSON.stringify(errorData);
-      console.log('🚨 Exam Start Error Data:', errorData);
-
-      // 500 에러지만 이미 진행 중인 경우 (응답 전체에서 IN_PROGRESS 검색)
-      if (errorString.includes('IN_PROGRESS')) {
-        const storedExamId = localStorage.getItem('currentExamId');
-        if (storedExamId) {
-          // 이미 examId를 알고 있다면 바로 진행
-          console.log('이미 진행 중인 검사입니다. 가이드 페이지로 이동합니다.');
-          navigate('/exam/guide');
-          return;
-        } else {
-          // examId를 모르는 경우 -> 대시보드로 이동
-          alert('이미 진행 중인 검사가 있습니다. 대시보드에서 [이어하기]를 선택해주세요.');
-          navigate('/parent/dashboard');
-          return;
-        }
-      }
-
-      alert(errorMessage || '검사 시작 중 오류가 발생했습니다.');
+      console.error('❌ 검사 시작 에러:', error);
+      const errorMessage = error?.response?.data?.message || error.message || '검사를 시작할 수 없습니다.';
+      Swal.fire({
+        title: '검사 시작 실패',
+        text: errorMessage,
+        icon: 'error'
+      });
     } finally {
       setIsLoading(false);
     }
@@ -156,9 +140,9 @@ const ConsentPage = () => {
           variant={allRequiredAgreed ? "default" : "secondary"}
           size="lg"
           className="w-full h-16 mt-10 text-xl"
-          onClick={handleStartExam} // 클릭 이벤트 연결
+          onClick={handleStartExam}
         >
-          {isLoading ? "검사 시작 중..." : (allRequiredAgreed ? "약관 동의 및 검사 시작" : "모든 필수 항목에 동의해주세요")}
+          {isLoading ? "검사 시작 중..." : allRequiredAgreed ? "약관 동의 및 검사 시작" : "모든 필수 항목에 동의해주세요"}
         </Button>
       </main>
     </div>

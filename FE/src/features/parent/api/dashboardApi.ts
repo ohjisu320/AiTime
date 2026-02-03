@@ -17,9 +17,50 @@ export const TEST_CHILD_ID = "136d8eb8-8264-4953-9c9c-19baf49dc8b4";
 // =================================================================
 // 타입 정의 (Re-export for backward compatibility)
 // =================================================================
-export { ChildDashboardStatus };
-export type { ChildHomeResponse };
-export type LinkedHospital = HospitalResponseDto;
+
+export type ChildDashboardStatus =
+    | 'NEED_HOSPITAL'       // 병원 연결 필요
+    | 'AVAILABLE'           // 새 검사 가능
+    | 'AVAILABLE_EXPIRED'   // 검사 가능 (이전 임시저장 만료됨)
+    | 'IN_PROGRESS'         // 검사 진행 중 (이어하기)
+    | 'COOLDOWN'            // 쿨타임 (다음 검사 대기)
+    | 'COOLDOWN_BEFORE'     // 쿨타임 중 병원 연동됨 (특수 케이스)
+    | 'WAITING';            // 대기 중
+
+export interface LinkedHospital {
+    hospitalId: string;
+    name: string;
+}
+
+export interface ChildHomeResponse {
+    code: number;
+    status: string;
+    message: string;
+    data: {
+        childId: string;
+        examId: string | null;             // ✅ 추가: 현재 진행 중인 검사 ID
+        name: string;
+        gender: 'MALE' | 'FEMALE';
+        examStartedAt: string | null;      // ✅ 추가
+        examStatus: ChildDashboardStatus;  // ✅ examStatus (API 명세)
+        examProgress: number;
+        draftExpiresAt: string | null;
+        nextEligibleAt: string | null;
+        linkedHospitals: LinkedHospital[];
+    };
+}
+
+export interface HospitalLinkRequest {
+    inviteCode: string;
+}
+
+export interface HospitalLinkResponse {
+    code: number;
+    status: string;
+    message: string;
+    data?: string;
+}
+
 
 // --- [API Functions] ---------------------------------------------
 
@@ -97,6 +138,7 @@ export const registerInviteCode = async (childId: string, inviteCode: string) =>
 
 const MOCK_BASE_DATA: ChildHomeResponse = {
     childId: TEST_CHILD_ID,
+    examId: null,
     name: "오하나",
     gender: "FEMALE",
     examStatus: "AVAILABLE",

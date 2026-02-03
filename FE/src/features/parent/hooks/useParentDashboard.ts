@@ -3,17 +3,7 @@ import {
   fetchChildHomeInfo,
   type ChildHomeResponse,
   TEST_CHILD_ID,
-  MOCK_CASE_AVAILABLE,
 } from '../api/dashboardApi';
-
-// ==========================================
-// [테스트용 설정]
-// 이 값을 true로 하면 아래 MOCK_DATA가 강제로 적용됩니다.
-const ENABLE_MOCK = false; // Swagger 토큰으로 실제 API 테스트
-
-// MOCK_CASE_AVAILABLE를 참조하여, registerInviteCode에서 수정된 내용이 반영되도록 합니다.
-const MOCK_DATA = MOCK_CASE_AVAILABLE.data;
-// ==========================================
 
 export const useParentDashboard = () => {
   const [data, setData] = useState<ChildHomeResponse | null>(null);
@@ -25,27 +15,26 @@ export const useParentDashboard = () => {
       setIsLoading(true);
       setIsError(false);
 
-      if (ENABLE_MOCK) {
-        // 네트워크 지연 시뮬레이션
-        await new Promise(resolve => setTimeout(resolve, 300));
-        setData(MOCK_DATA);
-        return MOCK_DATA;
-      }
 
-      // Get selected child ID from localStorage
-      const childId = localStorage.getItem('selectedChildId');
+      // Get child ID from localStorage
+      // Priority: manually set 'childId' > profile-selected 'selectedChildId'
+      const childId = localStorage.getItem('selectedChildId') || localStorage.getItem('childId');
 
       if (!childId) {
         console.warn('⚠️ No childId in localStorage. Using TEST_CHILD_ID as fallback for development.');
+      } else {
+        console.log(`✅ Using childId from localStorage: ${childId}`);
       }
 
       // API 호출 - 응답이 올 때까지 무한정 대기
       const response = await fetchChildHomeInfo(childId || TEST_CHILD_ID);
 
-      // [Auto-Fix] 백엔드에서 examId가 넘어오면 즉시 저장 (복구용)
-      if (response && response.examId) {
-        console.log("🧩 Found hidden examId:", response.examId);
-        localStorage.setItem('currentExamId', String(response.examId));
+      // ✅ examId가 있으면 localStorage에 저장 (검사 세션에서 사용)
+      if (response.examId) {
+        localStorage.setItem('examId', String(response.examId));
+        console.log(`✅ examId 저장: ${response.examId}`);
+      } else {
+        console.warn('⚠️ examId가 없습니다.');
       }
 
       setData(response);
