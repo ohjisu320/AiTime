@@ -12,9 +12,7 @@ import DashboardHeader, {
 import DeskUnregisteredList, {
   type InviteCodePatientItem,
 } from "../components/DeskUnregisteredList";
-import DeskRegisteredList, {
-  type ReservationChildItem,
-} from "../components/DeskRegisteredList";
+
 
 // 모달 컴포넌트 import (경로 확인 필요)
 import InviteCodeModal, {
@@ -59,45 +57,7 @@ export default function DeskDashboard() {
     InviteCodePatientItem[]
   >([]);
 
-  // Mock Data (등록자 - 추후 API 연동 필요)
-  const [registeredList, setRegisteredList] = useState<ReservationChildItem[]>([
-    {
-      hospitalChildrenId: "h-child-1",
-      childId: "child-1",
-      name: "박지우",
-      months: 15,
-      gender: "MALE",
-      examStatus: "COMPLETED",
-      isSubmitted: true,
-      scheduledAt: "2026-01-19T10:00:00",
-      parentPhone: "010-1234-5678",
-      birthDate: "2024.10.19",
-    },
-    {
-      hospitalChildrenId: "h-child-2",
-      childId: "child-2",
-      name: "최수아",
-      months: 22,
-      gender: "FEMALE",
-      examStatus: "IN_PROGRESS",
-      isSubmitted: false,
-      scheduledAt: "2026-01-19T15:00:00",
-      parentPhone: "010-9876-5432",
-      birthDate: "2024.03.19",
-    },
-    {
-      hospitalChildrenId: "h-child-3",
-      childId: "child-3",
-      name: "정민준",
-      months: 18,
-      gender: "MALE",
-      examStatus: "COMPLETED",
-      isSubmitted: true,
-      scheduledAt: "2026-01-20T09:30:00",
-      parentPhone: "010-5555-7777",
-      birthDate: "2024.07.20",
-    },
-  ]);
+
 
   // --- API Fetching ---
   const fetchUnregisteredPatients = async (date: Date) => {
@@ -166,14 +126,9 @@ export default function DeskDashboard() {
 
   // 삭제 핸들러
   const handleDelete = (id: string) => {
-    if (activeTab === "UNREGISTERED")
-      setUnregisteredList((prev) =>
-        prev.filter((item) => item.inviteCodeId !== id),
-      );
-    else
-      setRegisteredList((prev) =>
-        prev.filter((item) => item.hospitalChildrenId !== id),
-      );
+    setUnregisteredList((prev) =>
+      prev.filter((item) => item.inviteCodeId !== id),
+    );
 
     if (selectedIds.has(id)) {
       const newSelected = new Set(selectedIds);
@@ -186,9 +141,7 @@ export default function DeskDashboard() {
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
       const allIds = filteredList.map((item: any) =>
-        activeTab === "UNREGISTERED"
-          ? item.inviteCodeId
-          : item.hospitalChildrenId,
+        item.inviteCodeId
       );
       setSelectedIds(new Set(allIds));
     } else setSelectedIds(new Set());
@@ -265,22 +218,6 @@ export default function DeskDashboard() {
         list = list.filter((p) => p.childName.includes(appliedFilters.name));
       if (appliedFilters.phone)
         list = list.filter((p) => p.parentPhone.includes(appliedFilters.phone));
-    } else {
-      list = registeredList.filter((p) =>
-        isSameDay(p.scheduledAt, selectedDate),
-      );
-      points = Array.from(
-        new Set(registeredList.map((p) => p.scheduledAt.split("T")[0])),
-      );
-
-      if (appliedFilters.name)
-        list = list.filter((p) => p.name.includes(appliedFilters.name));
-      if (appliedFilters.phone)
-        list = list.filter((p) => p.parentPhone.includes(appliedFilters.phone));
-      if (appliedFilters.birthDate)
-        list = list.filter((p) =>
-          p.birthDate.includes(appliedFilters.birthDate),
-        );
     }
     return { filteredList: list, calendarPoints: points };
   }, [
@@ -288,13 +225,13 @@ export default function DeskDashboard() {
     selectedDate,
     appliedFilters,
     unregisteredList,
-    registeredList,
+
   ]);
 
   // 탭 설정
   const deskTabs: DashboardTab[] = [
     { value: "UNREGISTERED", label: "초대 코드 미등록자" },
-    { value: "REGISTERED", label: "검사 등록자" },
+
   ];
 
   return (
@@ -339,26 +276,15 @@ export default function DeskDashboard() {
           />
 
           {/* 4. 리스트 (탭에 따라 전환) */}
-          {activeTab === "UNREGISTERED" ? (
-            <DeskUnregisteredList
-              patients={filteredList}
-              selectedIds={selectedIds}
-              onSelectAll={handleSelectAll}
-              onSelectOne={handleSelectOne}
-              onDelete={handleDelete}
-              dateLabel={formatDateDot(selectedDate)}
-              emptyMessage="해당 날짜에 조회된 환자가 없습니다."
-            />
-          ) : (
-            <DeskRegisteredList
-              patients={filteredList}
-              selectedIds={selectedIds}
-              onSelectAll={handleSelectAll}
-              onSelectOne={handleSelectOne}
-              dateLabel={formatDateDot(selectedDate)}
-              emptyMessage="해당 날짜에 조회된 환자가 없습니다."
-            />
-          )}
+          <DeskUnregisteredList
+            patients={filteredList}
+            selectedIds={selectedIds}
+            onSelectAll={handleSelectAll}
+            onSelectOne={handleSelectOne}
+            onDelete={handleDelete}
+            dateLabel={formatDateDot(selectedDate)}
+            emptyMessage="해당 날짜에 조회된 환자가 없습니다."
+          />
         </div>
       </main>
 
