@@ -22,7 +22,11 @@ api.interceptors.request.use(
         const token = localStorage.getItem('accessToken');
         if (token && config.headers) {
             config.headers.Authorization = `Bearer ${token}`;
+            console.log(`🔑 [Auth] Token attached: ${token.slice(0, 10)}...`);
+        } else {
+            console.warn(`⚠️ [Auth] No Access Token found in localStorage!`);
         }
+        console.log(`🚀 [Axios Request] ${config.method?.toUpperCase()} ${config.url}`, config.data ? config.data : "");
         return config;
     },
     (error: AxiosError) => {
@@ -93,10 +97,11 @@ const getRefreshEndpoint = (): string => {
 
 api.interceptors.response.use(
     (response) => {
-        // 성공 응답은 그대로 반환
+        console.log(`✅ [Axios Response] ${response.status} ${response.config.url}`, response.data);
         return response;
     },
     async (error: AxiosError<ApiError>) => {
+        console.error(`🔥 [Axios Error] ${error.config?.method?.toUpperCase()} ${error.config?.url}`, error.message, error.response?.data);
         const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
         // 401 에러이고, 아직 재시도하지 않은 요청인 경우

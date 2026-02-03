@@ -18,9 +18,10 @@ import DeskUnregisteredList, {
 import InviteCodeModal, {
   type InviteCodeFormData,
 } from "../components/modal/InviteCodeModal";
+import InviteCodeResultModal from "../components/modal/InviteCodeResultModal";
 
 // API
-import { getUnregisteredPatients } from "@/features/desk/api/inviteCodeApi";
+import { getUnregisteredPatients, createInviteCode } from "@/features/desk/api/inviteCodeApi";
 
 // UI 컴포넌트
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,8 @@ export default function DeskDashboard() {
 
   // 모달 열림 상태 관리
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isResultModalOpen, setIsResultModalOpen] = useState(false);
+  const [resultModalData, setResultModalData] = useState<any>(null); // 결과 데이터
   const [isLoading, setIsLoading] = useState(false);
 
   // 검색 필터 상태
@@ -156,32 +159,50 @@ export default function DeskDashboard() {
   };
 
   // --- Modal Logic (데이터 추가) ---
-  const handleCreateInviteCode = (data: InviteCodeFormData) => {
-    // 1. 임시 데이터 생성 (실제 API 연동 시 서버 응답값 사용)
-    const newItem: InviteCodePatientItem = {
-      inviteCodeId: `inv-${Date.now()}`, // 임시 ID
-      childName: data.childName,
-      childMonths: 0, // 생년월일 기반 계산 로직 필요 (임시 0)
-      parentPhone: data.parentPhone,
-      // 예약 시간은 현재 선택된 날짜의 현재 시간으로 가정 (혹은 모달에서 입력받아야 함)
-      scheduledAt: new Date(
-        selectedDate.setHours(new Date().getHours()),
-      ).toISOString(),
-      status: "ISSUED", // 발급 상태
-      inviteCode: Math.random().toString(36).substring(2, 10).toUpperCase(), // 랜덤 코드
-    };
+  // --- Modal Logic (데이터 추가) ---
+  // --- Modal Logic (데이터 추가) ---
+  // --- Modal Logic (데이터 추가) ---
+  const handleCreateInviteCode = async (data: any) => { // TODO: 타입 정의 수정 필요 (InviteCodeFormData 확장)
+    try {
+      setIsLoading(true);
 
-    // 2. 리스트 상태 업데이트 (최신순 추가)
-    setUnregisteredList((prev) => [newItem, ...prev]);
+      const requestData = {
+        childName: data.childName.trim(),
+        childBirthdate: data.childBirthdate.replace(/\./g, "-"),
+        parentPhone: data.parentPhone.replace(/-/g, ""),
+        scheduledAt: data.scheduledAt, // 모달에서 이미 ISO string으로 변환되어 옴
+        doctorId: data.doctorId ? data.doctorId : undefined, // 빈 문자열이나 null이면 undefined 처리 (JSON 제외)
+      };
 
-    // 3. 탭을 '미등록자'로 전환하여 추가된 항목 확인
-    setActiveTab("UNREGISTERED");
+      console.log("📤 [DeskDashboard] 초대코드 생성 요청 데이터:", requestData);
 
-    // 4. 모달 닫기
-    setIsModalOpen(false);
+      // 2. API 호출
+      const response = await createInviteCode(requestData);
 
-    // 5. 알림 (선택 사항)
-    // alert(`${data.childName} 환자의 초대코드가 발급되었습니다.`);
+      if (response.code === 200) {
+        console.log("✅ [DeskDashboard] 초대코드 발급 성공:", response.data);
+
+        // 3. 리스트 갱신 
+        // 선택된 예약일이 현재 대시보드의 '선택된 날짜'와 같다면 리스트갱신
+        const reservedDate = new Date(data.scheduledAt);
+        const isSelectedDate = isSameDay(reservedDate.toISOString(), selectedDate);
+
+        if (isSelectedDate && activeTab === "UNREGISTERED") {
+          await fetchUnregisteredPatients(selectedDate);
+        }
+
+        // 4. 모달 스위칭 (입력 모달 닫기 -> 결과 모달 열기)
+        setIsModalOpen(false);
+        setResultModalData(response.data);
+        setIsResultModalOpen(true);
+      }
+    } catch (error: any) {
+      console.error("❌ [DeskDashboard] 초대코드 생성 실패:", error);
+      const msg = error.response?.data?.message || "발급 중 오류가 발생했습니다.";
+      alert(msg);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // --- Filtering Logic ---
@@ -293,6 +314,13 @@ export default function DeskDashboard() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onConfirm={handleCreateInviteCode}
+      />
+
+      {/* 6. 결과 모달 */}
+      <InviteCodeResultModal
+        isOpen={isResultModalOpen}
+        onClose={() => setIsResultModalOpen(false)}
+        data={resultModalData}
       />
     </div>
   );
