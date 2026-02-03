@@ -7,6 +7,10 @@ Audio Pipeline:
     - SpeakerDiarizer: pyannote-audio 기반 화자 분리
     - SpeechRecognizer: faster-whisper 기반 음성 인식
     - ChildVoiceAnalyzer: 아이 음성 반응 통합 분석
+
+Vision Pipeline:
+    - HeadDetector: YOLO 기반 머리/사람 탐지 (360°)
+    - HeadPoseEstimator6D: 6DRepNet360 기반 머리 포즈 추정
 """
 
 from app.models.base import BaseModel
@@ -27,6 +31,16 @@ from app.models.speech_recognizer import (
 from app.models.child_voice_analyzer import (
     ChildVoiceAnalyzer,
     ChildVoiceReaction
+)
+# Vision models
+from app.models.head_detector import (
+    HeadDetector,
+    HeadDetection,
+    BoundingBox
+)
+from app.models.head_pose_6d import (
+    HeadPoseEstimator6D,
+    HeadPose6D
 )
 
 __all__ = [
@@ -49,4 +63,11 @@ __all__ = [
     # Child Voice Analysis
     "ChildVoiceAnalyzer",
     "ChildVoiceReaction",
+    # Vision - Head Detection (YOLO)
+    "HeadDetector",
+    "HeadDetection",
+    "BoundingBox",
+    # Vision - Head Pose (6DRepNet360)
+    "HeadPoseEstimator6D",
+    "HeadPose6D",
 ]
