@@ -5,12 +5,12 @@ import type { AdosItemDefinition, AdosAiResult } from "../../types/ados";
 
 interface Props {
   onClose: () => void;
-  patientAge: number; // [추가] 환자 월령 정보 받기
+  patientAge: number;
 }
 
-// [전체 통합 항목 리스트 (Master List)]
+// [Master List]
 const MASTER_ADOS_ITEMS: AdosItemDefinition[] = [
-  // --- SA: Communication ---
+  // SA: Communication
   {
     code: "A-2",
     label: "목소리를 내는 빈도",
@@ -33,8 +33,7 @@ const MASTER_ADOS_ITEMS: AdosItemDefinition[] = [
     isAiAnalyzed: true,
     aiSourceTask: "동작모방 과제 분석",
   },
-
-  // --- SA: Interaction ---
+  // SA: Interaction
   {
     code: "B-1",
     label: "유별난 눈 맞춤",
@@ -131,8 +130,7 @@ const MASTER_ADOS_ITEMS: AdosItemDefinition[] = [
     isAiAnalyzed: true,
     aiSourceTask: "전체 과제 TF 종합",
   },
-
-  // --- RRB ---
+  // RRB
   {
     code: "A-3",
     label: "음성과 언어의 억양",
@@ -164,8 +162,6 @@ const MASTER_ADOS_ITEMS: AdosItemDefinition[] = [
   },
 ];
 
-// [그룹 정의]
-// Group 1: 12~21개월 OR (21~30개월 & 말 못함)
 const CODES_PRE_VERBAL = [
   "A-2",
   "A-8",
@@ -182,8 +178,6 @@ const CODES_PRE_VERBAL = [
   "D-2",
   "D-5",
 ];
-
-// Group 2: 21~30개월 & 말함
 const CODES_VERBAL = [
   "A-7",
   "B-1",
@@ -214,27 +208,19 @@ const MOCK_AI_RESULTS: AdosAiResult = {
 export default function AdosModal({ onClose, patientAge }: Props) {
   const [doctorScores, setDoctorScores] = useState<Record<string, string>>({});
 
-  // [상태] 발화 가능 여부 (기본값: 21개월 미만이면 false, 그 이상이면 true)
   const [isVerbal, setIsVerbal] = useState<boolean>(patientAge > 21);
 
-  // [로직] 현재 조건에 맞는 항목 필터링
   const currentItems = useMemo(() => {
-    // 12~21개월: 무조건 Pre-Verbal (사용자 정의)
     if (patientAge >= 12 && patientAge <= 21) {
       return MASTER_ADOS_ITEMS.filter((item) =>
         CODES_PRE_VERBAL.includes(item.code),
       );
     }
-    // 21~30개월 (그 외): 발화 여부에 따라 결정
-    if (isVerbal) {
-      return MASTER_ADOS_ITEMS.filter((item) =>
-        CODES_VERBAL.includes(item.code),
-      );
-    } else {
-      return MASTER_ADOS_ITEMS.filter((item) =>
-        CODES_PRE_VERBAL.includes(item.code),
-      );
-    }
+    return isVerbal
+      ? MASTER_ADOS_ITEMS.filter((item) => CODES_VERBAL.includes(item.code))
+      : MASTER_ADOS_ITEMS.filter((item) =>
+          CODES_PRE_VERBAL.includes(item.code),
+        );
   }, [patientAge, isVerbal]);
 
   const handleScoreChange = (code: string, value: string) => {
@@ -245,8 +231,16 @@ export default function AdosModal({ onClose, patientAge }: Props) {
     return currentItems
       .filter((item) => item.category === category)
       .reduce((sum, item) => {
-        const docVal = parseInt(doctorScores[item.code] || "0", 10);
-        return sum + (isNaN(docVal) ? 0 : docVal);
+        let score = 0;
+        if (typeof MOCK_AI_RESULTS[item.code] === "number") {
+          score = MOCK_AI_RESULTS[item.code] as number;
+        } else if (
+          doctorScores[item.code] !== undefined &&
+          doctorScores[item.code] !== ""
+        ) {
+          score = parseInt(doctorScores[item.code], 10);
+        }
+        return sum + (isNaN(score) ? 0 : score);
       }, 0);
   };
 
@@ -259,35 +253,29 @@ export default function AdosModal({ onClose, patientAge }: Props) {
         className="w-[900px] h-[90%] bg-[#d4d0c8] border-2 border-white border-r-[#404040] border-b-[#404040] p-1 flex flex-col shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* 헤더 */}
         <div className="bg-[#000080] text-white px-2 py-1 flex justify-between items-center font-bold mb-1 select-none shrink-0">
-          <span>
-            ADOS-2 진단 (Module T) - {patientAge}개월 /{" "}
-            {isVerbal ? "유창한 말 (Verbal)" : "말 못함 (Pre-Verbal)"}
-          </span>
-          <WindowsButton onClick={onClose}>X 닫기</WindowsButton>
+          <span>ADOS-2 진단 결과 입력표 (Module T)</span>
+          <WindowsButton className="text-black" onClick={onClose}>
+            X 닫기
+          </WindowsButton>
         </div>
 
-        {/* [추가] 조건 설정 툴바 (21개월 이상일 때만 노출하거나 항상 노출) */}
-        <div className="bg-[#f0f0f0] border border-[#808080] p-2 mb-1 flex items-center gap-4 text-[12px]">
-          <span className="font-bold">검사 기준 설정:</span>
+        <div className="bg-[#f0f0f0] border border-[#808080] p-2 mb-1 flex items-center gap-4 text-[12px] shrink-0">
+          <span className="font-bold">검사 기준:</span>
           <label className="flex items-center gap-1 cursor-pointer">
             <input
               type="checkbox"
               checked={isVerbal}
               onChange={(e) => setIsVerbal(e.target.checked)}
-              disabled={patientAge <= 21} // 21개월 이하는 수정 불가 (규정상)
+              disabled={patientAge <= 21}
             />
-            <span>발화 가능 (21~30개월 기준)</span>
+            <span>발화 가능 (21개월 이상)</span>
           </label>
-          <span className="text-gray-500 text-[11px] ml-auto">
-            ※ 현재 월령({patientAge}개월)에 맞춰{" "}
-            {isVerbal ? "Group 2 (말하는 아동)" : "Group 1 (말 못하는 아동)"}{" "}
-            항목이 적용되었습니다.
+          <span className="ml-auto font-bold text-blue-800">
+            [{patientAge}개월 / {isVerbal ? "Verbal" : "Pre-Verbal"}]
           </span>
         </div>
 
-        {/* 테이블 */}
         <div className="flex-1 bg-white border-2 border-[#808080] border-r-white border-b-white overflow-y-auto p-4 font-['Gulim']">
           <table className="w-full border-collapse text-[12px] border border-black">
             <thead className="bg-[#e0e0e0] sticky top-0 z-10 shadow-sm">
@@ -295,18 +283,15 @@ export default function AdosModal({ onClose, patientAge }: Props) {
                 <th className="border border-black p-1 w-[80px]">영역</th>
                 <th className="border border-black p-1 w-[40px]">코드</th>
                 <th className="border border-black p-1">항목명</th>
-                <th className="border border-black p-1 w-[80px] bg-blue-50 text-blue-800">
-                  AI 분석
-                </th>
                 <th className="border border-black p-1 w-[120px] bg-yellow-50">
-                  전문의 판정
+                  점수
                 </th>
               </tr>
             </thead>
             <tbody>
               {/* SA Section */}
               <tr className="bg-gray-100 font-bold">
-                <td colSpan={5} className="border border-black p-1 text-center">
+                <td colSpan={4} className="border border-black p-1 text-center">
                   사회적 정동 (Social Affect)
                 </td>
               </tr>
@@ -328,7 +313,6 @@ export default function AdosModal({ onClose, patientAge }: Props) {
                 >
                   사회적 정동 총합
                 </td>
-                <td className="border border-black p-1 bg-gray-200"></td>
                 <td className="border border-black p-1 text-center text-blue-700 text-[14px]">
                   {calculateTotal("SA")}
                 </td>
@@ -336,7 +320,7 @@ export default function AdosModal({ onClose, patientAge }: Props) {
 
               {/* RRB Section */}
               <tr className="bg-gray-100 font-bold border-t-2 border-black">
-                <td colSpan={5} className="border border-black p-1 text-center">
+                <td colSpan={4} className="border border-black p-1 text-center">
                   제한적이고 반복적인 행동 (RRB)
                 </td>
               </tr>
@@ -358,7 +342,6 @@ export default function AdosModal({ onClose, patientAge }: Props) {
                 >
                   제한적/반복적 행동 총합
                 </td>
-                <td className="border border-black p-1 bg-gray-200"></td>
                 <td className="border border-black p-1 text-center text-blue-700 text-[14px]">
                   {calculateTotal("RRB")}
                 </td>
@@ -372,21 +355,22 @@ export default function AdosModal({ onClose, patientAge }: Props) {
                 >
                   전체 총합 (SA + RRB)
                 </td>
-                <td className="border border-black p-1 bg-gray-200"></td>
                 <td className="border border-black p-1 text-center text-red-600 text-[16px]">
                   {calculateTotal("SA") + calculateTotal("RRB")}
                 </td>
               </tr>
             </tbody>
           </table>
+          {/* [수정] 알림 문구 크기 조정 (20px -> 11px) */}
+          <div className="px-1 pb-1 text-[20px] text-blue-800 font-bold shrink-0">
+            ※ 'AI' 뱃지가 있는 항목은 AI 분석 점수가 자동 반영되며 수정할 수
+            없습니다.
+          </div>
         </div>
 
         <div className="mt-1 flex justify-end gap-1 shrink-0">
           <WindowsButton className="w-[100px] h-[30px]" onClick={onClose}>
-            취소
-          </WindowsButton>
-          <WindowsButton className="w-[100px] h-[30px] font-bold text-blue-900">
-            저장
+            확인
           </WindowsButton>
         </div>
       </div>
@@ -394,6 +378,7 @@ export default function AdosModal({ onClose, patientAge }: Props) {
   );
 }
 
+// 개별 행 컴포넌트
 function AdosRow({
   item,
   aiValue,
@@ -405,8 +390,8 @@ function AdosRow({
   docValue: string;
   onChange: (code: string, val: string) => void;
 }) {
-  const formatAiValue = (val: any) =>
-    val === undefined ? "-" : val === true ? "T" : val === false ? "F" : val;
+  const hasAiResult = aiValue !== undefined && typeof aiValue === "number";
+
   return (
     <tr className="hover:bg-blue-50 transition-colors h-[32px]">
       <td className="border border-black p-1 text-center text-gray-500 text-[10px]">
@@ -425,34 +410,36 @@ function AdosRow({
           {item.isAiAnalyzed && (
             <span
               className="text-[9px] font-bold bg-[#E6F0FF] text-[#0055FF] px-1.5 py-[1px] rounded-[4px] border border-[#B3D1FF]"
-              title={item.aiSourceTask || "AI 자동 분석 항목"}
+              title={item.aiSourceTask}
             >
               AI
             </span>
           )}
         </div>
       </td>
+
+      {/* [수정됨] 점수 열의 배경색(td)을 조건부로 변경하여 셀 전체가 회색이 되도록 함 */}
       <td
         className={cn(
-          "border border-black p-1 text-center font-mono font-bold",
-          aiValue !== undefined ? "text-blue-700 bg-blue-50" : "text-gray-300",
+          "border border-black p-0",
+          hasAiResult ? "bg-gray-200" : "bg-yellow-50",
         )}
       >
-        {formatAiValue(aiValue)}
-      </td>
-      <td className="border border-black p-0">
         <input
           type="number"
           min="0"
           max="3"
-          className="w-full h-full text-center outline-none bg-yellow-50 focus:bg-white focus:ring-2 focus:ring-blue-500 font-bold"
-          placeholder={
-            aiValue !== undefined && typeof aiValue === "number"
-              ? aiValue.toString()
-              : ""
-          }
-          value={docValue}
-          onChange={(e) => onChange(item.code, e.target.value)}
+          className={cn(
+            "w-full h-full text-center outline-none font-bold bg-transparent", // input 배경은 투명으로 설정
+            hasAiResult
+              ? "text-blue-700 cursor-not-allowed"
+              : "focus:bg-white focus:ring-2 focus:ring-blue-500",
+          )}
+          value={hasAiResult ? aiValue : docValue}
+          readOnly={hasAiResult}
+          onChange={(e) => {
+            if (!hasAiResult) onChange(item.code, e.target.value);
+          }}
         />
       </td>
     </tr>
