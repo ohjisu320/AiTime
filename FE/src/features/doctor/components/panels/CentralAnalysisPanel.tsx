@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import {
   WindowsContainer,
   SectionHeader,
@@ -40,6 +40,13 @@ export default function CentralAnalysisPanel({ onExpandVideo }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [currentTime, setCurrentTime] = useState(0);
 
+  // 높이 조절 상태 관리
+  const [topHeight, setTopHeight] = useState(160);
+  const [bottomHeight, setBottomHeight] = useState(160);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const isDraggingTop = useRef(false);
+  const isDraggingBottom = useRef(false);
+
   const handleSeek = (time: number) => {
     if (videoRef.current) {
       videoRef.current.currentTime = time;
@@ -47,25 +54,63 @@ export default function CentralAnalysisPanel({ onExpandVideo }: Props) {
     }
   };
 
+  const handleMouseMove = useCallback(
+    (e: MouseEvent) => {
+      if (!containerRef.current) return;
+      const containerRect = containerRef.current.getBoundingClientRect();
+
+      if (isDraggingTop.current) {
+        let newHeight = e.clientY - containerRect.top;
+        if (newHeight < 100) newHeight = 100;
+        if (newHeight > containerRect.height - bottomHeight - 200)
+          newHeight = containerRect.height - bottomHeight - 200;
+        setTopHeight(newHeight);
+      } else if (isDraggingBottom.current) {
+        let newHeight = containerRect.bottom - e.clientY;
+        if (newHeight < 100) newHeight = 100;
+        if (newHeight > containerRect.height - topHeight - 200)
+          newHeight = containerRect.height - topHeight - 200;
+        setBottomHeight(newHeight);
+      }
+    },
+    [bottomHeight, topHeight],
+  );
+
+  const handleMouseUp = useCallback(() => {
+    isDraggingTop.current = false;
+    isDraggingBottom.current = false;
+    document.body.style.cursor = "default";
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [handleMouseMove, handleMouseUp]);
+
   return (
-    <div className="grid grid-rows-[160px_1fr_160px] h-full gap-[2px] min-h-[680px] overflow-auto custom-scrollbar">
-      {/* 1. 핵심 증상 체크리스트 (스크롤 적용됨) */}
+    <div
+      ref={containerRef}
+      className="grid h-full gap-[2px] min-h-[680px] overflow-hidden"
+      style={{
+        gridTemplateRows: `${topHeight}px 6px 1fr 6px ${bottomHeight}px`,
+      }}
+    >
+      {/* 1. 핵심 증상 체크리스트 */}
       <WindowsContainer className="flex flex-col min-h-0">
         <SectionHeader title="핵심 증상 체크리스트" />
-
-        {/* 그리드 컨테이너: overflow-hidden으로 고정 */}
         <div className="grid grid-cols-3 gap-1 flex-1 overflow-hidden p-1">
           {["사회성/의사소통", "언어/반복행동", "감각/기타"].map((title, i) => (
             <div
               key={i}
               className="border border-[#808080] p-1 bg-white h-full flex flex-col min-h-0"
             >
-              {/* 헤더 (고정) */}
               <span className="font-bold text-[#000080] block border-b border-[#eee] mb-1 pb-1 text-[11px] shrink-0">
                 {title}
               </span>
-
-              {/* 내용 목록 (스크롤 가능) */}
               <div className="flex flex-col gap-1 text-[11px] flex-1 overflow-y-auto custom-scrollbar pr-1">
                 <label className="flex items-center gap-1 cursor-pointer hover:bg-gray-100">
                   <input type="checkbox" defaultChecked />{" "}
@@ -84,14 +129,24 @@ export default function CentralAnalysisPanel({ onExpandVideo }: Props) {
                 <label className="flex items-center gap-1 cursor-pointer hover:bg-gray-100">
                   <input type="checkbox" /> <span>감각 추구</span>
                 </label>
-                <label className="flex items-center gap-1 cursor-pointer hover:bg-gray-100">
-                  <input type="checkbox" /> <span>반향어 사용</span>
-                </label>
               </div>
             </div>
           ))}
         </div>
       </WindowsContainer>
+
+      {/* 상단 리사이즈 핸들 */}
+      <div
+        className="cursor-row-resize bg-[#d4d0c8] flex items-center justify-center hover:bg-gray-300 border-y border-white active:bg-blue-200 transition-colors z-10"
+        onMouseDown={(e) => {
+          e.preventDefault();
+          isDraggingTop.current = true;
+          document.body.style.cursor = "row-resize";
+        }}
+        title="드래그하여 높이 조절"
+      >
+        <div className="w-8 h-[3px] bg-gray-400 rounded-full border border-gray-100" />
+      </div>
 
       {/* 2. 비디오 플레이어 */}
       <WindowsContainer className="bg-black !border-[#808080] !border-2 flex flex-col p-0 relative min-h-0">
@@ -116,6 +171,19 @@ export default function CentralAnalysisPanel({ onExpandVideo }: Props) {
         </div>
       </WindowsContainer>
 
+      {/* 하단 리사이즈 핸들 */}
+      <div
+        className="cursor-row-resize bg-[#d4d0c8] flex items-center justify-center hover:bg-gray-300 border-y border-white active:bg-blue-200 transition-colors z-10"
+        onMouseDown={(e) => {
+          e.preventDefault();
+          isDraggingBottom.current = true;
+          document.body.style.cursor = "row-resize";
+        }}
+        title="드래그하여 높이 조절"
+      >
+        <div className="w-8 h-[3px] bg-gray-400 rounded-full border border-gray-100" />
+      </div>
+
       {/* 3. 하단 메모 & 타임라인 */}
       <div className="flex gap-[2px] min-h-0">
         <WindowsContainer className="flex-1 flex flex-col h-full">
@@ -129,14 +197,15 @@ export default function CentralAnalysisPanel({ onExpandVideo }: Props) {
         </WindowsContainer>
 
         <WindowsContainer className="flex-1 flex flex-col h-full">
-          <div className="text-[11px] font-bold mb-1 bg-[#000080] text-white px-1 flex justify-between">
+          {/* [수정] mb-1 제거하여 헤더와 타임라인 사이 간격 없앰 */}
+          <div className="text-[11px] font-bold bg-[#000080] text-white px-1 flex justify-between shrink-0">
             <span>영상 타임라인 분석 ({MOCK_ANALYSIS.totalDuration}s)</span>
             <span>{Math.floor(currentTime)}s</span>
           </div>
 
-          <div className="flex-1 flex flex-col justify-evenly bg-[#f0f0f0] border-t border-l border-white border-r-gray-500 border-b-gray-500 p-1">
+          <div className="flex-1 flex flex-col justify-center gap-1 bg-[#f0f0f0] border-t border-l border-white border-r-gray-500 border-b-gray-500 p-1">
             {TIMELINE_ROWS.map((row) => (
-              <div key={row.key} className="flex items-center text-[10px] h-6">
+              <div key={row.key} className="flex items-center text-[10px] h-5">
                 <span className="w-[60px] font-bold shrink-0">{row.label}</span>
                 <div className="flex-1 h-4 bg-white border border-[#999] relative mx-1">
                   {MOCK_ANALYSIS.timestamps
@@ -165,13 +234,15 @@ export default function CentralAnalysisPanel({ onExpandVideo }: Props) {
                   <div
                     className="absolute top-0 h-full w-[1px] bg-red-600 z-10 pointer-events-none"
                     style={{
-                      left: `${(currentTime / MOCK_ANALYSIS.totalDuration) * 100}%`,
+                      left: `${
+                        (currentTime / MOCK_ANALYSIS.totalDuration) * 100
+                      }%`,
                     }}
                   />
                 </div>
               </div>
             ))}
-            <div className="flex justify-between pl-[60px] text-[9px] text-gray-500 px-1">
+            <div className="flex justify-between pl-[60px] text-[9px] text-gray-500 px-1 mt-1">
               <span>0s</span>
               <span>{Math.floor(MOCK_ANALYSIS.totalDuration / 2)}s</span>
               <span>{MOCK_ANALYSIS.totalDuration}s</span>
