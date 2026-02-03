@@ -62,20 +62,21 @@ class ImitationJudgeStage(BaseStage):
         # Pitch 구분이 안 되므로, 모든 발화를 시간순으로 나열하고
         # Stimulus(0) -> Response(1) -> Stimulus(2) -> Response(3)... 순서로 강제 할당
 
-        # 1) 모든 세그먼트 수집 (Config상 200Hz 이하가 없으므로 대부분 Child에 몰려있음)
-        #    만약 Adult에도 일부 남아있다면 합쳐서 시간순 정렬 필요
+        # 1) 모든 세그먼트 수집 (LabeledSegment 상태로 유지)
         all_segs = []
         for s in adult_segs:
-            all_segs.append(s.segment)
+            all_segs.append(s)
         for s in child_segs:
-            all_segs.append(s.segment)
+            all_segs.append(s)
 
         # 시간순 정렬
-        all_segs.sort(key=lambda x: x.start_sec)
+        all_segs.sort(key=lambda x: x.segment.start_sec)
 
         logger.info(f"Alternating Strategy: Total segments found = {len(all_segs)}")
         for i, s in enumerate(all_segs):
-            logger.debug(f"  Seg {i}: {s.start_sec:.2f}-{s.end_sec:.2f}s")
+            logger.debug(
+                f"  Seg {i}: {s.segment.start_sec:.2f}-{s.segment.end_sec:.2f}s"
+            )
 
         debug_dir = self._settings.DEBUG_OUT_DIR
         save_clips = bool(self._settings.SAVE_WAV_CLIPS) and debug_dir is not None
@@ -106,8 +107,12 @@ class ImitationJudgeStage(BaseStage):
                     continue
 
                 # 강제 할당
-                stim_seg = all_segs[current_seg_idx]
-                resp_seg = all_segs[current_seg_idx + 1]
+                stim_labeled = all_segs[current_seg_idx]
+                resp_labeled = all_segs[current_seg_idx + 1]
+
+                stim_seg = stim_labeled.segment
+                resp_seg = resp_labeled.segment
+
                 current_seg_idx += 2  # 다음 쌍으로 이동
 
                 # 정보 기록
@@ -116,15 +121,20 @@ class ImitationJudgeStage(BaseStage):
                 r.response_time = (resp_seg.start_sec, resp_seg.end_sec)
                 r.latency_s = float(max(0.0, resp_seg.start_sec - stim_seg.end_sec))
 
+                # Prosody Metrics (Child/Response)
+                r.child_mean_f0 = resp_labeled.mean_f0_hz
+                r.child_squeal_ratio = resp_labeled.squeal_ratio
+                r.child_mad_semitone = resp_labeled.f0_mad_semitone
+
                 logger.debug(
-                    f"Trial {t.trial_index}: Forced Match "
+                    f"Trial {t.trial_index}: Match "
                     f"Stim[{stim_seg.start_sec:.2f}-{stim_seg.end_sec:.2f}] -> "
-                    f"Resp[{resp_seg.start_sec:.2f}-{resp_seg.end_sec:.2f}]"
+                    f"Resp[{resp_seg.start_sec:.2f}-{resp_seg.end_sec:.2f}] "
+                    f"(MeanF0={r.child_mean_f0}, Squeal={r.child_squeal_ratio}, "
+                    f"MAD={r.child_mad_semitone})"
                 )
 
                 # 매칭 성공 처리 (유사도 계산 전 단계)
-                # used_child_indices 등 불필요 로직 제거됨
-
                 # 3) similarity
                 stim_audio = slice_audio(
                     context.audio, sr, stim_seg.start_sec, stim_seg.end_sec
@@ -136,7 +146,26 @@ class ImitationJudgeStage(BaseStage):
                 sim_res = self._scorer.score(stim_audio, resp_audio, sr)
                 r.similarity = float(sim_res.similarity)
 
-                if sim_res.similarity >= float(self._settings.SIMILARITY_THRESHOLD):
+                # Prosody Check
+                # Pitch Mean > 450Hz AND (MAD < 1.0 or MAD > 2.0)
+                is_bad_prosody = False
+                if r.child_mean_f0 is not None and r.child_mad_semitone is not None:
+                    squeal_th = float(self._settings.PITCH_SQUEAL_HZ_THRESHOLD)
+                    mad_min = float(self._settings.PITCH_MAD_MONOTONE_THRESHOLD)
+                    mad_max = float(self._settings.PITCH_MAD_SONG_THRESHOLD)
+
+                    is_high_pitch = r.child_mean_f0 > squeal_th
+                    is_abnormal_mad = (r.child_mad_semitone < mad_min) or (
+                        r.child_mad_semitone > mad_max
+                    )
+
+                    if is_high_pitch and is_abnormal_mad:
+                        is_bad_prosody = True
+
+                if is_bad_prosody:
+                    r.success = False
+                    r.failure_reason = "BAD_PROSODY"
+                elif sim_res.similarity >= float(self._settings.SIMILARITY_THRESHOLD):
                     r.success = True
                     r.failure_reason = None
                 else:
