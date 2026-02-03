@@ -128,7 +128,7 @@ class PoseWorker:
             # 결과 메시지 생성
             result_message = {
                 "exam_id": exam_id,
-                "video_type": "pose_imitation",
+                "video_type": "POSE_IMITATION",
                 "status": "success",
                 "processing_time_ms": round((time.time() - start_time) * 1000, 2),
                 "result": {
