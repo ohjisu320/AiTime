@@ -29,7 +29,7 @@ public class AiServerService {
     /**
      * AI 서버에 분석 시작 명령 전송
      */
-    public void startAnalysis(String roomName, String aiToken, Long sessionId) {
+    public Mono<Void> startAnalysis(String roomName, String aiToken, Long sessionId) {
         String url = aiServerBaseUrl + startAnalysisEndpoint;
 
         Map<String, Object> requestBody = Map.of(
@@ -41,7 +41,7 @@ public class AiServerService {
 
         log.info("Sending start analysis request to AI server: {}", url);
 
-        webClient.post()
+        return webClient.post()
                 .uri(url)
                 .bodyValue(requestBody)
                 .retrieve()
@@ -50,12 +50,6 @@ public class AiServerService {
                 .doOnSuccess(response ->
                         log.info("Successfully triggered AI analysis for room: {}", roomName))
                 .doOnError(error ->
-                        log.error("Failed to start AI analysis for room: {}", roomName, error))
-                .onErrorResume(error -> {
-                    // AI 서버 호출 실패해도 세션은 유지 (수동 재시도 가능하도록)
-                    log.warn("AI server call failed, but session remains active");
-                    return Mono.empty();
-                })
-                .subscribe();  // 비동기 실행
+                        log.error("Failed to start AI analysis for room: {}", roomName, error));
     }
 }
