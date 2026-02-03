@@ -32,6 +32,9 @@ class RepResult:
     similarity: float | None = None
     stimulus_time: tuple[float, float] | None = None
     response_time: tuple[float, float] | None = None
+    child_mean_f0: float | None = None
+    child_squeal_ratio: float | None = None
+    child_mad_semitone: float | None = None
 
 
 @dataclass
@@ -139,6 +142,9 @@ class PipelineContext:
                                 "similarity": r.similarity,
                                 "stimulus_time": r.stimulus_time,
                                 "response_time": r.response_time,
+                                "child_mean_f0": r.child_mean_f0,
+                                "child_squeal_ratio": r.child_squeal_ratio,
+                                "child_mad_semitone": r.child_mad_semitone,
                             }
                             for r in t.repetitions
                         ],
