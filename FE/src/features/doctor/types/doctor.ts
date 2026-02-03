@@ -52,3 +52,17 @@ export interface AdosCategory {
   title: string;
   items: AdosItem[];
 }
+
+export interface AnalysisTimestamp {
+id: number;
+type: 'parent' | 'child-vocal' | 'child-behavior'; // 타임라인 행 구분용
+label: string;      // 마커 이름 (예: 호명반응)
+startTime: number;  // 시작 시간 (초)
+duration: number;   // 지속 시간 (초)
+}
+
+export interface VideoAnalysisData {
+videoUrl: string;       // 영상 URL
+totalDuration: number;  // 영상 전체 길이 (초)
+timestamps: AnalysisTimestamp[];
+}

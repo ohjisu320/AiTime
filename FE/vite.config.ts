@@ -29,9 +29,14 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://i14a501.p.ssafy.io',
+        target: 'http://70.12.246.92:8080',
         changeOrigin: true,
         secure: false,
+        configure: (proxy, _options) => {
+          proxy.on('proxyReq', (proxyReq, req, _res) => {
+            proxyReq.setHeader('Origin', 'http://70.12.246.92:8080');
+          });
+        },
       },
     },
   },
