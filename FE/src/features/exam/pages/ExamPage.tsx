@@ -35,7 +35,7 @@ const ExamPage: React.FC = () => {
   const [elapsedTime, setElapsedTime] = useState(0);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
 
-  const TOTAL_DURATION = 25; // 25초 녹화
+  const TOTAL_DURATION = content.duration || 25; // 각 미션별 시간 적용 (기본 25초)
   const CYCLE_DURATION = 8; // 3초 카운트 + 5초 지시사항
 
   // ✅ 완료 처리 핸들러 (useCallback으로 메모이제이션하고 useEffect보다 위에 정의)
@@ -193,8 +193,8 @@ const ExamPage: React.FC = () => {
               <div
                 key={currentInstructionState.type} // 타입 변경 시 애니메이션 리셋
                 className={`mb-3 px-4 py-1 rounded-full text-sm font-bold transition-colors duration-300 ${currentInstructionState.type === 'COUNTDOWN'
-                    ? "bg-amber-100 text-amber-700"
-                    : "bg-brand-purple text-white animate-pulse"
+                  ? "bg-amber-100 text-amber-700"
+                  : "bg-brand-purple text-white animate-pulse"
                   }`}
               >
                 {currentInstructionState.type === 'COUNTDOWN' ? "준비하세요" : "지금 따라하세요!"}
