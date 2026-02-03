@@ -65,15 +65,52 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     LOG_LEVEL: str = "INFO"
     
-    # ===== RabbitMQ =====
-    # 통신하기 위한 설정 정보를 정의는 해놨는데
-    # 아직 미확정된 것들이 좀 남아있습니다.
-    RABBITMQ_URL: str = Field(
-        default="amqp://guest:guest@localhost:5672/",
-        description="RabbitMQ 연결 URL"
+    # ===== RabbitMQ 설정 =====
+    # ⚠️ 큐 이름은 백엔드 협의 후 변경 예정
+    RABBITMQ_HOST: str = Field(
+        default="localhost",
+        description="RabbitMQ 호스트"
     )
-    INPUT_QUEUE: str = "analysis.name_non_facing.request" # 작업 큐
-    OUTPUT_QUEUE: str = "analysis.name_non_facing.result" # 결과 큐.
+    RABBITMQ_PORT: int = Field(
+        default=5672,
+        description="RabbitMQ 포트"
+    )
+    RABBITMQ_USER: str = Field(
+        default="guest",
+        description="RabbitMQ 사용자"
+    )
+    RABBITMQ_PASSWORD: str = Field(
+        default="guest",
+        description="RabbitMQ 비밀번호"
+    )
+    RABBITMQ_VHOST: str = Field(
+        default="/",
+        description="RabbitMQ Virtual Host"
+    )
+    INPUT_QUEUE: str = Field(
+        default="analysis.name_non_facing.request",
+        description="작업 요청 큐 (TODO: 백엔드 협의 후 확정)"
+    )
+    OUTPUT_QUEUE: str = Field(
+        default="analysis.name_non_facing.result",
+        description="결과 응답 큐 (TODO: 백엔드 협의 후 확정)"
+    )
+    RABBITMQ_MAX_RETRIES: int = Field(
+        default=5,
+        description="RabbitMQ 연결 최대 재시도 횟수"
+    )
+    RABBITMQ_INITIAL_RETRY_DELAY: int = Field(
+        default=1,
+        description="RabbitMQ 재시도 초기 지연 시간 (초)"
+    )
+    RABBITMQ_HEARTBEAT: int = Field(
+        default=600,
+        description="RabbitMQ 하트비트 간격 (초)"
+    )
+    RABBITMQ_BLOCKED_CONNECTION_TIMEOUT: int = Field(
+        default=300,
+        description="RabbitMQ 블로킹 연결 타임아웃 (초)"
+    )
     
     # ===== 공통 오디오 설정 =====
     AUDIO_SAMPLE_RATE: int = Field(
