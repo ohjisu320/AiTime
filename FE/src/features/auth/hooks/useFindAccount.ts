@@ -4,6 +4,17 @@ import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import type { FindIdResult, FindTabType } from "../types/findAccount";
 
+// [API Import]
+import {
+  sendPhoneVerification,
+  verifyPhoneCode,
+} from "../api/signup/signupApi"; // 기존 회원가입 API 재사용
+import {
+  findLoginId,
+  verifyIdentity,
+  resetPassword,
+} from "../api/recovery/recoveryApi";
+
 export const useFindAccount = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<FindTabType>("FIND_ID");
@@ -23,79 +34,132 @@ export const useFindAccount = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
 
   // ------------------------------------------------
-  // [Mock API] 인증번호 요청
+  // 1. 인증번호 요청 (공통)
   // ------------------------------------------------
-  const requestAuth = () => {
-    if (!phoneNumber)
-      return Swal.fire("알림", "휴대폰 번호를 입력해주세요.", "warning");
+  const requestAuth = async () => {
+    // 유효성 검사
+    if (!/^010[0-9]{8}$/.test(phoneNumber)) {
+      return Swal.fire(
+        "형식 오류",
+        "'-' 없이 010으로 시작하는 11자리 숫자를 입력해주세요.",
+        "warning",
+      );
+    }
 
-    console.log("[API] POST /auth/phone/verification", { phoneNumber });
-    setIsAuthSent(true);
-    Swal.fire("발송 완료", "인증번호가 발송되었습니다. (123456)", "success");
+    try {
+      await sendPhoneVerification(phoneNumber);
+      setIsAuthSent(true);
+      Swal.fire("발송 완료", "인증번호가 발송되었습니다.", "success");
+    } catch (error: any) {
+      console.error(error);
+      const msg =
+        error.response?.status === 500
+          ? "서버 설정 문제로 발송 실패"
+          : "발송 실패";
+      Swal.fire("오류", msg, "error");
+    }
   };
 
   // ------------------------------------------------
-  // [Mock API] 인증번호 확인
+  // 2. 인증번호 확인 (공통)
   // ------------------------------------------------
-  const verifyAuth = () => {
+  const verifyAuth = async () => {
     if (!authCode)
-      return Swal.fire("알림", "인증번호를 입력해주세요.", "warning");
+      return Swal.fire("입력 필요", "인증번호를 입력해주세요.", "warning");
 
-    console.log("[API] POST /auth/phone/verify", {
-      phoneNumber,
-      verificationCode: authCode,
-    });
+    try {
+      const isOk = await verifyPhoneCode(phoneNumber, authCode);
 
-    // 검증 성공 시뮬레이션
-    setIsVerified(true);
+      if (isOk) {
+        setIsVerified(true);
+        Swal.fire("인증 성공", "본인 인증이 완료되었습니다.", "success");
 
-    if (activeTab === "RESET_PW") {
-      // 비밀번호 찾기인 경우: userId를 반환받았다고 가정 (PhoneVerifyForPasswordData)
-      const mockUserId = "user-uuid-1234";
-      setTargetUserId(mockUserId);
-      Swal.fire("인증 성공", "비밀번호를 재설정해주세요.", "success");
-    } else {
-      Swal.fire("인증 성공", "아이디 조회 버튼을 눌러주세요.", "success");
+        // [비밀번호 찾기 모드]인 경우 -> userId를 받아와야 함
+        if (activeTab === "RESET_PW") {
+          try {
+            const identityData = await verifyIdentity(phoneNumber);
+            if (identityData.isVerified) {
+              setTargetUserId(identityData.userId);
+            } else {
+              Swal.fire("오류", "가입된 정보를 찾을 수 없습니다.", "error");
+              setIsVerified(false);
+            }
+          } catch (err) {
+            console.error(err);
+            Swal.fire(
+              "오류",
+              "사용자 정보를 조회하는 중 오류가 발생했습니다.",
+              "error",
+            );
+            setIsVerified(false);
+          }
+        }
+      } else {
+        Swal.fire("인증 실패", "인증번호가 일치하지 않습니다.", "error");
+      }
+    } catch (error) {
+      console.error(error);
+      Swal.fire("오류", "인증 확인 중 문제가 발생했습니다.", "error");
     }
   };
 
   // ------------------------------------------------
-  // [Mock API] 아이디 찾기 실행
+  // 3. 아이디 찾기 실행
   // ------------------------------------------------
-  const handleFindId = () => {
+  const handleFindId = async () => {
     if (!isVerified)
-      return Swal.fire("알림", "휴대폰 인증을 완료해주세요.", "warning");
+      return Swal.fire(
+        "인증 필요",
+        "휴대폰 인증을 먼저 진행해주세요.",
+        "warning",
+      );
 
-    console.log("[API] GET /user/get-id", { phoneNumber });
-
-    // 결과 수신 Mock
-    setFoundIdResult({
-      loginId: "aitime_parent",
-      createdAt: "2025-01-15T10:00:00",
-    });
+    try {
+      const result = await findLoginId(phoneNumber);
+      setFoundIdResult({
+        loginId: result.loginId,
+        createdAt: result.createdAt,
+      });
+    } catch (error) {
+      console.error(error);
+      Swal.fire("실패", "가입된 아이디 정보를 찾을 수 없습니다.", "error");
+    }
   };
 
   // ------------------------------------------------
-  // [Mock API] 비밀번호 재설정 실행
+  // 4. 비밀번호 재설정 실행
   // ------------------------------------------------
-  const handleResetPassword = () => {
-    if (!targetUserId) return;
+  const handleResetPassword = async () => {
+    if (!targetUserId)
+      return Swal.fire(
+        "오류",
+        "사용자 정보를 찾을 수 없습니다. 다시 인증해주세요.",
+        "error",
+      );
+
     if (newPassword !== confirmPassword) {
-      return Swal.fire("오류", "비밀번호가 일치하지 않습니다.", "error");
+      return Swal.fire("불일치", "비밀번호가 일치하지 않습니다.", "warning");
+    }
+    if (newPassword.length < 4) {
+      return Swal.fire(
+        "길이 부족",
+        "비밀번호는 4자리 이상이어야 합니다.",
+        "warning",
+      );
     }
 
-    console.log("[API] PATCH /user/password", {
-      userId: targetUserId,
-      password: newPassword,
-    });
-
-    Swal.fire(
-      "성공",
-      "비밀번호가 변경되었습니다. 로그인해주세요.",
-      "success",
-    ).then(() => {
+    try {
+      await resetPassword(targetUserId, newPassword);
+      await Swal.fire(
+        "성공",
+        "비밀번호가 변경되었습니다. 로그인해주세요.",
+        "success",
+      );
       navigate("/login");
-    });
+    } catch (error) {
+      console.error(error);
+      Swal.fire("오류", "비밀번호 변경 중 오류가 발생했습니다.", "error");
+    }
   };
 
   // 탭 변경 시 상태 초기화
@@ -118,7 +182,6 @@ export const useFindAccount = () => {
     isAuthSent,
     isVerified,
     foundIdResult,
-    targetUserId,
     newPassword,
     confirmPassword,
     setPhoneNumber,
