@@ -189,15 +189,17 @@ class InviteCodeControllerTest {
 
         List<UnregisteredPatientResponse> responses = List.of(
                 new UnregisteredPatientResponse(
-                        UUID.randomUUID(),
-                        "박튼튼",
-                        14,
-                        "01012345678",
-                        LocalDateTime.of(2026, 1, 20, 10, 0),
-                        "ISSUED"
+                        UUID.randomUUID(),          // inviteCodeId
+                        "INVITE-0001",              // inviteCode
+                        "박튼튼",                    // childName
+                        14,                         // childMonths
+                        "01012345678",              // parentPhone
+                        LocalDateTime.of(2026, 1, 20, 10, 0), // scheduledAt
+                        "ISSUED"                    // status
                 ),
                 new UnregisteredPatientResponse(
                         UUID.randomUUID(),
+                        "INVITE-0002",
                         "김건강",
                         19,
                         "01087654321",
@@ -218,13 +220,24 @@ class InviteCodeControllerTest {
                 .andExpect(jsonPath("$.message").value("날짜별 등록 대기 환아 목록 조회가 완료되었습니다."))
                 .andExpect(jsonPath("$.data").isArray())
                 .andExpect(jsonPath("$.data.length()").value(2))
+
+                // 1번째
+                .andExpect(jsonPath("$.data[0].inviteCodeId").exists())
+                .andExpect(jsonPath("$.data[0].inviteCode").value("INVITE-0001"))
                 .andExpect(jsonPath("$.data[0].childName").value("박튼튼"))
                 .andExpect(jsonPath("$.data[0].childMonths").value(14))
                 .andExpect(jsonPath("$.data[0].parentPhone").value("01012345678"))
                 .andExpect(jsonPath("$.data[0].status").value("ISSUED"))
+
+                // 2번째
+                .andExpect(jsonPath("$.data[1].inviteCodeId").exists())
+                .andExpect(jsonPath("$.data[1].inviteCode").value("INVITE-0002"))
                 .andExpect(jsonPath("$.data[1].childName").value("김건강"))
-                .andExpect(jsonPath("$.data[1].childMonths").value(19));
+                .andExpect(jsonPath("$.data[1].childMonths").value(19))
+                .andExpect(jsonPath("$.data[1].parentPhone").value("01087654321"))
+                .andExpect(jsonPath("$.data[1].status").value("ISSUED"));
     }
+
 
     @Test
     @DisplayName("조회 결과가 없으면 200 상태코드와 빈 배열을 반환한다")
