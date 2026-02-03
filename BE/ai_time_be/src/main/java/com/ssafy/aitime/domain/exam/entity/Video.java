@@ -150,4 +150,19 @@ public class Video extends AuditableEntity {
         return videoStatus == VideoStatus.UPLOADED &&
                 (analysisStatus == null || analysisStatus == AnalysisStatus.FAILED);
     }
+
+    /**
+     * 비디오 soft delete 처리
+     */
+    public void markDeleted() {
+        this.videoStatus = VideoStatus.DELETED;
+    }
+
+    /**
+     * 삭제 가능 여부 확인
+     */
+    public boolean canDelete() {
+        return videoStatus == VideoStatus.PENDING_UPLOAD
+                || videoStatus == VideoStatus.UPLOADED;
+    }
 }

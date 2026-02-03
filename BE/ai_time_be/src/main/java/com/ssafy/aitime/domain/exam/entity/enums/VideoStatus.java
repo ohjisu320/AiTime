@@ -6,5 +6,7 @@ package com.ssafy.aitime.domain.exam.entity.enums;
  */
 public enum VideoStatus {
     PENDING_UPLOAD,
-    UPLOADED
+    UPLOADED,
+    DELETED,         // 추가
+    DELETED_PENDING  // 추가 (비동기 삭제용, 향후 확장)
 }
