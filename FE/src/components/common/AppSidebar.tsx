@@ -27,6 +27,8 @@ export default function AppSidebar({
 
   useEffect(() => {
     setViewDate(selectedDate);
+    // 초기 마운트 시에도 캘린더 데이터가 필요할 수 있으므로, 초기값으로 onMonthChange 호출 고려?
+    // 하지만 Dashboard에서 초기 호출 하는 게 나음.
   }, [selectedDate]);
 
   useEffect(() => {
@@ -34,14 +36,24 @@ export default function AppSidebar({
   }, [viewDate, onMonthChange]);
 
   const handleLogout = () => {
-    // 로그아웃 로직 (토큰 삭제 등) 수행 후 이동
+    // 로그아웃 로직: 토큰 및 유저 정보 삭제
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+    localStorage.removeItem("user");
+    // 필요한 경우 다른 키도 삭제 (예: selectedChildId)
+    localStorage.removeItem("selectedChildId");
+
     navigate("/login");
   };
 
-  const handlePrevMonth = () =>
-    setViewDate((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
-  const handleNextMonth = () =>
-    setViewDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+  const handleMonthChange = (direction: -1 | 1) => {
+    const newDate = new Date(viewDate.getFullYear(), viewDate.getMonth() + direction, 1);
+    setViewDate(newDate);
+    onMonthChange?.(newDate.getFullYear(), newDate.getMonth() + 1);
+  };
+
+  const handlePrevMonth = () => handleMonthChange(-1);
+  const handleNextMonth = () => handleMonthChange(1);
 
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
