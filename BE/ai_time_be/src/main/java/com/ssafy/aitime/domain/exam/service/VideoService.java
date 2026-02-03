@@ -25,11 +25,11 @@ public interface VideoService {
      * - User 또는 HospitalStaff 모두 호출 가능
      * - Principal 타입에 따라 권한 검증 로직 분기
      */
-    PresignedViewUrlResponse generatePresignedViewUrl(Object principal, UUID examId, String videoType, int expiresInSec);
+    PresignedViewUrlResponse generatePresignedViewUrl(Object principal, UUID examId, UUID videoId, int expiresInSec);
 
     /**
      * 특정 영상 삭제 (자녀/보호자 권한 검증 + MinIO 파일 삭제)
      * DB는 soft delete로 처리 (status를 DELETED로 변경)
      */
-    VideoDeleteResponse deleteVideo(UUID userId, UUID examId, String videoType);
+    VideoDeleteResponse deleteVideo(UUID userId, UUID examId, UUID videoId);
 }
