@@ -133,39 +133,112 @@ class SpeakerDiarizer(BaseModel):
     
     def _load_model(self) -> None:
         """
-        pyannote 파이프라인 로드
+        pyannote 파이프라인 로드 (Lazy Loading)
+        
+        Note:
+            - 이 메서드는 최초 1회만 실행됩니다 (싱글톤 + Lazy Loading)
+            - 이후 호출은 메모리에 캐시된 모델을 재사용합니다
+            - 로딩에 10-30초 정도 소요될 수 있습니다
         
         Reference: https://github.com/pyannote/pyannote-audio#tldr
         """
-        logger.info("🫡 pyannote 화자 분리 파이프라인 로딩...")
+        logger.info("🔄 pyannote 화자 분리 파이프라인 로딩 중... (최초 1회, 10-30초 소요)")
+        logger.info("💡 이후 호출부터는 캐시된 모델을 즉시 사용합니다")
         
         try:
+            logger.debug("📦 HuggingFace 및 pyannote 라이브러리 import 중...")
+            from huggingface_hub import login
             from pyannote.audio import Pipeline
+            logger.debug("✅ 라이브러리 import 완료")
+            
+            # 토큰 상태 확인
+            has_token = bool(self._settings.DIARIZATION_USE_AUTH_TOKEN)
+            logger.info(f"🔑 HuggingFace 토큰 설정 여부: {has_token}")
+            if not has_token:
+                logger.warning("⚠️  DIARIZATION_USE_AUTH_TOKEN이 설정되지 않았습니다!")
+                logger.warning("⚠️  모델 다운로드에 실패할 수 있습니다.")
+            
+            # PyTorch 2.6+ 호환성: pyannote 모델 로드를 위해 weights_only 제한 완화
+            # pyannote 라이브러리가 아직 PyTorch 2.6의 새로운 보안 정책을 지원하지 않음
+            # Reference: https://pytorch.org/docs/stable/generated/torch.load.html
+            import torch
+            original_load = torch.load
+            def patched_load(*args, **kwargs):
+                # pyannote 로드 시 weights_only=False 강제 적용
+                kwargs['weights_only'] = False
+                return original_load(*args, **kwargs)
+            torch.load = patched_load
+            
+            # HuggingFace 로그인
+            if self._settings.DIARIZATION_USE_AUTH_TOKEN:
+                logger.info("🔐 HuggingFace 로그인 중...")
+                login(token=self._settings.DIARIZATION_USE_AUTH_TOKEN)
+                logger.info("✅ HuggingFace 로그인 완료")
             
             # HuggingFace 모델 로드
             # Reference: https://huggingface.co/pyannote/speaker-diarization-3.1
             # Note: pyannote-audio 3.1+ uses 'token' instead of 'use_auth_token'
-            self._model = Pipeline.from_pretrained(
-                "pyannote/speaker-diarization-3.1",
-                token=self._settings.DIARIZATION_USE_AUTH_TOKEN
-            )
+            logger.info("📥 pyannote 모델 다운로드/로드 중... (처음에는 다운로드 시간 추가 소요)")
+            logger.info("⏳ 이 단계에서 시간이 오래 걸릴 수 있습니다. 잠시만 기다려주세요...")
+            
+            try:
+                logger.debug("🔧 Pipeline.from_pretrained() 호출 중...")
+                self._model = Pipeline.from_pretrained(
+                    "pyannote/speaker-diarization-3.1",
+                    token=self._settings.DIARIZATION_USE_AUTH_TOKEN
+                )
+                logger.debug("✅ Pipeline.from_pretrained() 완료")
+            except Exception as load_error:
+                logger.error(f"❌ 모델 로드 실패: {type(load_error).__name__}: {load_error}")
+                logger.error("💡 해결 방법:")
+                logger.error("   1. https://huggingface.co/pyannote/speaker-diarization-3.1 에서 모델 사용 조건 동의")
+                logger.error("   2. https://huggingface.co/settings/tokens 에서 토큰 발급")
+                logger.error("   3. DIARIZATION_USE_AUTH_TOKEN 환경변수 설정")
+                raise
+            finally:
+                torch.load = original_load
+            
+            logger.info("✅ pyannote 모델 로드 완료")
             
             # GPU 사용 설정
             if torch.cuda.is_available() and self._settings.DIARIZATION_DEVICE == "cuda":
+                logger.info("🚀 pyannote를 GPU 모드로 전송 중...")
                 self._model.to(torch.device("cuda"))
-                logger.info("🫡 pyannote GPU 모드로 실행")
+                logger.info("✅ GPU 모드 활성화")
             else:
-                logger.info("🫡 pyannote CPU 모드로 실행")
+                logger.info("💻 CPU 모드로 실행")
             
-            logger.info("🫡 pyannote 파이프라인 로드 완료")
+            logger.info("🎉 pyannote 화자 분리 파이프라인 준비 완료! (이제 캐시됨)")
             
         except Exception as e:
-            logger.error(f"pyannote 로드 실패: {e}")
+            import traceback
+            logger.error("="*60)
+            logger.error("❌ pyannote 로드 실패!")
+            logger.error(f"오류 타입: {type(e).__name__}")
+            logger.error(f"오류 메시지: {str(e)}")
+            logger.error("상세 스택 트레이스:")
+            logger.error(traceback.format_exc())
+            logger.error("="*60)
+            logger.error("")
+            logger.error("💡 문제 해결 가이드:")
+            logger.error("1. HuggingFace 토큰 설정 확인:")
+            logger.error("   - https://huggingface.co/pyannote/speaker-diarization-3.1 접속")
+            logger.error("   - 'Agree and access repository' 클릭하여 모델 사용 동의")
+            logger.error("   - https://huggingface.co/settings/tokens 에서 토큰 발급")
+            logger.error("   - .env 파일 또는 환경변수에 DIARIZATION_USE_AUTH_TOKEN 설정")
+            logger.error("")
+            logger.error("2. 네트워크 연결 확인:")
+            logger.error("   - HuggingFace에 접속 가능한지 확인")
+            logger.error("   - 방화벽 설정 확인")
+            logger.error("")
+            logger.error("3. 의존성 확인:")
+            logger.error("   - pip install pyannote.audio torch torchaudio")
+            logger.error("   - pip list | grep pyannote")
+            logger.error("="*60)
+            
             raise RuntimeError(
-                "😭 pyannote 모델 로드에 실패했습니다. "
-                "DIARIZATION_USE_AUTH_TOKEN 환경변수를 확인하세요. "
-                "HuggingFace에서 모델 사용 동의가 필요합니다: "
-                "https://huggingface.co/pyannote/speaker-diarization-3.1"
+                f"pyannote 모델 로드 실패: {type(e).__name__}: {str(e)}\n"
+                "위의 가이드를 참고하여 문제를 해결하세요."
             ) from e
     
     def predict(

@@ -1,0 +1,104 @@
+version: "3.8"
+
+services:
+  # ==========================================================================
+  # RabbitMQ 메시지 브로커
+  # ==========================================================================
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: pose-rabbitmq
+    ports:
+      - "5672:5672"   # AMQP
+      - "15672:15672" # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pose-network
+
+  # ==========================================================================
+  # Pose Estimation Worker (RabbitMQ Consumer)
+  # ==========================================================================
+  pose-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pose-worker
+    restart: unless-stopped
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      # RabbitMQ 연결 설정
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: guest
+      RABBITMQ_PASSWORD: guest
+      TASK_QUEUE: pose_task_queue
+      RESULT_QUEUE: pose_result_queue
+      # 모델 설정
+      DEVICE: cuda
+      # 로깅
+      LOG_LEVEL: INFO
+    volumes:
+      # 영상 파일 공유 (필요시)
+      - ./sample_video:/app/sample_video:ro
+      # 모델 캐시 (다운로드 시간 단축)
+      - huggingface_cache:/root/.cache/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    networks:
+      - pose-network
+
+  # ==========================================================================
+  # Health Check API (선택적 - 모니터링용)
+  # ==========================================================================
+  pose-health:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pose-health
+    restart: unless-stopped
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "8000:8000"
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: guest
+      RABBITMQ_PASSWORD: guest
+      DEVICE: cuda
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - pose-network
+
+networks:
+  pose-network:
+    driver: bridge
+
+volumes:
+  rabbitmq_data:
+  huggingface_cache:

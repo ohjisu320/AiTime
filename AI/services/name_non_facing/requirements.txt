@@ -8,18 +8,27 @@ pydantic-settings>=2.1.0
 celery>=5.3.0
 kombu>=5.3.0
 
-# AI/ML - Vision
-mediapipe>=0.10.9
+# AI/ML - Vision (YOLO Head + 6DRepNet360)
+ultralytics>=8.0.0
 opencv-python>=4.9.0
+torchvision>=0.16.0
+# 6DRepNet: 360° Head Pose Estimation
+# https://github.com/thohemp/6DRepNet
+sixdrepnet
+# [deprecated] MediaPipe 기반 (뒤통수 미탐지 문제)
+# mediapipe>=0.10.9
 
 # AI/ML - Audio
 # faster-whisper: OpenAI Whisper의 CTranslate2 최적화 버전 (4배 빠름)
 # https://github.com/guillaumekln/faster-whisper
 faster-whisper>=1.0.0
 pyannote.audio>=3.1.0
-torch>=2.1.0
-torchaudio>=2.1.0
+torch>=2.5.0
+torchaudio>=2.5.0
+# Note: GPU 사용을 위해 CUDA 버전 설치 필요
+# pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 # Note: silero-vad는 torch.hub로 로드됨 (별도 패키지 불필요)
+huggingface-hub>=0.20.0  # pyannote.audio 인증용
 
 # Audio Processing
 librosa>=0.10.0
