@@ -31,6 +31,8 @@ class LabeledSegment:
     segment: SpeechSegment
     label: SpeakerLabel
     mean_f0_hz: float | None = None
+    f0_mad_semitone: float | None = None
+    squeal_ratio: float | None = None
 
 
 class SpeakerSplitter:
@@ -45,31 +47,58 @@ class SpeakerSplitter:
     ) -> list[LabeledSegment]:
         out: list[LabeledSegment] = []
         threshold = float(self._settings.PITCH_CHILD_HZ_THRESHOLD)
+
         for seg in segments:
             y = audio[seg.start_sample : seg.end_sample]
-            f0 = self._mean_f0(y, sample_rate)
-            if f0 is None:
-                out.append(LabeledSegment(seg, SpeakerLabel.UNKNOWN, None))
+            mean_f0, mad, squeal = self._analyze_prosody(y, sample_rate)
+
+            if mean_f0 is None:
+                out.append(
+                    LabeledSegment(
+                        segment=seg,
+                        label=SpeakerLabel.UNKNOWN,
+                        mean_f0_hz=None,
+                        f0_mad_semitone=None,
+                        squeal_ratio=None,
+                    )
+                )
                 logger.debug(
                     f"  seg [{seg.start_sec:.2f}-{seg.end_sec:.2f}s] F0=None -> UNKNOWN"
                 )
                 continue
-            label = SpeakerLabel.CHILD if f0 >= threshold else SpeakerLabel.ADULT
-            out.append(LabeledSegment(seg, label, float(f0)))
+
+            label = SpeakerLabel.CHILD if mean_f0 >= threshold else SpeakerLabel.ADULT
+            out.append(
+                LabeledSegment(
+                    segment=seg,
+                    label=label,
+                    mean_f0_hz=float(mean_f0),
+                    f0_mad_semitone=mad,
+                    squeal_ratio=squeal,
+                )
+            )
             logger.debug(
                 f"  seg [{seg.start_sec:.2f}-{seg.end_sec:.2f}s] "
-                f"F0={f0:.1f}Hz -> {label.value}"
+                f"F0={mean_f0:.1f}Hz, MAD={mad if mad else 'N/A'}, "
+                f"Squeal={squeal if squeal else 'N/A'} -> {label.value}"
             )
         return out
 
-    def _mean_f0(self, y: np.ndarray, sr: int) -> float | None:
+    def _analyze_prosody(
+        self, y: np.ndarray, sr: int
+    ) -> tuple[float | None, float | None, float | None]:
+        """
+        Returns:
+            (mean_f0_hz, f0_mad_semitone, squeal_ratio)
+        """
         y = np.asarray(y, dtype=np.float32).reshape(-1)
         if len(y) < int(0.10 * sr):
-            return None
+            return None, None, None
 
         try:
             import librosa  # type: ignore
 
+            # 1. Pitch Track
             f0, voiced_flag, _ = librosa.pyin(
                 y.astype(float),
                 fmin=float(self._settings.PITCH_FMIN),
@@ -78,19 +107,41 @@ class SpeakerSplitter:
             )
             voiced_f0 = f0[voiced_flag]
             if voiced_f0 is None or len(voiced_f0) == 0:
-                return None
-            m = float(np.nanmean(voiced_f0))
-            if np.isnan(m):
-                return None
-            return m
-        except Exception:
-            # fallback: autocorrelation
-            return _autocorr_pitch(
+                return None, None, None
+
+            # 2. Mean F0
+            mean_f0 = float(np.nanmean(voiced_f0))
+
+            # 3. Squeal Ratio
+            # squeal if > PITCH_SQUEAL_HZ_THRESHOLD
+            squeal_thresh = float(self._settings.PITCH_SQUEAL_HZ_THRESHOLD)
+            squeal_count = np.sum(voiced_f0 > squeal_thresh)
+            squeal_ratio = float(squeal_count / len(voiced_f0))
+
+            # 4. MAD (Mean Absolute Deviation) in Semitones
+            # Convert Hz to semitones relative to A4 (440Hz)
+            # or just use relative variations?
+            # User paper says "MAD 1.47 st". Usually calculated on the semitone series.
+            # hz_to_semitone: 12 * log2(f / f_ref).
+            # We can pick arbitrary f_ref because MAD is about variability
+            # (distance from median).
+            # librosa.hz_to_midi or just formula
+            st = 12.0 * np.log2(voiced_f0 + 1e-9)
+            median_st = np.median(st)
+            mad = float(np.mean(np.abs(st - median_st)))
+
+            return mean_f0, mad, squeal_ratio
+
+        except Exception as e:
+            logger.warning(f"Librosa pitch analysis failed: {e}. Fallback to autocorr.")
+            # fallback: autocorrelation (only mean f0)
+            f0_fallback = _autocorr_pitch(
                 y,
                 sr,
                 fmin=float(self._settings.PITCH_FMIN),
                 fmax=float(self._settings.PITCH_FMAX),
             )
+            return f0_fallback, None, None
 
 
 def _autocorr_pitch(y: np.ndarray, sr: int, fmin: float, fmax: float) -> float | None:

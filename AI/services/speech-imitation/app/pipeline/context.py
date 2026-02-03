@@ -32,6 +32,9 @@ class RepResult:
     similarity: float | None = None
     stimulus_time: tuple[float, float] | None = None
     response_time: tuple[float, float] | None = None
+    child_mean_f0: float | None = None
+    child_squeal_ratio: float | None = None
+    child_mad_semitone: float | None = None
 
 
 @dataclass
@@ -108,6 +111,31 @@ class PipelineContext:
             1 for t in self.trial_results if any(r.success for r in t.repetitions)
         )
 
+        # ADOS Scoring Logic
+        # 1) A3: BAD_PROSODY ratio scores (0, 1, 2, 3) or 8 (No Response)
+        detect_reps = [r for r in reps if r.response_detected]
+        bad_prosody_count = sum(
+            1 for r in detect_reps if r.failure_reason == "BAD_PROSODY"
+        )
+
+        ados_a3: int = 8
+        if len(detect_reps) > 0:
+            ratio = bad_prosody_count / len(detect_reps)
+            if ratio == 0:
+                ados_a3 = 0
+            elif ratio <= 0.20:
+                ados_a3 = 1
+            elif ratio < 0.80:
+                ados_a3 = 2
+            else:
+                ados_a3 = 3
+
+        # 2) B18: Success Check
+        # True: At least one success (Normal-ish)
+        # False: All failed (Abnormal)
+        # 사용자 요청: "하나라도 성공하면 True, 다 실패할 때만 False"
+        ados_b18 = success_reps > 0
+
         return {
             "schema_version": self.extra.get("schema_version", "1.0"),
             "task_type": "SPEECH_IMITATION",
@@ -124,6 +152,10 @@ class PipelineContext:
                     "success_reps": success_reps,
                     "success_trials": success_trials,
                 },
+                "ADOS": {
+                    "A3": ados_a3,
+                    "B18": ados_b18,
+                },
                 "per_trial": [
                     {
                         "trial_index": t.trial_index,
@@ -139,6 +171,9 @@ class PipelineContext:
                                 "similarity": r.similarity,
                                 "stimulus_time": r.stimulus_time,
                                 "response_time": r.response_time,
+                                "child_mean_f0": r.child_mean_f0,
+                                "child_squeal_ratio": r.child_squeal_ratio,
+                                "child_mad_semitone": r.child_mad_semitone,
                             }
                             for r in t.repetitions
                         ],

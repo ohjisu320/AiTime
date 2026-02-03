@@ -100,7 +100,7 @@ class Settings(BaseSettings):
 
     # pitch 추정 파라미터
     PITCH_FMIN: float = 50.0
-    PITCH_FMAX: float = 500.0
+    PITCH_FMAX: float = 1000.0
 
     # ===== 유사도(MFCC+DTW) =====
     SIMILARITY_MODE: SimilarityMode = SimilarityMode.MFCC_DTW
@@ -113,7 +113,12 @@ class Settings(BaseSettings):
 
     # DTW
     DTW_RADIUS: int = 1  # 1이면 일반 DTW에 가깝고, >1이면 탐색 창 제한
-    SIMILARITY_THRESHOLD: float = 0.40  # "비슷한 소리면 OK" 기준 (튜닝 대상)
+    SIMILARITY_THRESHOLD: float = 0.29  # "비슷한 소리면 OK" 기준 (튜닝 대상)
+
+    # ===== 운율 분석 (Prosody Analysis) =====
+    PITCH_SQUEAL_HZ_THRESHOLD: float = 450.0  # Squeal(끼익) 판별 주파수
+    PITCH_MAD_MONOTONE_THRESHOLD: float = 1.0  # 단조로움 기준 (semitone)
+    PITCH_MAD_SONG_THRESHOLD: float = 2.0  # 과장된 억양 기준 (semitone)
 
     # ===== 디버그 산출물(옵션) =====
     # 예: debug/speech_imitation_20260129_153000/
