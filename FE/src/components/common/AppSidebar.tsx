@@ -36,7 +36,13 @@ export default function AppSidebar({
   }, [viewDate, onMonthChange]);
 
   const handleLogout = () => {
-    // 로그아웃 로직 (토큰 삭제 등) 수행 후 이동
+    // 로그아웃 로직: 토큰 및 유저 정보 삭제
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+    localStorage.removeItem("user");
+    // 필요한 경우 다른 키도 삭제 (예: selectedChildId)
+    localStorage.removeItem("selectedChildId");
+
     navigate("/login");
   };
 
