@@ -6,6 +6,8 @@ import InfoNoticeBox from '@/components/common/InfoNoticeBox';
 import BigActionButton from '@/components/common/BigActionButton';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import { useMissions } from '@/domains/exam/hooks/useMissions';
+import { startAnalysis } from '@/domains/exam/api/examApi';
+import Swal from 'sweetalert2';
 
 const MissionListPage: React.FC = () => {
   const navigate = useNavigate();
