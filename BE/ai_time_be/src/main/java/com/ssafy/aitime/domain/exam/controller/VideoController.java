@@ -56,7 +56,7 @@ public class VideoController {
                     "서버에 업로드 완료를 알리고 Video 엔티티의 상태를 UPLOADED로 변경합니다. " +
                     "이 API는 S3에 파일이 실제로 존재하는지 HEAD 요청으로 검증합니다."
     )
-    @PostMapping("/{examId}/videos/{videoId}/complete")
+    @PostMapping("/{examId}/videos/{videoId}")
     public ResponseEntity<ApiResponse<VideoUploadCompleteResponse>> completeVideoUpload(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable("examId") UUID examId,
@@ -76,21 +76,21 @@ public class VideoController {
             summary = "영상 재생 Presigned URL 발급",
             description = "특정 검사/태스크 영상 조회를 위한 GET Presigned URL을 발급한다. (의료진 권한 검증 포함)"
     )
-    @GetMapping("/{examId}/videos/{videoType}/presign-view")
+    @GetMapping("/{examId}/videos/{videoId}")
     public ResponseEntity<ApiResponse<PresignedViewUrlResponse>> getPresignedViewUrl(
             @AuthenticationPrincipal Object principal,
             @PathVariable("examId") UUID examId,
-            @PathVariable("videoType") String videoType,
+            @PathVariable("videoId") UUID videoId,
             @RequestParam(value = "expiresInSec", defaultValue = "300")
             @Min(value = 1, message = "만료시간은 최소 1초 이상이어야 합니다")
             @Max(value = 3600, message = "만료시간은 최대 3600초(1시간)를 초과할 수 없습니다")
             int expiresInSec) {
 
         log.info("Presigned View URL 요청: examId={}, videoType={}, expiresInSec={}",
-                examId, videoType, expiresInSec);
+                examId, videoId, expiresInSec);
         return ResponseEntity.ok(
                 ApiResponse.ok("재생 URL이 발급되었습니다.",
-                        videoService.generatePresignedViewUrl(principal, examId, videoType, expiresInSec))
+                        videoService.generatePresignedViewUrl(principal, examId, videoId, expiresInSec))
         );
     }
 
@@ -98,18 +98,18 @@ public class VideoController {
             summary = "특정 태스크 영상 삭제 (자녀/보호자 공통 정상 가능)",
             description = "특정 검사(exam)의 특정 태스크 영상을 S3(MinIO)에서 삭제하고, DB의 video 상태를 DELETED로 반환한다."
     )
-    @DeleteMapping("/{examId}/videos/{videoType}")
+    @DeleteMapping("/{examId}/videos/{videoId}")
     public ResponseEntity<ApiResponse<VideoDeleteResponse>> deleteVideo(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable("examId") UUID examId,
-            @PathVariable("videoType") String videoType) {
+            @PathVariable("videoId") UUID videoId) {
 
         log.info("영상 삭제 요청: userId={}, examId={}, videoType={}",
-                principal.getUserId(), examId, videoType);
+                principal.getUserId(), examId, videoId);
 
         return ResponseEntity.ok(
                 ApiResponse.ok("영상이 삭제되었습니다.", videoService.deleteVideo(
-                        principal.getUserId(), examId, videoType))
+                        principal.getUserId(), examId, videoId))
         );
     }
 }

@@ -248,30 +248,30 @@ public class VideoServiceImpl implements VideoService {
 
     @Override
     @Transactional(readOnly = true)
-    public PresignedViewUrlResponse generatePresignedViewUrl(Object principal, UUID examId, String videoType, int expiresInSec) {
+    public PresignedViewUrlResponse generatePresignedViewUrl(Object principal, UUID examId, UUID videoId, int expiresInSec) {
 
-        // 1. Principal 타입 검증 및 권한 확인
+        // 1. Video 조회
+        Video video = videoRepository.findById(videoId)
+                .orElseThrow(() -> new VideoNotFoundException(videoId));
+
+        // 2. Video가 요청된 Exam에 속하는지 확인
+        if (!video.getExam().getExamId().equals(examId)) {
+            log.error("Video가 해당 Exam에 속하지 않음 - videoId: {}, examId: {}, actualExamId: {}",
+                    videoId, examId, video.getExam().getExamId());
+            throw new VideoNotFoundException(videoId);
+        }
+
+        // 3. Principal 타입 검증 및 권한 확인
         validatePrincipalAndAuthorization(principal, examId);
 
-        // 2. VideoType 검증
-        VideoType videoTypeEnum = validateAndParseVideoType(videoType);
-
-        // 3. Exam 조회
-        Exam exam = examRepository.findById(examId)
-                .orElseThrow(() -> new ExamNotFoundException(examId));
-
-        // 4. Video 조회
-        Video video = videoRepository.findByExamExamIdAndVideoType(examId, videoTypeEnum)
-                .orElseThrow(VideoNotFoundException::new);
-
-        // 5. Video 상태 확인 - UPLOADED 상태만 조회 가능
+        // 4. Video 상태 확인 - UPLOADED 상태만 조회 가능
         if (video.getVideoStatus() != VideoStatus.UPLOADED) {
             log.warn("업로드되지 않은 영상 조회 시도 - videoId: {}, status: {}",
                     video.getVideoId(), video.getVideoStatus());
             throw new VideoNotUploadedException(video.getVideoStatus());
         }
 
-        // 6. url 생성 전 S3 파일 존재 확인
+        // 5. url 생성 전 S3 파일 존재 확인
         boolean fileExists = verifyS3FileExists(video.getS3Bucket(), video.getS3Key());
         if (!fileExists) {
             log.error("S3 파일이 존재하지 않음 - bucket: {}, Key: {}", video.getS3Bucket(), video.getS3Key());
@@ -287,8 +287,7 @@ public class VideoServiceImpl implements VideoService {
 
         // 8. Response 생성
         return PresignedViewUrlResponse.builder()
-            .examId(exam.getExamId().toString())
-            .videoType(videoTypeEnum.name())
+            .examId(video.getExam().getExamId().toString())
             .videoId(video.getVideoId().toString())
             .bucket(video.getS3Bucket())
             .s3Key(video.getS3Key())
@@ -404,62 +403,70 @@ public class VideoServiceImpl implements VideoService {
      */
     @Override
     @Transactional
-    public VideoDeleteResponse deleteVideo(UUID userId, UUID examId, String videoType) {
+    public VideoDeleteResponse deleteVideo(UUID userId, UUID examId, UUID videoId) {
 
-        // 1. Exam 조회 및 권한 검증
-        Exam exam = examRepository.findById(examId)
-                .orElseThrow(() -> new ExamNotFoundException(examId));
+        // 1. Video 조회
+        Video video = videoRepository.findById(videoId)
+                .orElseThrow(() -> new VideoNotFoundException(videoId));
 
-        // Exam이 해당 User의 Child에 속하는지 확인
-        if (!exam.getChild().getUser().getUserId().equals(userId)) {
+        // 2. Video가 요청된 Exam에 속하는지 확인
+        if (!video.getExam().getExamId().equals(examId)) {
+            log.error("Video가 해당 Exam에 속하지 않음 - videoId: {}, examId: {}",
+                    videoId, examId);
+            throw new VideoNotFoundException(videoId);
+        }
+
+        // 3. 권한 검증
+        if (!video.getExam().getChild().getUser().getUserId().equals(userId)) {
             throw new ExamAccessDeniedException(examId);
         }
 
-        // 2. VideoType 검증 및 변환
-        VideoType videoTypeEnum = validateAndParseVideoType(videoType);
-
-        // 3. Video 조회
-        Video video = videoRepository.findByExamExamIdAndVideoType(examId, videoTypeEnum)
-                .orElseThrow(VideoNotFoundException::new);
-
-        // 4. 영상 상태 확인 - 삭제 가능한 상태인지 검증
+        // 4. 영상 상태 확인
         if (!video.canDelete()) {
             log.warn("삭제 불가능한 영상 상태 - videoId: {}, status: {}",
                     video.getVideoId(), video.getVideoStatus());
             throw new InvalidVideoStatusException(video.getVideoStatus());
         }
 
-        // 5. MinIO에서 파일 삭제
-        boolean deletedFromStorage = false;
+        // 응답 생성에 필요한 정보 미리 저장
+        String videoTypeStr = video.getVideoType().name();
+        String videoIdStr = video.getVideoId().toString();
+
+        // MinIO에서 파일 삭제
+        boolean deletedFromStorage = deleteFromS3(video);
+
+        // DB에서 완전 삭제
+        videoRepository.delete(video);
+
+        log.info("Video soft delete 완료 (by videoId) - videoId: {}, examId: {}, status: {}",
+                videoId, examId, video.getVideoStatus());
+
+        // 7. 응답 생성
+        return VideoDeleteResponse.builder()
+                .examId(examId.toString())
+                .videoType(video.getVideoType().name())
+                .videoId(video.getVideoId().toString())
+                .deletedFromStorage(deletedFromStorage)
+                .status(video.getVideoStatus().name())
+                .build();
+    }
+
+    /**
+     * S3에서 파일 삭제 (공통 로직)
+     */
+    private boolean deleteFromS3(Video video) {
         try {
             s3Client.deleteObject(builder -> builder
                     .bucket(video.getS3Bucket())
                     .key(video.getS3Key())
                     .build());
-            deletedFromStorage = true;
             log.info("MinIO 파일 삭제 완료 - bucket: {}, key: {}",
                     video.getS3Bucket(), video.getS3Key());
+            return true;
         } catch (Exception e) {
             log.error("MinIO 파일 삭제 실패 - bucket: {}, key: {}",
                     video.getS3Bucket(), video.getS3Key(), e);
-            // DeleteObject는 파일이 없어도 성공을 반환하므로, 여기서 예외가 발생하면 실제 오류
-            // 하지만 DB는 업데이트하도록 처리 (멱등성)
+            return false;
         }
-
-        // 6. DB 업데이트 - Soft delete (상태만 변경)
-        video.markDeleted();
-        videoRepository.save(video);
-
-        log.info("Video soft delete 완료 - videoId: {}, examId: {}, status: {}",
-                video.getVideoId(), examId, video.getVideoStatus());
-
-        // 7. 응답 생성
-        return VideoDeleteResponse.builder()
-                .examId(examId.toString())
-                .videoType(videoTypeEnum.name())
-                .videoId(video.getVideoId().toString())
-                .deletedFromStorage(deletedFromStorage)
-                .status(video.getVideoStatus().name())
-                .build();
     }
 }

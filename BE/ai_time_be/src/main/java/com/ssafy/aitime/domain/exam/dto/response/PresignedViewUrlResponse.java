@@ -7,7 +7,6 @@ import java.time.LocalDateTime;
 @Builder
 public record PresignedViewUrlResponse(
         String examId,
-        String videoType,
         String videoId,
         String bucket,
         String s3Key,
