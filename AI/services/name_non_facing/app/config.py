@@ -124,6 +124,10 @@ class Settings(BaseSettings):
         default=0.5, # 최소 0.5초 이상이어야 화자 구간으로 인식
         description="최소 발화 구간 길이 (초)"
     )
+    DIARIZATION_DEVICE: str = Field(
+        default="cuda",
+        description="화자 분리 실행 디바이스 (cuda/cpu)"
+    )
     
     # ===== Whisper 설정 =====
     # Reference: https://github.com/openai/whisper
@@ -162,17 +166,81 @@ class Settings(BaseSettings):
         description="반응 대기 시간 (초)"
     )
     
-    # Vision 파라미터
+    # ===== Vision 파라미터 =====
+    # YOLO Head Detector
+    YOLO_HEAD_MODEL: str = Field(
+        default="yolo_p2layer_jh.pt",
+        description=(
+            "YOLO Head-specific 모델 경로\n"
+            "  - yolo_p2layer_jh.pt: P2 layer 추가된 커스텀 모델 (뒤통수 등 가린 얼굴 영역에서도 정확도 향상)\n"
+            "  - yolov8-head.pt: Fine-tuned head detection (Kaggle Human Head Dataset)\n"
+            "  - yolov8n.pt: 일반 person detection (fallback)\n"
+            "Note: Head-specific 모델 사용으로 person bbox 추정 로직 제거됨"
+        )
+    )
+    YOLO_HEAD_CONFIDENCE: float = Field(
+        default=0.25,
+        ge=0.0,
+        le=1.0,
+        description="YOLO 탐지 최소 신뢰도 (Head-specific 모델용)"
+    )
+    ENABLE_VISUALIZATION_DEBUG: bool = Field(
+        default=False,
+        description="시각화 디버그 모드 활성화 (바운딩 박스, 시선 벡터 등 표시)"
+    )
+    ENABLE_VISUALIZATION_DEBUG: bool = Field(
+        default=False,
+        description="시각화 디버그 모드 활성화 (바운딩 박스, 시선 벡터 등 표시)"
+    )
+    
+    # 6DRepNet360 Head Pose
+    SIXDREPNET_MODEL: str = Field(
+        default="weights/6DRepNet360_300W_LP.pth",
+        description="6DRepNet360 모델 경로"
+    )
+    SIXDREPNET_DEVICE: str = Field(
+        default="cuda",
+        description="6DRepNet360 실행 디바이스 (cuda/cpu)"
+    )
+    
+    # 얼굴 탐지 (MediaPipe - deprecated)
+    FACE_DETECTION_CONFIDENCE: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        description="[deprecated] 얼굴 탐지 최소 신뢰도"
+    )
+    FACE_MESH_CONFIDENCE: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        description="[deprecated] Face Mesh 최소 신뢰도"
+    )
+    
+    # 부모/아이 구분
+    FIRST_PERSON_FALLBACK: bool = Field(
+        default=True,
+        description="부모 미탐지 시 1인칭 모드 활성화"
+    )
+    
+    # 시선 분석
     GAZE_ANGLE_THRESHOLD_DEG: float = Field(
         default=20.0,
-        description="시선 각도 임계값 (도)"
+        ge=0.0,
+        le=180.0,
+        description="시선 각도 임계값 (도) - 시선벡터와 위치벡터 사이 3D 공간 각도"
+    )
+    GAZE_STABILIZE_FRAMES: int = Field(
+        default=3,
+        ge=1,
+        description="안정화 판정에 필요한 연속 프레임 수"
     )
     MIN_GAZE_DURATION_SEC: float = Field(
         default=0.5,
         description="최소 시선 유지 시간 (초)"
     )
     
-    # Audio 파라미터
+    # ===== Audio 파라미터 =====
     VOICE_REACTION_ENABLED: bool = Field(
         default=True,
         description="음성 반응 활성화 여부"
@@ -188,8 +256,8 @@ class Settings(BaseSettings):
     
     # ===== 비디오 처리 =====
     VIDEO_FPS_SAMPLE: int = Field(
-        default=10,
-        description="분석용 FPS 샘플링"
+        default=0,
+        description="분석용 FPS 샘플링 (0: 원본 FPS 유지)"
     )
 
 
