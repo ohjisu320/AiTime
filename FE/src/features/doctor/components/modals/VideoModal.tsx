@@ -32,7 +32,7 @@ export default function VideoModal({ videoUrl, startTime, onClose }: Props) {
       >
         <div className="bg-[#000080] text-white px-2 py-1 flex justify-between items-center font-bold mb-1 select-none">
           <span>AI 분석 실시간 피드 - 확대</span>
-          <WindowsButton onClick={onClose}>X 닫기</WindowsButton>
+          <WindowsButton className="text-black" onClick={onClose}>X 닫기</WindowsButton>
         </div>
         <div className="flex-1 bg-black border-2 border-[#808080] border-r-white border-b-white overflow-hidden flex items-center justify-center">
           <video
