@@ -7,6 +7,7 @@ interface AppSidebarProps {
   selectedDate: Date;
   onDateSelect: (date: Date) => void;
   markedDates: string[]; // 달력에 점을 표시할 날짜 배열
+  onMonthChange?: (year: number, month: number) => void;
   userInfo: {
     name: string;
     roleLabel: string; // 예: "소아청소년과 전문의"
@@ -18,6 +19,7 @@ export default function AppSidebar({
   selectedDate,
   onDateSelect,
   markedDates,
+  onMonthChange,
   userInfo,
 }: AppSidebarProps) {
   const navigate = useNavigate();
@@ -26,6 +28,10 @@ export default function AppSidebar({
   useEffect(() => {
     setViewDate(selectedDate);
   }, [selectedDate]);
+
+  useEffect(() => {
+    onMonthChange?.(viewDate.getFullYear(), viewDate.getMonth() + 1);
+  }, [viewDate, onMonthChange]);
 
   const handleLogout = () => {
     // 로그아웃 로직 (토큰 삭제 등) 수행 후 이동
