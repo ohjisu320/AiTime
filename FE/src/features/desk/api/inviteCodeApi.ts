@@ -22,4 +22,20 @@ export const getUnregisteredPatients = async (
     );
 
     return response.data;
+    return response.data;
+};
+
+import type { ApiResponseInviteCode, InviteCodeRequest } from "@/api/types/inviteCode.types";
+
+/**
+ * 초대코드 생성 (발급)
+ * POST /invite-code
+ */
+export const createInviteCode = async (data: InviteCodeRequest) => {
+    console.log(`📡 [API] 초대코드 발급 요청:`, data);
+    const response = await api.post<ApiResponseInviteCode>(
+        `/invite-code`,
+        data
+    );
+    return response.data;
 };
