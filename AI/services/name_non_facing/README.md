@@ -147,6 +147,23 @@ flowchart LR
 | **음성 인식**      | OpenAI Whisper<br />Whisper Large-v3 | 호명 트리거 + 아이 발화 내용 |
 | **음성 활동 탐지** | Silero VAD               | 아이 음성 반응 구간 탐지     |
 
+#### 2.1. 모델 파일 다운로드
+프로젝트 실행을 위해 사전 학습된 YOLO 모델 파일이 필요합니다:
+
+**📥 다운로드 링크:**
+- [Google Drive - yolo_p2layer_jh.pt](https://drive.google.com/file/d/1PeAzKYBAf5r-btK24KU180nWkMmRHTWN/view?usp=sharing)
+  - 크기: 86.4MB
+  - 용도: 파인튜닝된 Head Detection 모델
+
+**📂 설치 방법:**
+```bash
+# 1. 모델 파일 다운로드 후 프로젝트 루트에 배치
+# name_non_facing/yolo_p2layer_jh.pt
+
+# 2. 또는 아래 명령어로 직접 다운로드 (예시)
+# curl -L "구글_드라이브_다운로드_URL" -o yolo_p2layer_jh.pt
+```
+
 
 ### 2.2. 선정 근거
 
