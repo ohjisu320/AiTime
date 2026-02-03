@@ -93,3 +93,26 @@ export const getExamInfo = async (childId: string): Promise<ExamInfoResponse> =>
         throw new Error(response.data.message || '검사 정보 조회 실패');
     }
 };
+
+/**
+ * 검사 결과 분석 요청
+ * POST /exams-analysis/{examId}/analyze
+ */
+export const startAnalysis = async (examId: string): Promise<string> => {
+    console.log(`📤 [POST] 분석 요청: /exams-analysis/${examId}/analyze`);
+
+    const response = await api.post<{
+        code: number;
+        status: string;
+        message: string;
+        data: string;
+    }>(`/exams-analysis/${examId}/analyze`);
+
+    console.log('✅ 분석 요청 응답:', response.data);
+
+    if (response.data && response.data.code === 200) {
+        return response.data.message || '분석 요청 성공';
+    } else {
+        throw new Error(response.data.message || '분석 요청 실패');
+    }
+};
