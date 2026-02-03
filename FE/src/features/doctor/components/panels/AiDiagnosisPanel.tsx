@@ -3,13 +3,12 @@ import { WindowsContainer, WindowsButton } from "../layout/WindowsLayout";
 
 interface Props {
   onExpandAdos: () => void;
-  patientAge: number; // [추가]
+  patientAge: number;
 }
 
-// [데이터 정의는 모달과 동일하게 관리하거나 import 해야 함 - 여기서는 간소화하여 내부 정의]
-// 실제로는 shared data로 관리하는 것이 좋습니다.
+// [데이터] 전체 항목 마스터 리스트
 const MASTER_ITEMS = [
-  // ... 모달과 동일한 전체 리스트 (생략 가능하나 완전한 코드를 위해 간략 포함)
+  // --- SA: Communication ---
   {
     code: "A-2",
     label: "목소리를 내는 빈도",
@@ -34,6 +33,7 @@ const MASTER_ITEMS = [
     cat: "SA",
     groups: ["G1"],
   },
+  // --- SA: Interaction ---
   {
     code: "B-1",
     label: "유별난 눈 맞춤",
@@ -138,6 +138,7 @@ const MASTER_ITEMS = [
     cat: "SA",
     groups: ["G2"],
   },
+  // --- RRB ---
   {
     code: "A-3",
     label: "음성과 언어의 억양",
@@ -173,39 +174,49 @@ const MASTER_ITEMS = [
 ];
 
 export default function AiDiagnosisPanel({ onExpandAdos, patientAge }: Props) {
-  // [로직] 간단하게 21개월 이하면 G1, 아니면 G2 (패널에서는 발화여부 자동 가정)
   const currentGroup = patientAge <= 21 ? "G1" : "G2";
+  const groupLabel = currentGroup === "G1" ? "Pre-Verbal" : "Verbal";
 
   const displayItems = useMemo(() => {
     return MASTER_ITEMS.filter((item) => item.groups.includes(currentGroup));
   }, [currentGroup]);
+
+  // [추가] 총점 계산 로직
+  const calculateTotal = (category: string) => {
+    return displayItems
+      .filter((item) => item.cat === category)
+      .reduce((sum, item) => sum + item.score, 0);
+  };
+
+  const saTotal = calculateTotal("SA");
+  const rrbTotal = calculateTotal("RRB");
+  const grandTotal = saTotal + rrbTotal;
 
   return (
     <div className="flex flex-col h-full gap-[2px] font-['Gulim'] text-[11px]">
       <WindowsContainer className="flex-1 flex flex-col min-h-0">
         <div className="flex justify-between items-center mb-1 shrink-0">
           <span className="font-bold text-black">
-            ADOS-2 평가 데이터 (
-            {currentGroup === "G1" ? "Pre-Verbal" : "Verbal"})
+            ADOS-2 결과 ({patientAge}개월 / {groupLabel})
           </span>
           <WindowsButton onClick={onExpandAdos} className="text-[9px] px-1 h-4">
             [□] 확대
           </WindowsButton>
         </div>
+
         <div className="flex-1 overflow-y-auto border border-[#808080] bg-white">
           <table className="w-full border-collapse text-[10px]">
             <thead className="sticky top-0 bg-[#e2e2e2] z-10">
               <tr>
                 <th className="border border-[#999] p-[5px]">항목</th>
-                <th className="border border-[#999] p-[5px] w-[30px]">점수</th>
-                <th className="border border-[#999] p-[5px] w-[25px]">V</th>
+                <th className="border border-[#999] p-[5px] w-[40px]">점수</th>
               </tr>
             </thead>
             <tbody>
               {/* SA */}
               <tr className="bg-[#f9f9f9]">
                 <td
-                  colSpan={3}
+                  colSpan={2}
                   className="border border-[#ccc] p-[5px] font-bold text-[#000080]"
                 >
                   사회적 정동 (SA)
@@ -216,10 +227,20 @@ export default function AiDiagnosisPanel({ onExpandAdos, patientAge }: Props) {
                 .map((item, idx) => (
                   <Row key={idx} item={item} />
                 ))}
+              {/* SA 합계 */}
+              <tr className="bg-[#e0e0ff] font-bold">
+                <td className="border border-[#ccc] p-[5px] text-right pr-2">
+                  SA 총점
+                </td>
+                <td className="border border-[#ccc] p-[5px] text-center text-blue-700">
+                  {saTotal}
+                </td>
+              </tr>
+
               {/* RRB */}
               <tr className="bg-[#f9f9f9]">
                 <td
-                  colSpan={3}
+                  colSpan={2}
                   className="border border-[#ccc] p-[5px] font-bold text-[#000080]"
                 >
                   제한적/반복적 행동 (RRB)
@@ -230,11 +251,31 @@ export default function AiDiagnosisPanel({ onExpandAdos, patientAge }: Props) {
                 .map((item, idx) => (
                   <Row key={idx} item={item} />
                 ))}
+              {/* RRB 합계 */}
+              <tr className="bg-[#e0e0ff] font-bold">
+                <td className="border border-[#ccc] p-[5px] text-right pr-2">
+                  RRB 총점
+                </td>
+                <td className="border border-[#ccc] p-[5px] text-center text-blue-700">
+                  {rrbTotal}
+                </td>
+              </tr>
+
+              {/* 전체 총점 */}
+              <tr className="bg-[#ffe4e1] font-bold border-t-2 border-[#808080]">
+                <td className="border border-[#ccc] p-[5px] text-right pr-2 text-red-600">
+                  전체 총점 (Total)
+                </td>
+                <td className="border border-[#ccc] p-[5px] text-center text-red-600 text-[13px]">
+                  {grandTotal}
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>
       </WindowsContainer>
-      {/* 하단 진단 판정 (기존 코드 유지) */}
+
+      {/* 하단 진단 판정 */}
       <div className="flex flex-col gap-[2px] shrink-0 h-[400px]">
         <div className="bg-white border border-[#808080] p-[5px] text-center shrink-0">
           <div className="bg-[#d4d0c8] font-bold p-1 mb-[5px] text-black">
@@ -251,7 +292,7 @@ export default function AiDiagnosisPanel({ onExpandAdos, patientAge }: Props) {
           <textarea
             readOnly
             className="flex-1 w-full resize-none bg-[#f0f0f0] border border-[#808080] p-[10px] text-[12px] font-['Gulim'] leading-relaxed outline-none"
-            value={`[AI 분석 근거]\n환자 월령(${patientAge}개월)에 따른 분석 결과...`}
+            value={`[AI 분석 근거]\n환자 월령(${patientAge}개월) - ${groupLabel} 기준 분석.\n...`}
           />
           <WindowsButton className="mt-[5px] w-full h-[40px] font-bold text-[12px]">
             리포트 생성 및 전송
@@ -280,9 +321,6 @@ function Row({ item }: { item: any }) {
       </td>
       <td className="border border-[#ccc] p-[5px] text-center font-bold">
         {item.score}
-      </td>
-      <td className="border border-[#ccc] p-[5px] text-center">
-        <input type="checkbox" checked readOnly />
       </td>
     </tr>
   );
