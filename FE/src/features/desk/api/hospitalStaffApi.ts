@@ -48,10 +48,7 @@ export const logoutHospitalStaff = async () => {
  * 토큰 갱신
  * POST /hospital-staff/refresh
  */
-/**
- * 토큰 갱신
- * POST /hospital-staff/refresh
- */
+
 export const refreshHospitalStaffToken = async () => {
     console.log(`📡 [API] 병원 관계자 토큰 갱신 요청`);
     // refreshToken은 쿠키로 자동 전송된다고 가정
