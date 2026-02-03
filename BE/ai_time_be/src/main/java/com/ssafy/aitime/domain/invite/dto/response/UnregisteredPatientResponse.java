@@ -9,6 +9,7 @@ import java.util.UUID;
 
 public record UnregisteredPatientResponse(
         UUID inviteCodeId,
+        String inviteCode,
         String childName,
         Integer childMonths,
         String parentPhone,
@@ -24,6 +25,7 @@ public record UnregisteredPatientResponse(
     public static UnregisteredPatientResponse from(InviteCode inviteCode) {
         return new UnregisteredPatientResponse(
                 inviteCode.getInviteCodeId(),
+                inviteCode.getInviteCode(),
                 inviteCode.getChildName(),
                 calculateAgeInMonths(inviteCode.getChildBirthdate()),
                 inviteCode.getParentPhone(),
