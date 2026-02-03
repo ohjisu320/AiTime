@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, Database, Hospital, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/common/Button';
-import ConsentHeader from '../components/ConsentHeader';
-import ConsentItem from '../components/ConsentItem';
-import ConsentNotice from '../components/ConsentNotice';
-import { startExam } from '../api/examApi';
+import ConsentHeader from '@/domains/exam/components/Consent/ConsentHeader';
+import ConsentItem from '@/domains/exam/components/Consent/ConsentItem';
+import ConsentNotice from '@/domains/exam/components/Consent/ConsentNotice';
+import { startExam } from '@/domains/exam/api/examApi';
 import Swal from 'sweetalert2';
 
 

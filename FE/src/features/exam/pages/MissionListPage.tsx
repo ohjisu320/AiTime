@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import MissionCard from '../components/MissionCard';
-import ConsentHeader from '../components/ConsentHeader';
+import MissionCard from '@/domains/exam/components/MissionCard';
+import ConsentHeader from '@/domains/exam/components/Consent/ConsentHeader';
 import InfoNoticeBox from '@/components/common/InfoNoticeBox';
 import BigActionButton from '@/components/common/BigActionButton';
 import ConfirmModal from '@/components/common/ConfirmModal';

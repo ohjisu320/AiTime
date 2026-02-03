@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Play } from 'lucide-react';
-import { MISSION_VIDEOS } from '../constants/videoData';
+import { MISSION_VIDEOS } from '@/domains/exam/constants/videoData';
 import { GlassBackButton } from '@/components/common/GlassBackButton';
 import { FullScreenOverlayText } from '@/components/common/FullScreenOverlayText';
 
