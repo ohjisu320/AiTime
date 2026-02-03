@@ -14,12 +14,14 @@ interface InviteCodeModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: (data: InviteCodeFormData) => void;
+  apiError?: string | null;
 }
 
 export default function InviteCodeModal({
   isOpen,
   onClose,
   onConfirm,
+  apiError,
 }: InviteCodeModalProps) {
   // --- State ---
   const [formData, setFormData] = useState<InviteCodeFormData & { doctorId?: string; scheduledAt: string }>({
@@ -85,7 +87,7 @@ export default function InviteCodeModal({
   };
 
   const validateInputs = () => {
-    const { childName, childBirthdate, parentPhone, doctorId, scheduledAt } = formData;
+    const { childName, childBirthdate, parentPhone, scheduledAt } = formData;
 
     if (!childName.trim()) return "환자 이름을 입력해주세요.";
 
@@ -192,8 +194,8 @@ export default function InviteCodeModal({
 
           {/* 에러 메시지 */}
           <div className="min-h-[20px] text-center">
-            {errorMessage && (
-              <p className="text-xs text-red-500 font-bold">{errorMessage}</p>
+            {(apiError || errorMessage) && (
+              <p className="text-xs text-red-500 font-bold">{apiError || errorMessage}</p>
             )}
           </div>
 

@@ -31,6 +31,10 @@ export default function AppSidebar({
     // 하지만 Dashboard에서 초기 호출 하는 게 나음.
   }, [selectedDate]);
 
+  useEffect(() => {
+    onMonthChange?.(viewDate.getFullYear(), viewDate.getMonth() + 1);
+  }, [viewDate, onMonthChange]);
+
   const handleLogout = () => {
     // 로그아웃 로직 (토큰 삭제 등) 수행 후 이동
     navigate("/login");

@@ -70,11 +70,12 @@ export type ApiResponseInviteCodeRevoke = ApiResponse<InviteCodeRevokeResponse>;
  */
 export interface UnregisteredPatientResponse {
     inviteCodeId: UUID;
+    inviteCode: string;
     childName: string;
     childMonths: number;
     parentPhone: string;
     scheduledAt: ISODateTime;
-    status: string;
+    status: InviteCodeStatus;
 }
 
 export type ApiResponseUnregisteredPatients = ApiResponse<UnregisteredPatientResponse[]>;

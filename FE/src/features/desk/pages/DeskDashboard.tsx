@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { Plus } from "lucide-react";
 
 // 공용 컴포넌트 import
@@ -15,13 +15,12 @@ import DeskUnregisteredList, {
 
 
 // 모달 컴포넌트 import (경로 확인 필요)
-import InviteCodeModal, {
-  type InviteCodeFormData,
-} from "../components/modal/InviteCodeModal";
+import InviteCodeModal from "../components/modal/InviteCodeModal";
 import InviteCodeResultModal from "../components/modal/InviteCodeResultModal";
 
 // API
 import { getUnregisteredPatients, createInviteCode, getScheduledDates, revokeInviteCode } from "@/features/desk/api/inviteCodeApi";
+import { getHospitalStaffProfile } from "@/features/desk/api/hospitalStaffApi";
 
 // UI 컴포넌트
 import { Button } from "@/components/ui/button";
@@ -45,18 +44,20 @@ export default function DeskDashboard() {
     new Date(), // 오늘 날짜로 초기화
   );
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null); // 삭제 대상 ID (모달용)
+
+
+  // 유저 정보 상태
+  const [userInfo, setUserInfo] = useState({
+    name: "",
+    roleLabel: "",
+    systemLabel: ""
+  });
 
   // 예약 현황(달력 점 표시) 상태
   const [scheduledDates, setScheduledDates] = useState<string[]>([]);
 
-  // 달력 월 변경 핸들러
-  const handleMonthChange = (year: number, month: number) => {
-    fetchScheduledDates(year, month);
-  };
-
   // 예약 현황 조회
-  const fetchScheduledDates = async (year: number, month: number) => {
+  const fetchScheduledDates = useCallback(async (year: number, month: number) => {
     try {
       const response = await getScheduledDates(year, month);
       if (response.code === 200 && response.data) {
@@ -65,19 +66,36 @@ export default function DeskDashboard() {
     } catch (error) {
       console.error("❌ 예약 현황 조회 실패:", error);
     }
-  };
+  }, []);
 
-  // 초기 마운트 시 현재 월 데이터 조회
+  // 달력 월 변경 핸들러
+  const handleMonthChange = useCallback((year: number, month: number) => {
+    fetchScheduledDates(year, month);
+  }, [fetchScheduledDates]);
+
+  // 초기 마운트 시 현재 월 데이터 조회 및 유저 정보 조회
   useEffect(() => {
     const now = new Date();
     fetchScheduledDates(now.getFullYear(), now.getMonth() + 1);
+
+    // 유저 정보 조회
+    getHospitalStaffProfile().then(res => {
+      if (res.code === 200 && res.data) {
+        setUserInfo({
+          name: res.data.name,
+          roleLabel: res.data.role === "DOCTOR" ? "의사" : "병원 관리자",
+          systemLabel: res.data.hospitalName || "AiTime 병원"
+        });
+      }
+    }).catch(err => console.error("❌ 유저 정보 조회 실패:", err));
   }, []);
 
   // 모달 열림 상태 관리
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isResultModalOpen, setIsResultModalOpen] = useState(false);
   const [resultModalData, setResultModalData] = useState<any>(null); // 결과 데이터
-  const [isLoading, setIsLoading] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null); // 모달 API 에러 메시지
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null); // 삭제 대상 ID
 
   // 검색 필터 상태
   const [filters, setFilters] = useState({
@@ -100,10 +118,9 @@ export default function DeskDashboard() {
 
 
 
-  // --- API Fetching ---
+  // API Fetching
   const fetchUnregisteredPatients = async (date: Date) => {
     try {
-      setIsLoading(true);
       const year = date.getFullYear();
       const month = date.getMonth() + 1;
       const day = date.getDate();
@@ -114,23 +131,11 @@ export default function DeskDashboard() {
       console.log('✅ [DeskDashboard] API 응답:', response);
 
       if (response.code === 200 && response.data) {
-        // API 응답을 UI 모델로 변환 (필드 매핑)
-        const mappedList: InviteCodePatientItem[] = response.data.map(item => ({
-          inviteCodeId: item.inviteCodeId,
-          childName: item.childName,
-          childMonths: item.childMonths,
-          parentPhone: item.parentPhone,
-          scheduledAt: item.scheduledAt,
-          status: (item.status as any) || "ISSUED", // 타입 호환 처리
-          inviteCode: "-" // API 응답에 코드가 없다면 공란 또는 별도 처리
-        }));
-        console.log(`📋 [DeskDashboard] 매핑된 리스트 (${mappedList.length}건):`, mappedList);
-        setUnregisteredList(mappedList);
+        // API 응답을 바로 상태에 적용 (타입 호환됨)
+        setUnregisteredList(response.data as unknown as InviteCodePatientItem[]);
       }
     } catch (error) {
       console.error("❌ [DeskDashboard] 미등록 환자 목록 로드 실패:", error);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -170,7 +175,6 @@ export default function DeskDashboard() {
     setDeleteTargetId(id);
   };
 
-  // 삭제 확인 핸들러 (API 호출)
   const handleConfirmDelete = async () => {
     if (!deleteTargetId) return;
 
@@ -189,7 +193,8 @@ export default function DeskDashboard() {
         }
 
         // 예약이 취소되었으므로 달력 점도 갱신 필요할 수 있음 (해당 월이면)
-        fetchScheduledDates(selectedDate.getFullYear(), selectedDate.getMonth() + 1);
+        const currentMonth = selectedDate.getMonth() + 1;
+        fetchScheduledDates(selectedDate.getFullYear(), currentMonth); // API restored
 
         toast.success("초대코드가 삭제되었습니다.");
       }
@@ -220,13 +225,10 @@ export default function DeskDashboard() {
     setSelectedIds(newSelected);
   };
 
-  // --- Modal Logic (데이터 추가) ---
-  // --- Modal Logic (데이터 추가) ---
-  // --- Modal Logic (데이터 추가) ---
-  // --- Modal Logic (데이터 추가) ---
   const handleCreateInviteCode = async (data: any) => { // TODO: 타입 정의 수정 필요 (InviteCodeFormData 확장)
+    setModalError(null);
     try {
-      setIsLoading(true);
+      // setIsLoading(true); // Removed as unused
 
       const requestData = {
         childName: data.childName.trim(),
@@ -241,7 +243,7 @@ export default function DeskDashboard() {
       // 2. API 호출
       const response = await createInviteCode(requestData);
 
-      if (response.code === 200) {
+      if (response.code === 201) {
         console.log("✅ [DeskDashboard] 초대코드 발급 성공:", response.data);
 
         // 4. 리스트 갱신 
@@ -261,17 +263,19 @@ export default function DeskDashboard() {
           fetchScheduledDates(selectedDate.getFullYear(), currentMonth);
         }
 
-        // 5. 모달 스위칭 (입력 모달 닫기 -> 결과 모달 열기)
+        // 4. 모달 스위칭 (입력 모달 닫기 -> 결과 모달 열기)
         setIsModalOpen(false);
+        setModalError(null);
         setResultModalData(response.data);
         setIsResultModalOpen(true);
+      } else {
+        console.warn("⚠️ [DeskDashboard] 초대코드 발급 성공 응답 아님:", response);
+        setModalError(response.message || "알 수 없는 오류가 발생했습니다.");
       }
     } catch (error: any) {
       console.error("❌ [DeskDashboard] 초대코드 생성 실패:", error);
       const msg = error.response?.data?.message || "발급 중 오류가 발생했습니다.";
-      alert(msg);
-    } finally {
-      setIsLoading(false);
+      setModalError(msg);
     }
   };
 
@@ -326,13 +330,9 @@ export default function DeskDashboard() {
       <AppSidebar
         selectedDate={selectedDate}
         onDateSelect={handleSidebarDateSelect}
-        markedDates={scheduledDates} // API 데이터 연결
-        onMonthChange={handleMonthChange} // 월 변경 핸들러
-        userInfo={{
-          name: "김접수",
-          roleLabel: "병원 관리자 (데스크)",
-          systemLabel: "접수처 시스템",
-        }}
+        markedDates={scheduledDates}
+        onMonthChange={handleMonthChange}
+        userInfo={userInfo}
       />
 
       <main className="flex-1 flex flex-col min-w-0">
@@ -378,8 +378,12 @@ export default function DeskDashboard() {
       {/* 5. 모달 컴포넌트 연결 */}
       <InviteCodeModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => {
+          setIsModalOpen(false);
+          setModalError(null);
+        }}
         onConfirm={handleCreateInviteCode}
+        apiError={modalError}
       />
 
       {/* 6. 결과 모달 */}
