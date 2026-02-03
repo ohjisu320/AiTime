@@ -12,6 +12,9 @@ import { cn } from "@/lib/utils";
 export default function DoctorDashboardPage() {
   const { states, actions } = useDoctorDashboard();
 
+  // [수정] patientAge 변수 정의 (선택된 환자가 없으면 0으로 처리)
+  const patientAge = states.selectedPatient?.monthlyAge || 0;
+
   return (
     <div className="h-screen w-screen bg-[#808080] flex flex-col overflow-hidden font-['Gulim'] text-[11px]">
       {/* 1. Top Bar */}
@@ -19,10 +22,7 @@ export default function DoctorDashboardPage() {
         <span className="font-bold">
           ASD Clinical Support System - Data Terminal v1.0
         </span>
-        <div className="flex gap-1">
-         
-        
-        </div>
+        <div className="flex gap-1">{/* 상단 버튼 영역 (필요시 추가) */}</div>
       </header>
 
       {/* 2. Main Grid Layout */}
@@ -30,10 +30,12 @@ export default function DoctorDashboardPage() {
         className={cn(
           "flex-1 grid gap-[2px] p-[2px] bg-[#808080]",
           "grid-cols-[220px_180px_1fr_340px_260px]",
-          "grid-rows-[1fr]", // 각 패널의 내부 높이(예: 420px)를 존중하기 위해 1fr로 설정
+          "grid-rows-[1fr]",
+          "overflow-y-auto", // 세로 스크롤 허용
+          "min-h-[720px]", // 최소 높이 확보
         )}
       >
-        {/* Col 1: 환자 상세 (좌측) */}
+        {/* Col 1: 환자 상세 */}
         <div className="row-span-full h-full overflow-hidden">
           <PatientDetailPanel
             patient={states.selectedPatient}
@@ -60,19 +62,27 @@ export default function DoctorDashboardPage() {
 
         {/* Col 5: AI 결과 및 ADOS */}
         <div className="row-span-full h-full overflow-hidden">
+          {/* [수정] patientAge prop 전달 */}
           <AiDiagnosisPanel
             onExpandAdos={() => actions.setAdosModalOpen(true)}
+            patientAge={patientAge}
           />
         </div>
       </main>
 
-      {/* ... Modals & Sidebar ... */}
+      {/* 3. Modals & Sidebar (조건부 렌더링) */}
+      {/* [수정] VideoModal, AdosModal, WaitingListSidebar가 여기서 사용됨 */}
       {states.isVideoModalOpen && (
         <VideoModal onClose={() => actions.setVideoModalOpen(false)} />
       )}
+
       {states.isAdosModalOpen && (
-        <AdosModal onClose={() => actions.setAdosModalOpen(false)} />
+        <AdosModal
+          onClose={() => actions.setAdosModalOpen(false)}
+          patientAge={patientAge} // [수정] patientAge prop 전달
+        />
       )}
+
       {states.isSidebarOpen && (
         <WaitingListSidebar
           isOpen={states.isSidebarOpen}

@@ -3,7 +3,7 @@
  * Endpoints: /doctor/*, /hospital-staff/*
  */
 
-import type { ApiResponse, UUID, ISODate } from '../types';
+import type { ApiResponse, UUID, ISODate, ISODateTime } from '../types';
 
 // =================================================================
 // Doctor List (의사 목록)
@@ -83,3 +83,20 @@ export interface PatientSearchResponse {
 }
 
 export type ApiResponsePatientSearch = ApiResponse<PatientSearchResponse>;
+
+// =================================================================
+// Hospital Staff (병원 관계자)
+// =================================================================
+
+/**
+ * 예약 목록 응답 Data Item
+ */
+export interface ReservationListResponse {
+    reservationId: UUID; // 추측
+    childName: string;
+    scheduledAt: ISODateTime;
+    status: string; // "RESERVED" | "COMPLETED" etc?
+    // 필요한 필드 추가 가능
+}
+
+export type ApiResponseListReservationListResponse = ApiResponse<ReservationListResponse[]>;
