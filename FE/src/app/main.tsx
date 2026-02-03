@@ -3,7 +3,6 @@ import { createRoot } from 'react-dom/client'
 import '@/styles/tailwind.css'
 import '@/styles/theme.css'
 import '@/styles/main.css'
-import '@/styles/aitime.css'
 
 import App from './App.tsx'
 
