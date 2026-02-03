@@ -1,10 +1,8 @@
-version: '3.8'
-
 services:
   nodejs:
     build:
-      context: ../FE								# dockerfile 기준 상대 경로
-      dockerfile: ../docker/dockerfiles/Dockerfile.frontend	# FE 기준 상대 경로
+      context: ../FE                                                            # dockerfile 기준 상대 경로
+      dockerfile: ../docker/dockerfiles/Dockerfile.frontend     # FE 기준 상대 경로
     container_name: nodejs-app
     ports:
       - "127.0.0.1:3000:3000"

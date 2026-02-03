@@ -1,10 +1,8 @@
-version: '3.8'
-
 services:
   screening:
     build:
       context: ../AI/services/screening
-      dockerfile: ../../../../docker/dockerfiles/Dockerfile.ai_screening
+      dockerfile: ../../../docker/dockerfiles/Dockerfile.ai_screening
     container_name: screening
     ports:
       - "127.0.0.1:8000:8000"

@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # Database
   mysql:
@@ -102,6 +100,7 @@ services:
 
 networks:
   cmn-network:
+    external: true
     driver: bridge
 
 volumes:
