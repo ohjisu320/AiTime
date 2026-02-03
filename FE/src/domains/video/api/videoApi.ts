@@ -115,17 +115,23 @@ export const videoApi = {
   },
 
   /** 3단계: 백엔드 상태 업데이트 */
+  /** 3단계: 백엔드 상태 업데이트 */
   updateVideoStatus: async (
     examId: string,
     videoId: string,
-    s3Key: string
+    s3Key: string,
+    videoType: VideoType
   ) => {
-    console.log(`📤 비디오 상태 업데이트: ${videoId} (Exam: ${examId})`);
+    console.log(`📤 비디오 상태 업데이트: ${videoId} (Exam: ${examId}, Type: ${videoType})`);
 
     try {
-      console.log(`📤 완료 요청 Payload:`, { s3Key }); // Payload 확인용 로그
-      const { data } = await api.post(`/exam/${examId}/videos/${videoId}/complete`, {
-        s3Key
+      console.log(`📤 완료 요청 Payload:`, { videoId, s3Key, videoType });
+      // 404 에러 수정 시도: videoId를 path에서 제거하고 body에 포함
+      // 400 에러 수정 시도: videoType 추가
+      const { data } = await api.post(`/exam/${examId}/videos/complete`, {
+        videoId,
+        s3Key,
+        videoType
       });
 
       console.log('✅ 상태 업데이트 완료');
@@ -133,7 +139,10 @@ export const videoApi = {
     } catch (error: any) {
       console.error('❌ 비디오 상태 업데이트 실패:', error);
       if (error.response) {
+        console.error('응답 상태:', error.response.status);
         console.error('응답 데이터 (JSON):', JSON.stringify(error.response.data, null, 2));
+        console.error('요청 URL:', error.config?.url);
+        console.error('요청 Body:', error.config?.data);
 
         // 이미 업로드 완료된 상태라면 에러를 무시하고 성공으로 처리
         if (error.response.data?.message?.includes("현재 비디오 상태(UPLOADED)에서는")) {

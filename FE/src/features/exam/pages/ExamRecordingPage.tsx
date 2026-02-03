@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import ConfirmModal from '@/components/common/ConfirmModal';
-import ExamBaseLayout from '../components/layout/ExamBaseLayout';
-import ScreeningGuide from '../components/Screening/ScreeningGuide';
-import { useLiveKitScreening } from '../hooks/useLiveKitScreening';
-import { SCREENING_CONTENT } from '../constants/missionData';
+import ExamBaseLayout from '@/domains/exam/components/layout/ExamBaseLayout';
+// import ScreeningGuide from '@/domains/exam/components/Screening/ScreeningGuide';
+import { useLiveKitScreening } from '@/domains/exam/hooks/useLiveKitScreening';
+import { SCREENING_CONTENT } from '@/domains/exam/constants/missionData';
 
 interface ExamRecordingPageProps {
   missionId?: string;
@@ -19,7 +19,7 @@ const ExamRecordingPage: React.FC<ExamRecordingPageProps> = ({ missionId: propMi
 
   const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
   const [isPassModalOpen, setIsPassModalOpen] = useState(false);
-  const content = SCREENING_CONTENT[currentMissionId] || SCREENING_CONTENT["POSE_IMITATION"];
+  // const content = SCREENING_CONTENT[currentMissionId] || SCREENING_CONTENT["POSE_IMITATION"];
 
   // TODO: 실제 childId는 Context나 props에서 가져와야 함
   const childId = localStorage.getItem('selectedChildId') || 'mock-child-id';
@@ -66,26 +66,29 @@ const ExamRecordingPage: React.FC<ExamRecordingPageProps> = ({ missionId: propMi
         isAligned={isAligned}
         volume={volume}
         onBack={() => navigate('/exam/mission')}
-        sidebarContent={
-          content ? (
-            <ScreeningGuide
-              onStart={handleStartExam}
-              isReady={isAligned && volume <= 30 && status === 'ready'}
-              isAligned={isAligned}
-              volume={volume}
-              missionData={content}
-            />
-          ) : (
-            <div className="p-8 text-center text-gray-400">가이드 데이터를 찾을 수 없습니다.</div>
-          )
-        }
       >
-        {/* AI 가이드 메시지 오버레이 */}
+        {/* AI 가이드 메시지 오버레이 (중앙 하단) */}
         {status === 'screening' && guideMessage && (
-          <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-black/70 text-white px-6 py-3 rounded-full text-lg font-medium">
+          <div className="absolute top-32 left-1/2 transform -translate-x-1/2 bg-black/70 text-white px-6 py-3 rounded-full text-lg font-medium animate-in fade-in slide-in-from-top-5">
             {guideMessage}
           </div>
         )}
+
+        {/* 검사 준비 완료 버튼 (하단 중앙) */}
+        <div className="absolute bottom-12 left-1/2 transform -translate-x-1/2 z-50">
+          <button
+            onClick={handleStartExam}
+            disabled={!isAligned || volume > 30}
+            className={`
+              px-12 py-5 rounded-full font-bold text-xl shadow-2xl transition-all duration-300
+              ${isAligned && volume <= 30
+                ? "bg-brand-purple text-white hover:scale-105 hover:bg-brand-purple-dark shadow-[0_0_30px_rgba(110,86,207,0.5)]"
+                : "bg-gray-500/50 text-gray-300 cursor-not-allowed"}
+            `}
+          >
+            {isAligned && volume <= 30 ? "검사 준비 완료" : "준비 중..."}
+          </button>
+        </div>
       </ExamBaseLayout>
 
       {/* 준비 미흡 안내 모달 */}
