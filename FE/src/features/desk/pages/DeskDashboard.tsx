@@ -44,6 +44,33 @@ export default function DeskDashboard() {
     new Date(), // 오늘 날짜로 초기화
   );
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null); // 삭제 대상 ID (모달용)
+
+  // 예약 현황(달력 점 표시) 상태
+  const [scheduledDates, setScheduledDates] = useState<string[]>([]);
+
+  // 달력 월 변경 핸들러
+  const handleMonthChange = (year: number, month: number) => {
+    fetchScheduledDates(year, month);
+  };
+
+  // 예약 현황 조회
+  const fetchScheduledDates = async (year: number, month: number) => {
+    try {
+      const response = await getScheduledDates(year, month);
+      if (response.code === 200 && response.data) {
+        setScheduledDates(response.data);
+      }
+    } catch (error) {
+      console.error("❌ 예약 현황 조회 실패:", error);
+    }
+  };
+
+  // 초기 마운트 시 현재 월 데이터 조회
+  useEffect(() => {
+    const now = new Date();
+    fetchScheduledDates(now.getFullYear(), now.getMonth() + 1);
+  }, []);
 
   // 유저 정보 상태
   const [userInfo, setUserInfo] = useState({
@@ -169,7 +196,7 @@ export default function DeskDashboard() {
     handleResetSearch();
   };
 
-  // 삭제 핸들러
+  // 삭제 클릭 핸들러 (모달 열기)
   const handleDelete = (id: string) => {
     setDeleteTargetId(id);
   };
@@ -245,7 +272,7 @@ export default function DeskDashboard() {
       if (response.code === 201) {
         console.log("✅ [DeskDashboard] 초대코드 발급 성공:", response.data);
 
-        // 3. 리스트 갱신 
+        // 4. 리스트 갱신 
         // 선택된 예약일이 현재 대시보드의 '선택된 날짜'와 같다면 리스트갱신
         const reservedDate = new Date(data.scheduledAt);
         const isSelectedDate = isSameDay(reservedDate.toISOString(), selectedDate);

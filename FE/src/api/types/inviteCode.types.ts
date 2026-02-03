@@ -46,6 +46,7 @@ export interface InviteCodeStatusResponse {
 }
 
 export type ApiResponseInviteCodeStatus = ApiResponse<InviteCodeStatusResponse>;
+export type ApiResponseInviteCodeStatusResponse = ApiResponseInviteCodeStatus; // Alias
 
 /**
  * 초대코드 취소 응답
@@ -78,9 +79,12 @@ export interface UnregisteredPatientResponse {
 }
 
 export type ApiResponseUnregisteredPatients = ApiResponse<UnregisteredPatientResponse[]>;
+export type ApiResponseListUnregisteredPatientResponse = ApiResponseUnregisteredPatients; // Alias
 
 /**
  * 예약 캘린더 응답
  * GET /invite-code/calendar
  */
 export type ApiResponseCalendar = ApiResponse<ISODate[]>;
+export type ApiResponseListLocalDate = ApiResponseCalendar; // Alias
+
