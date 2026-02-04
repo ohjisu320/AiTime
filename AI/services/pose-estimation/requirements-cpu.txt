@@ -41,3 +41,7 @@ onnxruntime>=1.15.0
 
 # Face Detection
 retinaface-py>=0.0.2
+
+
+# rabbitmq
+pika
