@@ -61,23 +61,37 @@ const processQueue = (error: Error | null = null, token: string | null = null): 
 };
 
 /**
- * 리프레시 토큰 엔드포인트 결정
- * (로그인된 사용자 타입에 따라 분기)
+ * 로그아웃 처리 (토큰 제거 및 로그인 페이지로 리다이렉트)
  */
-const getRefreshEndpoint = () => {
-    try {
-        const userStr = localStorage.getItem('user');
-        if (userStr) {
-            const userData = JSON.parse(userStr);
-            // 병원 관계자(STAFF)인 경우
-            if (userData.type === 'STAFF') {
+const handleLogout = (): void => {
+    localStorage.removeItem('accessToken');
+    // refreshToken은 쿠키로만 관리되므로 localStorage에서 제거 불필요
+    localStorage.removeItem('user');
+    localStorage.removeItem('selectedChildId');
+
+    // 현재 페이지가 로그인 페이지가 아닐 때만 리다이렉트
+    if (window.location.pathname !== '/') {
+        window.location.href = '/';
+    }
+};
+
+/**
+ * 사용자 역할에 따른 refresh 엔드포인트 결정
+ */
+const getRefreshEndpoint = (): string => {
+    const user = localStorage.getItem('user');
+    if (user) {
+        try {
+            const userData = JSON.parse(user);
+            // 병원 직원인 경우
+            if (userData.staffRole) {
                 return '/hospital-staff/refresh';
             }
+        } catch (e) {
+            console.error('Failed to parse user data:', e);
         }
-    } catch (e) {
-        console.error('Failed to parse user info for refresh endpoint', e);
     }
-    // 기본값: 일반 보호자
+    // 기본값: 일반 사용자
     return '/user/refresh';
 };
 
@@ -115,12 +129,13 @@ api.interceptors.response.use(
 
             try {
                 const refreshEndpoint = getRefreshEndpoint();
-                console.log(`🔄 Refreshing access token via ${refreshEndpoint}...`);
+                console.log(`🔄 Attempting to refresh access token via ${refreshEndpoint}...`);
 
-                // Refresh Token으로 새 Access Token 요청 (Body 전송)
-                const response = await axios.post(
+                // refreshToken은 cookie로 자동 전송됨 (withCredentials: true)
+                const response = await axios.post<ApiResponse<RefreshResponse>>(
                     `${import.meta.env.VITE_API_BASE_URL}${refreshEndpoint}`,
-                    { refreshToken }
+                    {},
+                    { withCredentials: true }
                 );
 
                 if (response.data.code === 200 && response.data.data) {
@@ -151,6 +166,11 @@ api.interceptors.response.use(
             } finally {
                 isRefreshing = false;
             }
+        }
+
+        // 로그인 요청이 실패한 경우
+        if (error.response?.status === 401 && isLoginRequest) {
+            console.log('❌ Login request failed (invalid credentials)');
         }
 
         // 401이 아닌 다른 에러는 그대로 반환
