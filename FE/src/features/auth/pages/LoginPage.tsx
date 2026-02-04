@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { useLoginPage } from "../hooks/useLoginPage";
 import LoginTabs from "../components/LoginTabs";
 import LoginForm from "../components/LoginForm";
+import parentLogo from '@/assets/parentLogo.svg';
 
 export default function LoginPage() {
   // Hook에서 로직 가져오기
@@ -14,7 +15,8 @@ export default function LoginPage() {
       {/* --- Logo Area --- */}
       <div className="z-10 self-center mb-auto mt-4 md:mt-8">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-20 h-20 bg-[#D9D9D9] rounded-3xl shadow-sm" />
+          {/* 홈 버튼 */}
+          <img src={parentLogo} alt="parentLogo" className="w-[100px] h-[100px]" />
           <h1 className="text-6xl font-bold text-black font-['DM_Sans'] tracking-tight">
             AiTime
           </h1>
