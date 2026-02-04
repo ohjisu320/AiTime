@@ -41,9 +41,14 @@ class CropConfig:
 
 @dataclass(frozen=True)
 class TrackConfig:
-    max_age: int = 8
-    min_hits: int = 2
+    max_age: int = 30
+    min_hits: int = 3
     iou_threshold: float = 0.3
+
+    # ByteTrack parameters
+    high_thresh: float = 0.6
+    low_thresh: float = 0.1
+    second_iou_thresh: float = 0.5
 
 
 @dataclass(frozen=True)

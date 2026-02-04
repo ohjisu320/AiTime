@@ -26,7 +26,7 @@ from app.rtn.pipeline.results import CallResult
 from app.rtn.pipeline.roles import RoleAssignerByArea
 from app.rtn.roi.contact import contact_by_raycast
 from app.rtn.roi.parent_eye_roi import ParentEyeROIBuilder
-from app.rtn.tracking.sort_tracker import SortTracker
+from app.rtn.tracking.byte_tracker import ByteTracker
 from app.rtn.types import BBox, FrameBGR, Landmarks
 from app.rtn.utils import crop_face_square
 from app.rtn.vision.mp_face_detector import FaceDetectorMP
@@ -56,7 +56,7 @@ class WindowAnalyzer:
     ) -> None:
         self.detector = detector
         self.facemesh = facemesh
-        self.tracker = SortTracker(track_cfg)
+        self.tracker = ByteTracker(track_cfg)  # SortTracker -> ByteTracker
         self.role_cfg = role_cfg
         self.roi_builder = ParentEyeROIBuilder(roi_cfg)
         self.gaze_estimator = GazeEstimatorIrisRatio(gaze_cfg)
@@ -160,12 +160,21 @@ class WindowAnalyzer:
                 dbg: FrameBGR | None = frame.copy() if debug_mode else None
 
                 # detect + track
-                # - detector는 프레임 단위 noisy할 수 있어 conf_th로 1차 필터링
-                # - tracker(SORT)는 bbox를 ID로 연결해 parent/child를 시간축으로 추적
+                # ByteTrack 적용:
+                # - 기존 conf_th 필터링 대신, ByteTracker가 내부적으로 2-stage 매칭 수행
+                # - 단, 너무 낮은 점수(garbage)는 미리 제거 (low_thresh)
                 dets = self.detector.detect(frame)
-                dets = [d for d in dets if d[4] >= self.conf_th]
-                dets_xyxy: list[BBox] = [(d[0], d[1], d[2], d[3]) for d in dets]
-                tracks = self.tracker.update(dets_xyxy)
+
+                # prepare (bbox, score) list
+                dets_with_scores = []
+                low_thresh = self.tracker.cfg.low_thresh
+                for d in dets:
+                    # d: (x1, y1, x2, y2, score)
+                    # ByteTracker의 low_thresh보다 낮은건 아예 필요 없음
+                    if d[4] >= low_thresh:
+                        dets_with_scores.append(((d[0], d[1], d[2], d[3]), d[4]))
+
+                tracks = self.tracker.update(dets_with_scores)
 
                 # 역할 할당은 초반 몇 초(warmup_s) 동안 트랙 안정화를 기다린 뒤 수행
                 # 초기에는 bbox 흔들림/교차가 있어
