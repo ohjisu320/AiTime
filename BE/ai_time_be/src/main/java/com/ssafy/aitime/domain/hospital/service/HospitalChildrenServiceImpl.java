@@ -32,4 +32,11 @@ public class HospitalChildrenServiceImpl implements HospitalChildrenService {
                         .build())
                 .toList();
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isChildLinkedToHospital(UUID childId, UUID hospitalId) {
+        return hospitalChildrenRepository.existsByChild_ChildIdAndHospital_HospitalIdAndLinkStatus(
+                childId, hospitalId, LinkStatus.ACTIVE);
+    }
 }

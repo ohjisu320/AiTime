@@ -27,13 +27,4 @@ public record VideoUploadCompleteResponse(
          * 검증 완료 여부
          */
         Boolean verified
-) {
-    public static VideoUploadCompleteResponse of(String videoId, String examId, String status, Boolean verified) {
-        return VideoUploadCompleteResponse.builder()
-                .videoId(videoId)
-                .examId(examId)
-                .status(status)
-                .verified(verified)
-                .build();
-    }
-}
+) {}
