@@ -1,5 +1,6 @@
 package com.ssafy.aitime.infra.rabbitmq.dto.message;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ssafy.aitime.domain.exam.entity.Video;
 import lombok.Builder;
@@ -45,6 +46,7 @@ public class AnalysisRequestMessage {
      * videoType으로부터 taskNo 추출
      * Queue 이름 생성용
      */
+    @JsonIgnore
     public Integer getTaskNo() {
         if (videoType == null) return null;
 
@@ -60,6 +62,7 @@ public class AnalysisRequestMessage {
     /**
      * Queue 이름 반환
      */
+    @JsonIgnore
     public String getQueueName() {
         Integer taskNo = getTaskNo();
         if (taskNo == null) {
