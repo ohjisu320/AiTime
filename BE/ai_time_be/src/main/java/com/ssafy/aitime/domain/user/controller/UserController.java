@@ -1,5 +1,6 @@
 package com.ssafy.aitime.domain.user.controller;
 
+import com.ssafy.aitime.common.config.CookieProperties;
 import com.ssafy.aitime.common.response.ApiResponse;
 import com.ssafy.aitime.domain.user.dto.request.PasswordResetRequest;
 import com.ssafy.aitime.domain.user.dto.request.UserJoinRequest;
@@ -25,6 +26,7 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
     private final UserService userService;
+    private final CookieProperties cookieProperties;
 
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<UserLoginResponse>> login(@RequestBody @Valid UserLoginRequest userLoginRequest) {
@@ -32,14 +34,8 @@ public class UserController {
         TokenResponse tokenResponse = userService.login(userLoginRequest);
 
 //        RefreshToken → HttpOnly 쿠키 저장
-        ResponseCookie cookie = ResponseCookie
-                .from("refreshToken", tokenResponse.refreshToken())
-                .httpOnly(true)
-                .secure(false)        // HTTPS 환경이면 true로 변경
-                .sameSite("Strict")
-                .path("/")
-                .maxAge(1209600)
-                .build();
+        ResponseCookie cookie = createRefreshTokenCookie(tokenResponse.refreshToken());
+
 
         UserLoginResponse userLoginResponse = new UserLoginResponse(
                 tokenResponse.accessToken(),
@@ -58,14 +54,7 @@ public class UserController {
         TokenResponse tokenResponse = userService.refresh(refreshToken);
 
         // 새로운 RefreshToken을 쿠키에 갱신 (기존 설정 유지)
-        ResponseCookie cookie = ResponseCookie
-                .from("refreshToken", tokenResponse.refreshToken())
-                .httpOnly(true)
-                .secure(false)
-                .sameSite("Strict")
-                .path("/")
-                .maxAge(1209600)
-                .build();
+        ResponseCookie cookie = createRefreshTokenCookie(tokenResponse.refreshToken());
 
         UserLoginResponse userLoginResponse = new UserLoginResponse(
                 tokenResponse.accessToken(),
@@ -86,10 +75,7 @@ public class UserController {
 
         userService.logout(accessToken, refreshToken);
         // 쿠키 삭제를 위해 만료시간을 0으로 설정한 쿠키 반환
-        ResponseCookie cookie = ResponseCookie.from("refreshToken", "")
-                .maxAge(0)
-                .path("/")
-                .build();
+        ResponseCookie cookie = createExpiredRefreshTokenCookie();
 
         return ResponseEntity.ok()
                 .header("Set-Cookie", cookie.toString())
@@ -156,17 +142,33 @@ public class UserController {
 
         userService.withdraw(principal.getUserId(), accessToken, refreshToken);
 
-        ResponseCookie expiredCookie = ResponseCookie.from("refreshToken", "")
-                .httpOnly(true)
-                .secure(false)          // 로그인과 동일(운영이면 true로 분기)
-                .sameSite("Strict")
-                .path("/")
-                .maxAge(0)
-                .build();
+        ResponseCookie expiredCookie = createExpiredRefreshTokenCookie();
 
         return ResponseEntity.ok()
                 .header("Set-Cookie", expiredCookie.toString())
                 .body(ApiResponse.ok("회원 탈퇴가 완료되었습니다. 그동안 이용해 주셔서 감사합니다.", null));
+    }
+
+    private ResponseCookie createRefreshTokenCookie(String refreshToken) {
+        return ResponseCookie
+                .from(cookieProperties.getName(), refreshToken)
+                .httpOnly(cookieProperties.isHttpOnly())
+                .secure(cookieProperties.isSecure())
+                .sameSite(cookieProperties.getSameSite())
+                .path(cookieProperties.getPath())
+                .maxAge(cookieProperties.getMaxAge())
+                .build();
+    }
+
+    private ResponseCookie createExpiredRefreshTokenCookie() {
+        return ResponseCookie
+                .from(cookieProperties.getName(), "")
+                .httpOnly(cookieProperties.isHttpOnly())
+                .secure(cookieProperties.isSecure())
+                .sameSite(cookieProperties.getSameSite())
+                .path(cookieProperties.getPath())
+                .maxAge(0)
+                .build();
     }
 
     private String resolveBearerToken(String authorizationHeader) {
