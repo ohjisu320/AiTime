@@ -7,7 +7,7 @@ import com.ssafy.aitime.domain.hospital.dto.response.CalendarReservationResponse
 import com.ssafy.aitime.domain.hospital.dto.response.PatientSearchResponse;
 import com.ssafy.aitime.domain.hospital.service.DoctorService;
 import com.ssafy.aitime.domain.hospital.service.ReservationService;
-import com.ssafy.aitime.security.principal.UserPrincipal;
+import com.ssafy.aitime.security.principal.HospitalStaffPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
@@ -30,11 +30,11 @@ public class DoctorController {
      */
     @GetMapping("/patients")
     public ResponseEntity<ApiResponse<PatientSearchResponse>> getSearchPatientList(
-            @AuthenticationPrincipal UserPrincipal user,
+            @AuthenticationPrincipal HospitalStaffPrincipal principal,
             @ModelAttribute @Valid PatientSearchRequest patientSearchRequest
     ) {
         return ResponseEntity.ok(
-                ApiResponse.ok(doctorService.getSearchPatientList(user.getUserId(), patientSearchRequest))
+                ApiResponse.ok(doctorService.getSearchPatientList(principal.getHospitalStaffId(), patientSearchRequest))
         );
     }
 
@@ -62,11 +62,11 @@ public class DoctorController {
     })
     @GetMapping("/reservations/calendar")
     public ResponseEntity<ApiResponse<CalendarReservationResponse>> getReservationCalendar(
-            @AuthenticationPrincipal UserPrincipal user,
+            @AuthenticationPrincipal HospitalStaffPrincipal principal,
             @ModelAttribute @Valid CalendarRequest calendarRequest) {
 
         return ResponseEntity.ok(
-                ApiResponse.ok("예약 날짜 조회 완료", reservationService.getReservationDates(user.getUserId(), calendarRequest))
+                ApiResponse.ok("예약 날짜 조회 완료", reservationService.getReservationDates(principal.getHospitalStaffId(), calendarRequest))
         );
     }
 
