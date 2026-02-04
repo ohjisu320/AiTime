@@ -98,6 +98,9 @@ export default function DoctorDashboardPage() {
         <WaitingListSidebar
           isOpen={states.isSidebarOpen}
           onClose={actions.toggleSidebar}
+          waitingList={states.waitingList}
+          onSelectPatient={actions.selectPatient}
+          isLoading={states.isLoading}
         />
       )}
     </div>
