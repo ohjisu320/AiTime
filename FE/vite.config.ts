@@ -58,9 +58,23 @@ export default defineConfig({
         target: 'http://70.12.246.92:8080',
         changeOrigin: true,
         secure: false,
+        cookieDomainRewrite: {
+          "*": ""
+        },
+        cookiePathRewrite: {
+          "*": "/"
+        },
         configure: (proxy, _options) => {
           proxy.on('proxyReq', (proxyReq, req, _res) => {
             proxyReq.setHeader('Origin', 'http://70.12.246.92:8080');
+          });
+          proxy.on('proxyRes', (proxyRes, req, res) => {
+            const cookies = proxyRes.headers['set-cookie'];
+            if (cookies) {
+              proxyRes.headers['set-cookie'] = cookies.map(cookie =>
+                cookie.replace(/SameSite=Strict/gi, 'SameSite=Lax')
+              );
+            }
           });
         },
       },
