@@ -294,9 +294,6 @@ export default function AiDiagnosisPanel({ onExpandAdos, patientAge }: Props) {
             className="flex-1 w-full resize-none bg-[#f0f0f0] border border-[#808080] p-[10px] text-[12px] font-['Gulim'] leading-relaxed outline-none"
             value={`[AI 분석 근거]\n환자 월령(${patientAge}개월) - ${groupLabel} 기준 분석.\n...`}
           />
-          <WindowsButton className="mt-[5px] w-full h-[40px] font-bold text-[12px]">
-            리포트 생성 및 전송
-          </WindowsButton>
         </WindowsContainer>
       </div>
     </div>
