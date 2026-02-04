@@ -1,5 +1,6 @@
 package com.ssafy.aitime.domain.hospital.controller;
 
+import com.ssafy.aitime.common.config.CookieProperties;
 import com.ssafy.aitime.common.enums.RecordStatus;
 import com.ssafy.aitime.common.response.ApiResponse;
 import com.ssafy.aitime.domain.hospital.dto.request.HospitalStaffLoginRequest;
@@ -13,6 +14,7 @@ import com.ssafy.aitime.domain.hospital.service.ReservationService;
 import com.ssafy.aitime.domain.hospital.service.dto.HospitalStaffInfoDTO;
 import com.ssafy.aitime.security.principal.HospitalStaffPrincipal;
 import org.jspecify.annotations.Nullable;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -59,8 +61,22 @@ class HospitalStaffControllerTest {
     @MockitoBean
     private ReservationService reservationService;
 
+    @MockitoBean
+    private CookieProperties cookieProperties;
+
     // 테스트용 고정 ID
     private static final UUID TEST_STAFF_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
+
+    @BeforeEach
+    void setUp() {
+        // CookieProperties Mock 설정
+        when(cookieProperties.getName()).thenReturn("refreshToken");
+        when(cookieProperties.isHttpOnly()).thenReturn(true);
+        when(cookieProperties.isSecure()).thenReturn(false);
+        when(cookieProperties.getSameSite()).thenReturn("Lax");
+        when(cookieProperties.getPath()).thenReturn("/");
+        when(cookieProperties.getMaxAge()).thenReturn(1209600L);
+    }
 
     /**
      * @AuthenticationPrincipal HospitalStaffPrincipal 주입을 위한 설정

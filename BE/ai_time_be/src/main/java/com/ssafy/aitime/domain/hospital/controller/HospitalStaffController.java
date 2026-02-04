@@ -1,5 +1,6 @@
 package com.ssafy.aitime.domain.hospital.controller;
 
+import com.ssafy.aitime.common.config.CookieProperties;
 import com.ssafy.aitime.common.response.ApiResponse;
 import com.ssafy.aitime.domain.hospital.dto.request.HospitalStaffLoginRequest;
 import com.ssafy.aitime.domain.hospital.dto.response.DoctorListResponse;
@@ -27,6 +28,7 @@ public class HospitalStaffController {
 
     private final HospitalStaffService hospitalStaffService;
     private final ReservationService reservationService;
+    private final CookieProperties cookieProperties;
 
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<HospitalStaffLoginResponse>> login(
@@ -83,9 +85,13 @@ public class HospitalStaffController {
         hospitalStaffService.logout(accessToken, refreshToken);
 
         // 쿠키 삭제를 위해 만료시간을 0으로 설정한 쿠키 반환
-        ResponseCookie cookie = ResponseCookie.from("refreshToken", "")
+        ResponseCookie cookie = ResponseCookie
+                .from(cookieProperties.getName(), "")
+                .httpOnly(cookieProperties.isHttpOnly())
+                .secure(cookieProperties.isSecure())
+                .sameSite(cookieProperties.getSameSite())
+                .path(cookieProperties.getPath())
                 .maxAge(0)
-                .path("/")
                 .build();
 
         return ResponseEntity.ok()
@@ -106,12 +112,13 @@ public class HospitalStaffController {
      * 쿠키 생성 공통 메서드 (보안 설정 일관성 유지)
      */
     private ResponseCookie createRefreshTokenCookie(String refreshToken) {
-        return ResponseCookie.from("refreshToken", refreshToken)
-                .httpOnly(true)
-                .secure(false)        // HTTPS 운영 환경이면 true로 변경
-                .sameSite("Strict")
-                .path("/")
-                .maxAge(1209600)      // 14일 (UserController 설정과 동일)
+        return ResponseCookie
+                .from(cookieProperties.getName(), refreshToken)
+                .httpOnly(cookieProperties.isHttpOnly())
+                .secure(cookieProperties.isSecure())
+                .sameSite(cookieProperties.getSameSite())
+                .path(cookieProperties.getPath())
+                .maxAge(cookieProperties.getMaxAge())
                 .build();
     }
 
