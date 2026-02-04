@@ -29,12 +29,12 @@ export interface ChildHomeResponse {
     message: string;
     data: {
         childId: string;
+        examId: string | null;             // ✅ 추가: 현재 진행 중인 검사 ID
         name: string;
         gender: 'MALE' | 'FEMALE';
-        status: ChildDashboardStatus;
-        isExamEligible: boolean;
+        examStartedAt: string | null;      // ✅ 추가
+        examStatus: ChildDashboardStatus;  // ✅ examStatus (API 명세)
         examProgress: number;
-        hasPreviousExam: boolean;
         draftExpiresAt: string | null;
         nextEligibleAt: string | null;
         linkedHospitals: LinkedHospital[];
@@ -61,7 +61,7 @@ export interface HospitalLinkResponse {
  */
 export const fetchChildHomeInfo = async (childId: string) => {
     // childId가 없거나 이상하면 테스트 ID로 대체
-    const targetId = childId || "65952064-7506-499d-b4fc-1b919be4db5f";
+    const targetId = childId || TEST_CHILD_ID;
     console.log(`🚀 [GET] Dashboard Info for: ${targetId}`);
 
     try {
@@ -71,13 +71,8 @@ export const fetchChildHomeInfo = async (childId: string) => {
         // 실제 아이 정보만 반환
         return response.data.data;
     } catch (error) {
-        // 🚨 여기가 핵심입니다! 
-        // 에러를 throw 하지 않고, 콘솔에만 찍은 뒤 '가짜 데이터'를 리턴합니다.
-        console.warn("⚠️ API 연결 실패 (401 등). 임시 데이터를 보여줍니다.");
         console.error("❌ fetchChildHomeInfo Error:", error);
-
-        // 화면이 죽지 않도록 Mock Data 반환 (data 부분만)
-        return MOCK_CASE_AVAILABLE.data;
+        throw error; // 에러를 그대로 던짐 → 에러 화면 표시
     }
 };
 
@@ -137,17 +132,15 @@ export const registerInviteCode = async (childId: string, inviteCode: string) =>
 
 const MOCK_BASE_DATA = {
     childId: TEST_CHILD_ID,
+    examId: null,
     name: "오하나",
     gender: "FEMALE" as const,
-    birthDate: "2019-05-05",
-    hasPreviousExam: true,
-    status: "AVAILABLE" as ChildDashboardStatus,
-    isExamEligible: true,
+    examStatus: "AVAILABLE" as ChildDashboardStatus,  // ✅ examStatus
     examProgress: 0,
-    draftExpiresAt: null,
+    examStartedAt: null,
     nextEligibleAt: null,
+    draftExpiresAt: null,
     linkedHospitals: [] as LinkedHospital[],
-    recentExamResult: null
 };
 
 export const MOCK_CASE_AVAILABLE: ChildHomeResponse = {
@@ -161,33 +154,33 @@ export const MOCK_CASE_WAITING: ChildHomeResponse = {
     code: 200,
     status: "OK",
     message: "Success",
-    data: { ...MOCK_BASE_DATA, status: "WAITING", examProgress: 2 }
+    data: { ...MOCK_BASE_DATA, examStatus: "WAITING", examProgress: 2 }
 };
 
 export const MOCK_CASE_COOLDOWN: ChildHomeResponse = {
     code: 200,
     status: "OK",
     message: "Success",
-    data: { ...MOCK_BASE_DATA, status: "COOLDOWN", isExamEligible: false, examProgress: 4 }
+    data: { ...MOCK_BASE_DATA, examStatus: "COOLDOWN", examProgress: 4 }
 };
 
 export const MOCK_CASE_NEED_HOSPITAL: ChildHomeResponse = {
     code: 200,
     status: "OK",
     message: "Success",
-    data: { ...MOCK_BASE_DATA, status: "NEED_HOSPITAL", linkedHospitals: [] }
+    data: { ...MOCK_BASE_DATA, examStatus: "NEED_HOSPITAL", linkedHospitals: [] }
 };
 
 export const MOCK_CASE_COOLDOWN_BEFORE: ChildHomeResponse = {
     code: 200,
     status: "OK",
     message: "Success",
-    data: { ...MOCK_BASE_DATA, status: "COOLDOWN_BEFORE", isExamEligible: false, examProgress: 4 }
+    data: { ...MOCK_BASE_DATA, examStatus: "COOLDOWN_BEFORE", examProgress: 4 }
 };
 
 export const MOCK_CASE_IN_PROGRESS: ChildHomeResponse = {
     code: 200,
     status: "OK",
     message: "Success",
-    data: { ...MOCK_BASE_DATA, status: "IN_PROGRESS", examProgress: 2 }
+    data: { ...MOCK_BASE_DATA, examStatus: "IN_PROGRESS", examProgress: 2 }
 };

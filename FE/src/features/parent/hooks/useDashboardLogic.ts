@@ -55,7 +55,7 @@ export const useDashboardLogic = (callbacks?: DashboardCallbacks) => {
 
         const baseProps = {
             progress: data.examProgress,
-            status: data.status,
+            status: data.examStatus,  // ✅ examStatus 사용
         };
 
         // 🚨 중요: 연결된 병원이 없으면 무조건 NEED_HOSPITAL 상태로 처리
@@ -72,7 +72,7 @@ export const useDashboardLogic = (callbacks?: DashboardCallbacks) => {
             };
         }
 
-        switch (data.status) {
+        switch (data.examStatus) {  // ✅ examStatus 사용
             case 'NEED_HOSPITAL':
             default:
                 // 병원 연결이 필요하거나 알 수 없는 상태
@@ -109,7 +109,7 @@ export const useDashboardLogic = (callbacks?: DashboardCallbacks) => {
                     title: `검사 진행 중 (${data.examProgress}/4)`,
                     subtitle: `임시 저장 만료까지 ${dDay} (이어하지 않으면 초기화됩니다)`,
                     buttonText: "검사 이어하기",
-                    onPrimaryAction: () => navigate('/exam/consent'),
+                    onPrimaryAction: () => navigate('/exam/guide'),
                 };
 
             case 'COOLDOWN':

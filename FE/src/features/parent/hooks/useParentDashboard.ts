@@ -9,7 +9,7 @@ import {
 // ==========================================
 // [테스트용 설정]
 // 이 값을 true로 하면 아래 MOCK_DATA가 강제로 적용됩니다.
-const ENABLE_MOCK = false;
+const ENABLE_MOCK = false; // Swagger 토큰으로 실제 API 테스트
 
 // MOCK_CASE_AVAILABLE를 참조하여, registerInviteCode에서 수정된 내용이 반영되도록 합니다.
 const MOCK_DATA = MOCK_CASE_AVAILABLE.data;
@@ -23,6 +23,7 @@ export const useParentDashboard = () => {
   const fetchData = async () => {
     try {
       setIsLoading(true);
+      setIsError(false);
 
       if (ENABLE_MOCK) {
         // 네트워크 지연 시뮬레이션
@@ -31,22 +32,33 @@ export const useParentDashboard = () => {
         return MOCK_DATA;
       }
 
-      // Get selected child ID from localStorage
-      const childId = localStorage.getItem('selectedChildId');
+      // Get child ID from localStorage
+      // Priority: manually set 'childId' > profile-selected 'selectedChildId'
+      const childId = localStorage.getItem('selectedChildId') || localStorage.getItem('childId');
 
       if (!childId) {
         console.warn('⚠️ No childId in localStorage. Using TEST_CHILD_ID as fallback for development.');
+      } else {
+        console.log(`✅ Using childId from localStorage: ${childId}`);
       }
 
-      // fetchChildHomeInfo가 이미 linkedHospitals를 포함하고 있으므로
-      // 별도로 fetchLinkedHospitals를 호출할 필요 없음
+      // API 호출 - 응답이 올 때까지 무한정 대기
       const response = await fetchChildHomeInfo(childId || TEST_CHILD_ID);
+
+      // ✅ examId가 있으면 localStorage에 저장 (검사 세션에서 사용)
+      if (response.examId) {
+        localStorage.setItem('examId', response.examId);
+        console.log(`✅ examId 저장: ${response.examId}`);
+      } else {
+        console.warn('⚠️ examId가 없습니다.');
+      }
 
       setData(response);
       return response;
     } catch (err) {
-      console.error("Unexpected error in useParentDashboard", err);
+      console.error("Error in useParentDashboard", err);
       setIsError(true);
+      setData(null);
       return null;
     } finally {
       setIsLoading(false);
@@ -54,8 +66,23 @@ export const useParentDashboard = () => {
   };
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    // AbortController로 중복 호출 방지
+    const abortController = new AbortController();
+    let isMounted = true;
+
+    const loadData = async () => {
+      if (!isMounted) return;
+      await fetchData();
+    };
+
+    loadData();
+
+    // Cleanup: 컴포넌트 언마운트 시 실행
+    return () => {
+      isMounted = false;
+      abortController.abort();
+    };
+  }, []); // 빈 배열: 마운트 시 한 번만 실행
 
   return {
     data,

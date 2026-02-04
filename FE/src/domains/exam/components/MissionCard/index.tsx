@@ -7,32 +7,32 @@ import CardBadge from '@/components/common/CardBadge';
 
 interface MissionCardProps {
   title: string;
-  subTitle: string;
+  subTitle?: string;
   description: string;
   status: 'PENDING' | 'UPLOADED';
   variant: 'pink' | 'purple' | 'blue' | 'emerald' | 'amber' | 'violet';
   onClick: () => void;
 }
 
-const MissionCard: React.FC<MissionCardProps> = ({ 
-  title, subTitle, description, status, variant, onClick 
+const MissionCard: React.FC<MissionCardProps> = ({
+  title, subTitle, description, status, variant, onClick
 }) => {
   const isCompleted = status === 'UPLOADED';
 
   return (
-    <div 
+    <div
       onClick={onClick}
       className={cn(
         "relative w-full p-8 rounded-[32px] flex items-center justify-between transition-all duration-300 border-2 shadow-xl cursor-pointer group",
-        isCompleted 
-          ? "border-green-400 bg-green-50/50" 
+        isCompleted
+          ? "border-green-400 bg-green-50/50"
           : "border-gray-50 bg-white hover:border-indigo-300 hover:shadow-indigo-100"
       )}
     >
       <div className="flex items-center gap-6">
         {/* ✅ 개량된 CardIcon 사용 */}
         <CardIcon variant={variant} />
-        
+
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
             <h3 className="text-gray-800 text-2xl font-bold">{title}</h3>

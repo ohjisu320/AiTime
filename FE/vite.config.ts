@@ -1,10 +1,9 @@
 import { defineConfig } from 'vite'
 import path from 'path'
-import { fileURLToPath } from 'url' // 1. 이 줄 추가
+import { fileURLToPath } from 'url'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 
-// 2. __dirname을 요즘 방식(ESM)으로 직접 만들어주는 코드
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
@@ -51,23 +50,28 @@ export default defineConfig({
       },
     },
   },
+  // 1. 개발 서버 설정 (npm run dev)
   server: {
     proxy: {
       '/api': {
         target: 'http://70.12.246.92:8080',
         changeOrigin: true,
         secure: false,
-        cookieDomainRewrite: {
-          "*": ""
-        },
-        cookiePathRewrite: {
-          "*": "/"
-        },
         configure: (proxy, _options) => {
           proxy.on('proxyReq', (proxyReq, req, _res) => {
             proxyReq.setHeader('Origin', 'http://70.12.246.92:8080');
           });
         },
+      },
+    },
+  },
+  // 2. 프리뷰 서버 설정 (npm run preview) - 이 부분을 추가하세요!
+  preview: {
+    proxy: {
+      '/api': {
+        target: 'https://i14a501.p.ssafy.io',
+        changeOrigin: true,
+        secure: false,
       },
     },
   },

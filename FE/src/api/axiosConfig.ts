@@ -23,6 +23,7 @@ api.interceptors.request.use(
         if (token && config.headers) {
             config.headers.Authorization = `Bearer ${token}`;
         }
+        console.log(`🚀 [Axios Request] ${config.method?.toUpperCase()} ${config.url}`, config.data ? config.data : "");
         return config;
     },
     (error: AxiosError) => {
@@ -107,42 +108,19 @@ const getRefreshEndpoint = (): string => {
 
 api.interceptors.response.use(
     (response) => {
+        console.log(`✅ [Axios Response] ${response.status} ${response.config.url}`, response.data);
         return response;
     },
     async (error: AxiosError<ApiError>) => {
-        console.log('🔥 Error occurred:', {
-            status: error.response?.status,
-            url: error.config?.url,
-            hasConfig: !!error.config,
-            _retry: (error.config as any)?._retry
-        });
-
+        console.error(`🔥 [Axios Error] ${error.config?.method?.toUpperCase()} ${error.config?.url}`, error.message, error.response?.data);
         const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
-        // originalRequest가 없는 경우 방어 처리
-        if (!originalRequest) {
-            console.error('❌ No original request found');
-            return Promise.reject(error);
-        }
+        // 401 에러이고, 아직 재시도하지 않은 요청인 경우
+        const isLoginRequest = originalRequest.url?.includes('/user/login') || originalRequest.url?.includes('/hospital-staff/login');
 
-        const isLoginRequest = originalRequest.url?.includes('/user/login') ||
-            originalRequest.url?.includes('/hospital-staff/login');
-
-        // 401 에러 상세 로그
-        if (error.response?.status === 401) {
-            console.log('🔍 401 Error detected:', {
-                url: originalRequest.url,
-                isLoginRequest,
-                _retry: originalRequest._retry,
-                willAttemptRefresh: !originalRequest._retry && !isLoginRequest
-            });
-        }
-
-        // 401 에러이고, 아직 재시도하지 않은 요청이며, 로그인 요청이 아닌 경우
         if (error.response?.status === 401 && !originalRequest._retry && !isLoginRequest) {
             // 이미 토큰 갱신 중이면 대기열에 추가
             if (isRefreshing) {
-                console.log('⏳ Already refreshing token, adding request to queue...');
                 return new Promise((resolve, reject) => {
                     failedQueue.push({ resolve, reject });
                 })
@@ -161,25 +139,21 @@ api.interceptors.response.use(
             isRefreshing = true;
 
             try {
-                const refreshEndpoint = getRefreshEndpoint();
-                console.log(`🔄 Attempting to refresh access token via ${refreshEndpoint}...`);
+                console.log('🔄 Refreshing access token...');
 
                 // refreshToken은 cookie로 자동 전송됨 (withCredentials: true)
-                const response = await axios.post<ApiResponse<RefreshResponse>>(
+                const refreshEndpoint = getRefreshEndpoint();
+                const response = await axios.post<ApiResponse<{ accessToken: string }>>(
                     `${import.meta.env.VITE_API_BASE_URL}${refreshEndpoint}`,
                     {},
                     { withCredentials: true }
                 );
 
                 if (response.data.code === 200 && response.data.data) {
-                    const { accessToken: newAccessToken, userInfoDTO } = response.data.data;
+                    const { accessToken: newAccessToken } = response.data.data;
 
                     // 새 Access Token 저장
                     localStorage.setItem('accessToken', newAccessToken);
-
-                    // 사용자 정보 업데이트
-                    localStorage.setItem('user', JSON.stringify(userInfoDTO));
-
                     console.log('✅ Token refreshed successfully');
 
                     // 대기 중인 요청들 처리
@@ -195,12 +169,6 @@ api.interceptors.response.use(
                 }
             } catch (refreshError) {
                 console.error('❌ Token refresh failed:', refreshError);
-
-                // RefreshToken도 만료된 경우 확인
-                if (axios.isAxiosError(refreshError) && refreshError.response?.status === 401) {
-                    console.log('🔐 RefreshToken expired or invalid, logging out...');
-                }
-
                 processQueue(refreshError as Error, null);
 
                 // 토큰 갱신 실패 시 로그아웃 처리
