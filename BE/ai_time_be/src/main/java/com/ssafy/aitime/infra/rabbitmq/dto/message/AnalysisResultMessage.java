@@ -1,5 +1,6 @@
 package com.ssafy.aitime.infra.rabbitmq.dto.message;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -41,6 +42,7 @@ public class AnalysisResultMessage {
     private AdosData ados;
 
     // Task 번호를 videoType에서 추출
+    @JsonIgnore
     public Integer getTaskNo() {
         if (videoType == null) return null;
 
