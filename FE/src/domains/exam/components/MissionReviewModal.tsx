@@ -7,6 +7,7 @@ import {
     DialogOverlay,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { cn } from '@/lib/utils';
 import { videoApi } from '@/domains/video/api/videoApi';
 import Swal from 'sweetalert2';
 
@@ -18,6 +19,7 @@ interface MissionReviewModalProps {
     videoId: string;
     onRetake: () => void;
     onDelete: () => void;
+    isCompleted?: boolean; // ✅ 완료 여부 추가
 }
 
 const MissionReviewModal: React.FC<MissionReviewModalProps> = ({
@@ -27,7 +29,8 @@ const MissionReviewModal: React.FC<MissionReviewModalProps> = ({
     examId,
     videoId,
     onRetake,
-    onDelete
+    onDelete,
+    isCompleted = false // ✅ 기본값 설정
 }) => {
     const [videoUrl, setVideoUrl] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -92,7 +95,9 @@ const MissionReviewModal: React.FC<MissionReviewModalProps> = ({
                             {title} 완료
                         </DialogTitle>
                         <p className="text-gray-500">
-                            촬영된 영상을 확인하거나 다시 촬영할 수 있습니다.
+                            {isCompleted
+                                ? "이미 제출된 검사입니다. 촬영된 영상을 확인할 수 있습니다."
+                                : "촬영된 영상을 확인하거나 다시 촬영할 수 있습니다."}
                         </p>
                     </DialogHeader>
 
@@ -128,18 +133,23 @@ const MissionReviewModal: React.FC<MissionReviewModalProps> = ({
                         </Button>
                     )}
 
-                    {/* 경고 문구 (항상 표시) */}
-                    <p className="text-xs text-rose-500 text-center font-medium mt-2 mb-2">
-                        ※ 재촬영 혹은 삭제 시 기존 영상은 복구할 수 없습니다.
+                    {/* 경고 문구 */}
+                    <p className={cn(
+                        "text-xs text-center font-medium mt-2 mb-2",
+                        isCompleted ? "text-amber-600" : "text-rose-500"
+                    )}>
+                        {isCompleted
+                            ? "※ 이미 제출된 검사는 수정하거나 삭제할 수 없습니다."
+                            : "※ 재촬영 혹은 삭제 시 기존 영상은 복구할 수 없습니다."}
                     </p>
 
                     <div className="flex gap-2">
                         {/* 2. 재촬영 */}
                         <Button
                             onClick={handleRetakeVideo}
-                            disabled={isLoading}
+                            disabled={isLoading || isCompleted}
                             variant="outline"
-                            className="flex-1 h-12 border-2 border-indigo-100 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-bold rounded-xl"
+                            className="flex-1 h-12 border-2 border-indigo-100 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isLoading ? "..." : "재촬영"}
                         </Button>
@@ -147,9 +157,9 @@ const MissionReviewModal: React.FC<MissionReviewModalProps> = ({
                         {/* 3. 삭제 */}
                         <Button
                             onClick={handleDeleteVideo}
-                            disabled={isLoading}
+                            disabled={isLoading || isCompleted}
                             variant="outline"
-                            className="flex-1 h-12 border-2 border-red-100 bg-red-50 text-red-600 hover:bg-red-100 font-bold rounded-xl"
+                            className="flex-1 h-12 border-2 border-red-100 bg-red-50 text-red-600 hover:bg-red-100 font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             삭제
                         </Button>

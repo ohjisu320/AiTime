@@ -81,7 +81,7 @@ export const getExamInfo = async (childId: string): Promise<ExamInfoResponse> =>
 
     if (response.data.data) {
         const examInfo = response.data.data;
-
+        console.log('현재 exam 상태:', examInfo.status);
         // examId를 localStorage에 저장
         if (examInfo.examId) {
             localStorage.setItem('examId', examInfo.examId);

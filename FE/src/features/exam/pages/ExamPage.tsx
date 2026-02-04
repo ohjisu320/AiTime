@@ -1,6 +1,5 @@
-// src/domains/exam/pages/ExamPage.tsx
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useBlocker } from 'react-router-dom';
 import { useMediaRecorder } from '@/domains/video/hooks/useMediaRecorder';
 import { useExamUpload } from '@/domains/video/hooks/useExamUpload';
 import type { VideoType } from '@/domains/video/api/videoApi';
@@ -153,6 +152,15 @@ const ExamPage: React.FC = () => {
     navigate('/exam/mission'); // 미션 목록으로 이동
   };
 
+  // 🚫 뒤로가기/이탈 방지 처리
+  // stream이 있고(카메라 켜짐) 완료된 상태가 아니면 무조건 막음
+  const shouldBlock = !!stream && phase !== 'COMPLETED';
+
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      shouldBlock && currentLocation.pathname !== nextLocation.pathname
+  );
+
   return (
     <ExamBaseLayout
       videoRef={videoRef}
@@ -254,6 +262,17 @@ const ExamPage: React.FC = () => {
         confirmText="목록으로 돌아가기"
       />
 
+      {/* 4. 이탈 방지 모달 */}
+      {blocker.state === 'blocked' && (
+        <ConfirmModal
+          isOpen={true}
+          onClose={() => blocker.reset()}
+          onConfirm={() => blocker.proceed()}
+          title="검사를 중단하시겠습니까?"
+          description="페이지를 이동하면 영상이 저장되지 않습니다."
+          confirmText="중단하고 나가기"
+        />
+      )}
     </ExamBaseLayout>
   );
 };

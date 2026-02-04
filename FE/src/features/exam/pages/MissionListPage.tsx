@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MissionCard from '@/domains/exam/components/MissionCard';
-import ConsentHeader from '@/domains/exam/components/Consent/ConsentHeader';
+import ConsentHeader from '@/domains/exam/components/Consent/ConsentHeader'; // ✅ 경로 원복
 import InfoNoticeBox from '@/components/common/InfoNoticeBox';
 import BigActionButton from '@/components/common/BigActionButton';
 import ConfirmModal from '@/components/common/ConfirmModal';
@@ -14,6 +14,7 @@ import MissionReviewModal from '@/domains/exam/components/MissionReviewModal';
 const MissionListPage: React.FC = () => {
   const navigate = useNavigate();
   const [missions, setMissions] = useState<VideoTask[]>([]);
+  const [examStatus, setExamStatus] = useState<string | null>(null); // ✅ 검사 상태 추가
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,8 +30,9 @@ const MissionListPage: React.FC = () => {
           return;
         }
 
-        const { videoTasks } = await getExamInfo(childId);
+        const { videoTasks, status } = await getExamInfo(childId);
         setMissions(sortedMissions(videoTasks));
+        setExamStatus(status); // ✅ 상태 저장
       } catch (err) {
         console.error(err);
         setError("데이터 로드 실패");
@@ -144,11 +146,11 @@ const MissionListPage: React.FC = () => {
               ]}
             />
             <BigActionButton
-              disabled={!isAllDone}
+              disabled={!isAllDone || examStatus === 'COMPLETED'}
               onClick={() => setSubmitModalOpen(true)}
               variant="violet"
             >
-              리포트 전송하기
+              {examStatus === 'COMPLETED' ? '리포트 전송 완료' : '리포트 전송하기'}
             </BigActionButton>
           </div>
         </div>
@@ -161,6 +163,7 @@ const MissionListPage: React.FC = () => {
         examId={localStorage.getItem('examId')}
         // videoType 제거됨
         videoId={recheckModal.videoId} // ✅ 전달
+        isCompleted={examStatus === 'COMPLETED'} // ✅ 완료 여부 전달
         onClose={() => setRecheckModal({ ...recheckModal, isOpen: false })}
         onRetake={handleRecheckConfirm}
         onDelete={() => {
