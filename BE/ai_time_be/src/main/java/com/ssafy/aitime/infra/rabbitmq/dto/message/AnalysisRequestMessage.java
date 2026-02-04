@@ -31,14 +31,14 @@ public class AnalysisRequestMessage {
     private String s3Uri;
 
     // 정적 팩토리 메서드
-    public static AnalysisRequestMessage from(Video video, Long ageMonths) {
+    public static AnalysisRequestMessage from(Video video, Long ageMonths, String presignedUrl) {
         return AnalysisRequestMessage.builder()
                 .examId(video.getExam().getExamId())
                 .videoId(video.getVideoId())
                 .videoType(video.getVideoType().name())
                 .childName(video.getExam().getChild().getName())
                 .ageMonths(ageMonths)
-                .s3Uri(String.format("s3://%s/%s", video.getS3Bucket(), video.getS3Key()))
+                .s3Uri(presignedUrl)
                 .build();
     }
 
