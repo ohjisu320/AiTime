@@ -177,6 +177,13 @@ export const useMissions = (examId?: string) => {
             ageSpecificDetail = { ...ageSpecificDetail, ...detailMeta.common };
           }
 
+
+          // ✅ 월령별 분기 처리 (SCREENING_CONTENT 매핑용)
+          let resolvedVideoType: string = uiVideoType;
+          if (['POSE_IMITATION', 'SPEECH_IMITATION'].includes(uiVideoType)) {
+            resolvedVideoType = `${uiVideoType}${under18 ? '_12M' : '_18M'}`;
+          }
+
           return {
             ...task,
             ...uiMeta,
