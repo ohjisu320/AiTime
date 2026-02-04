@@ -3,7 +3,6 @@ import os
 import tempfile
 import time
 from collections.abc import Callable
-from dataclasses import asdict
 from typing import Any
 
 import numpy as np
@@ -51,7 +50,8 @@ class VideoAnalyzer:
 
         self.vad = SileroVAD(vad_cfg)
         self.detector = FaceDetectorMP(face_cfg)
-        self.facemesh = FaceMeshMP(**asdict(self.face_mesh_cfg))
+        # FaceMeshMP는 기본 파라미터 사용 (별도 config 없음)
+        self.facemesh = FaceMeshMP()
 
         self.window_analyzer = WindowAnalyzer(
             detector=self.detector,

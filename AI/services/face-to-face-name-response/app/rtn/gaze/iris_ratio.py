@@ -129,6 +129,9 @@ class GazeEstimatorIrisRatio:
         # 1) iris ratio로 정규화된 방향(dx,dy) 추정
         dx, dy = eye_ratio(clm)
 
+        # Y offset 보정 (시선이 약간 아래를 가리키는 문제 해결)
+        dy = dy + self.cfg.gaze_y_offset
+
         # deadzone : 거의 중앙을 보는 것처럼 보이는 작은 값은 0(떨림 억제)
         if abs(dx) < self.cfg.deadzone:
             dx = 0.0

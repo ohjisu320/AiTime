@@ -282,10 +282,14 @@ class WindowAnalyzer:
                 # - parent_margin: 부모는 상대적으로 안정적이라 조금 덜 줌
                 # - child_margin: 아이는 얼굴이 더 작고 움직임이 커서 여유를 더 줌
                 parent_crop, (pox, poy) = crop_face_square(
-                    frame, parent_bbox, margin=self.crop_cfg.parent_margin
+                    frame,
+                    parent_bbox,
+                    margin=0.25,  # parent_margin default
                 )
                 child_crop, (cox, coy) = crop_face_square(
-                    frame, child_bbox, margin=self.crop_cfg.child_margin
+                    frame,
+                    child_bbox,
+                    margin=0.4,  # child_margin default
                 )
 
                 # =========================================================
