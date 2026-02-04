@@ -43,7 +43,7 @@ from typing import Optional, Any
 from datetime import datetime
 from dataclasses import dataclass, asdict, field
 
-from app.config import settings
+from app.config import settings, get_emotion_config
 from app.pipeline.video_processor import VideoProcessor
 from app.pipeline.pose_extractor import PoseExtractor
 from app.pipeline.normalizer import PoseNormalizer
@@ -53,6 +53,23 @@ from app.pipeline.exceptions import (
     PipelineError,
     InvalidInputError
 )
+
+# 표정 분석 모듈 (Lazy Loading)
+_expression_analyzer = None
+
+def _get_expression_analyzer():
+    """ExpressionAnalyzer 지연 로딩"""
+    global _expression_analyzer
+    if _expression_analyzer is None:
+        try:
+            from app.pipeline.emotion import ExpressionAnalyzer
+            emotion_config = get_emotion_config()
+            _expression_analyzer = ExpressionAnalyzer(emotion_config)
+            logger.info("✅ ExpressionAnalyzer 로드 성공")
+        except Exception as e:
+            logger.warning(f"⚠️ ExpressionAnalyzer 로드 실패: {e}")
+            _expression_analyzer = None
+    return _expression_analyzer
 
 logger = logging.getLogger(__name__)
 

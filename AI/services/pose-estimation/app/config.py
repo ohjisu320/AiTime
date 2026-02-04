@@ -6,9 +6,55 @@
 하드코딩된 매직 넘버를 제거하고 중앙 집중식으로 관리합니다.
 """
 
+import os
+from dataclasses import dataclass
 from pydantic_settings import BaseSettings
 from pydantic import Field, field_validator
 from typing import Literal
+
+
+# =========================================================================
+# 표정 분석 설정 (Emotion Analysis) - 환경 변수에서 로드
+# =========================================================================
+@dataclass(frozen=True)
+class EmotionConfig:
+    """
+    표정 분석 설정.
+    
+    환경 변수에서 로드되며, 기본값이 제공됩니다.
+    
+    Attributes:
+        enable: 표정 분석 활성화 여부
+        skip_frames: 프레임 샘플링 간격
+        min_face_size: 최소 얼굴 크기 (픽셀)
+        model_name: 표정 인식 모델 이름
+        joy_threshold: ADOS B6 판정 임계값 (Happiness 비율 >= 이 값이면 B6=True)
+        face_confidence_threshold: 얼굴 탐지 신뢰도 임계값
+    """
+    enable: bool = True
+    skip_frames: int = 5
+    min_face_size: int = 64
+    model_name: str = "enet_b0_8_best_vgaf"
+    joy_threshold: float = 0.1
+    face_confidence_threshold: float = 0.9
+    
+    @classmethod
+    def from_env(cls) -> "EmotionConfig":
+        """환경 변수에서 설정 로드"""
+        return cls(
+            enable=os.getenv("EMOTION_ENABLE", "true").lower() == "true",
+            skip_frames=int(os.getenv("EMOTION_SKIP_FRAMES", "5")),
+            min_face_size=int(os.getenv("EMOTION_MIN_FACE_SIZE", "64")),
+            model_name=os.getenv("EMOTION_MODEL_NAME", "enet_b0_8_best_vgaf"),
+            joy_threshold=float(os.getenv("EMOTION_JOY_THRESHOLD", "0.1")),
+            face_confidence_threshold=float(os.getenv("EMOTION_FACE_CONFIDENCE_THRESHOLD", "0.9")),
+        )
+
+
+# 전역 EmotionConfig 인스턴스 (환경 변수에서 로드)
+def get_emotion_config() -> EmotionConfig:
+    """EmotionConfig 싱글톤 반환"""
+    return EmotionConfig.from_env()
 
 
 class Settings(BaseSettings):
