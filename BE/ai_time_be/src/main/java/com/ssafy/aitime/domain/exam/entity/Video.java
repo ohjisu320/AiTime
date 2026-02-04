@@ -21,7 +21,13 @@ import java.util.UUID;
         uniqueConstraints = @UniqueConstraint(
                 name = "uk_video_exam_type",
                 columnNames = {"exam_id", "video_type"}
-        )
+        ),
+        indexes = {
+            @Index(
+                    name = "idx_video_exam_status",
+                    columnList = "exam_id, analysis_status"
+            )
+        }
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Video extends AuditableEntity {
