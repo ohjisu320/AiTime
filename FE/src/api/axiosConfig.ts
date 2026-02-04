@@ -41,18 +41,7 @@ interface QueueItem {
 }
 
 // API 응답 타입 정의 (명세에 맞게)
-interface RefreshResponse {
-    accessToken: string;
-    userInfoDTO: {
-        userId: string;
-        loginId: string;
-        name: string;
-        email: string;
-        phoneNumber: string;
-        role: string;
-        staffRole?: string;  // 병원 직원인 경우
-    };
-}
+
 
 let isRefreshing = false;
 let failedQueue: QueueItem[] = [];
