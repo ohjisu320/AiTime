@@ -2,6 +2,8 @@ package com.ssafy.aitime.domain.exam.service;
 
 import com.ssafy.aitime.domain.exam.entity.Exam;
 import com.ssafy.aitime.domain.exam.entity.Video;
+import com.ssafy.aitime.domain.exam.exception.PresignedUrlGenerationException;
+import com.ssafy.aitime.domain.exam.exception.S3FileVerificationException;
 import com.ssafy.aitime.domain.exam.repository.ExamRepository;
 import com.ssafy.aitime.domain.exam.repository.VideoRepository;
 import com.ssafy.aitime.infra.rabbitmq.dto.message.AnalysisRequestMessage;
@@ -25,6 +27,7 @@ public class VideoAnalysisServiceImpl implements VideoAnalysisService {
     private final ExamRepository examRepository;
     private final VideoRepository videoRepository;
     private final AnalysisPublisher analysisPublisher;
+    private final VideoService videoService;
 
     @Override
     @Transactional
@@ -86,8 +89,26 @@ public class VideoAnalysisServiceImpl implements VideoAnalysisService {
         video.requestAnalysis("v1.0"); // 모델 버전
         videoRepository.save(video);
 
-        // 3. RabbitMQ로 메시지 발행
-        AnalysisRequestMessage message = AnalysisRequestMessage.from(video, ageMonths);
+        // 3. url 생성 전 S3 파일 존재 확인
+        boolean fileExists = videoService.verifyS3FileExists(video.getS3Bucket(), video.getS3Key());
+        if (!fileExists) {
+            log.error("S3 파일이 존재하지 않음 - bucket: {}, Key: {}", video.getS3Bucket(), video.getS3Key());
+            throw new S3FileVerificationException(video.getS3Key());
+        }
+
+        // 4. Presigned GET URL 생성
+        int expiresInSec = 3600;
+        String presignedUrl = videoService.generatePresignedGetUrl(video.getS3Bucket(), video.getS3Key(), expiresInSec);
+
+        // 5. Presigned url 생성 오류
+        if (presignedUrl == null || presignedUrl.isEmpty()) {
+            log.error("Presigned URL 생성 실패 - bucket: {}, key: {}",
+                    video.getS3Bucket(), video.getS3Key());
+            throw new PresignedUrlGenerationException(video.getS3Bucket(), video.getS3Key());
+        }
+
+        // 6. RabbitMQ로 메시지 발행
+        AnalysisRequestMessage message = AnalysisRequestMessage.from(video, ageMonths, presignedUrl);
         analysisPublisher.publishAnalysisRequest(message);
 
         log.info("✅ 영상 분석 요청 - videoId: {}, taskNo: {}",
