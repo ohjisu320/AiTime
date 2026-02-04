@@ -11,9 +11,18 @@ class VADConfig:
 
 
 @dataclass(frozen=True)
+class YOLOConfig:
+    model_path: str = "app/assets/models/yolov11n-face.onnx"
+    input_size: int = 640
+    conf_thres: float = 0.5
+    iou_thres: float = 0.45
+
+
+@dataclass(frozen=True)
 class FaceDetConfig:
     min_conf: float = 0.6
-    model_selection: int = 0  # MediaPipe FaceDetection: 0/1
+    model_selection: int = 1  # 0: MediaPipe, 1: YOLOv11n-face
+    yolo_cfg: YOLOConfig = YOLOConfig()
 
 
 @dataclass(frozen=True)
