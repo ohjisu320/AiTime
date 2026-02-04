@@ -7,7 +7,7 @@ torchaudio==2.9.1
 
 # your deps
 opencv-python
-mediapipe==0.10.9
+mediapipe==0.10.14
 numpy
 scipy
 packaging
@@ -22,4 +22,4 @@ pika>=1.3.2
 # Emotion Extraction
 EmotiEffLib>=0.1.0
 onnxruntime>=1.15.0
-timm
+timm>=0.9.0,<1.0
