@@ -3,6 +3,7 @@ from collections.abc import Callable
 from app.rtn.config import (
     AnalysisConfig,
     ContactConfig,
+    EmotionConfig,
     FaceDetConfig,
     GazeSmoothConfig,
     ROIConfig,
@@ -24,6 +25,10 @@ def build_analyzer(
     conf: float = 0.6,
     debug: bool = False,
     fps_override: float | None = None,
+    # Emotion
+    emotion_enable: bool = True,
+    emotion_skip_frames: int = 5,
+    emotion_model: str = "enet_b0_8_best_vgaf",
     debug_publish: Callable[[FrameBGR], None] | None = None,
 ) -> VideoAnalyzer:
     vad_cfg = VADConfig(
@@ -70,6 +75,12 @@ def build_analyzer(
         window_s=window_s, debug=debug, fps_override=fps_override
     )
 
+    emotion_cfg = EmotionConfig(
+        enable=emotion_enable,
+        skip_frames=emotion_skip_frames,
+        model_name=emotion_model,
+    )
+
     return VideoAnalyzer(
         vad_cfg=vad_cfg,
         face_cfg=face_cfg,
@@ -79,6 +90,7 @@ def build_analyzer(
         gaze_cfg=gaze_cfg,
         contact_cfg=contact_cfg,
         analysis_cfg=analysis_cfg,
+        emotion_cfg=emotion_cfg,
         conf_th=conf,
         debug_publish=debug_publish,
     )

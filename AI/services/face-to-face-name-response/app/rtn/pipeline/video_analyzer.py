@@ -12,6 +12,7 @@ from app.rtn.audio.vad_silero import SileroVAD
 from app.rtn.config import (
     AnalysisConfig,
     ContactConfig,
+    EmotionConfig,
     FaceDetConfig,
     GazeSmoothConfig,
     ROIConfig,
@@ -39,11 +40,13 @@ class VideoAnalyzer:
         gaze_cfg: GazeSmoothConfig,
         contact_cfg: ContactConfig,
         analysis_cfg: AnalysisConfig,
+        emotion_cfg: EmotionConfig,
         conf_th: float,
         debug_publish: Callable[[FrameBGR], None] | None = None,
     ) -> None:
         self.vad_cfg = vad_cfg
         self.analysis_cfg = analysis_cfg
+        self.emotion_cfg = emotion_cfg
 
         self.vad = SileroVAD(vad_cfg)
         self.detector = FaceDetectorMP(face_cfg)
@@ -58,6 +61,7 @@ class VideoAnalyzer:
             gaze_cfg=gaze_cfg,
             contact_cfg=contact_cfg,
             analysis_cfg=analysis_cfg,
+            emotion_cfg=emotion_cfg,
             conf_th=conf_th,
             debug_publish=debug_publish,
         )
@@ -168,6 +172,8 @@ class VideoAnalyzer:
                     "success": r.success,
                     "latency_s": r.latency_s,
                     "gaze_duration_s": r.gaze_duration_s,
+                    "dominant_emotion": r.dominant_emotion,
+                    "emotion_distribution": r.emotion_distribution,
                 }
                 for r in results
             ],
