@@ -275,9 +275,9 @@ export default function AiDiagnosisPanel({ onExpandAdos, patientAge }: Props) {
         </div>
       </WindowsContainer>
 
-      {/* 하단 진단 판정 */}
-      <div className="flex flex-col gap-[2px] shrink-0 h-[400px]">
-        <div className="bg-white border border-[#808080] p-[5px] text-center shrink-0">
+      {/* 하단 진단 판정 + 저장 버튼 */}
+      <div className="flex flex-col gap-[2px] shrink-0">
+        <div className="bg-white border border-[#808080] p-[5px] text-center">
           <div className="bg-[#d4d0c8] font-bold p-1 mb-[5px] text-black">
             AI 진단 판정
           </div>
@@ -285,19 +285,9 @@ export default function AiDiagnosisPanel({ onExpandAdos, patientAge }: Props) {
             ASD High Risk
           </div>
         </div>
-        <WindowsContainer className="flex-1 flex flex-col min-h-0">
-          <div className="bg-[#d4d0c8] font-bold p-1 mb-[5px] text-black">
-            진단 근거 및 상세 설명
-          </div>
-          <textarea
-            readOnly
-            className="flex-1 w-full resize-none bg-[#f0f0f0] border border-[#808080] p-[10px] text-[12px] font-['Gulim'] leading-relaxed outline-none"
-            value={`[AI 분석 근거]\n환자 월령(${patientAge}개월) - ${groupLabel} 기준 분석.\n...`}
-          />
-          <WindowsButton className="mt-[5px] w-full h-[40px] font-bold text-[12px]">
-            리포트 생성 및 전송
-          </WindowsButton>
-        </WindowsContainer>
+        <WindowsButton className="w-full h-[40px] font-bold text-[12px]">
+          저장하기
+        </WindowsButton>
       </div>
     </div>
   );

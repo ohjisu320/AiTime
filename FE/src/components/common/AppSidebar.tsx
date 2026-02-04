@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { LogOut, ChevronLeft, ChevronRight, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+
 interface AppSidebarProps {
   selectedDate: Date;
   onDateSelect: (date: Date) => void;
@@ -77,10 +78,8 @@ export default function AppSidebar({
   return (
     <aside className="w-[280px] h-screen bg-white border-r border-gray-200 flex flex-col flex-none sticky top-0 z-50">
       {/* 로고 영역 */}
-      <div className="h-16 flex items-center px-6 border-b border-gray-100">
-        <div className="w-8 h-8 bg-[#5A55D6] rounded-lg flex items-center justify-center text-white font-bold text-xs mr-2">
-          Ai
-        </div>
+      <div className="h-16 flex items-center px-6 border-b border-gray-100" onClick={() => navigate('/')}>
+        <img src="/parentLogo.svg" alt="parentLogo" />
         <div className="flex flex-col">
           <span className="text-lg font-bold text-[#1A1A1A] leading-none">
             AiTime

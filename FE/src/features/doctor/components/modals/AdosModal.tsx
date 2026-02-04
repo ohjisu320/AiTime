@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback, type MouseEvent } from "react";
 import { WindowsButton } from "../layout/WindowsLayout";
 import { cn } from "@/lib/utils";
 import type { AdosItemDefinition, AdosAiResult } from "../../types/ados";
@@ -210,6 +210,32 @@ export default function AdosModal({ onClose, patientAge }: Props) {
 
   const [isVerbal, setIsVerbal] = useState<boolean>(patientAge > 21);
 
+  // 드래그 상태
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
+  // 드래그 핸들러
+  const handleMouseDown = useCallback((e: MouseEvent<HTMLDivElement>) => {
+    setIsDragging(true);
+    setDragStart({
+      x: e.clientX - position.x,
+      y: e.clientY - position.y,
+    });
+  }, [position]);
+
+  const handleMouseMove = useCallback((e: MouseEvent<HTMLDivElement>) => {
+    if (!isDragging) return;
+    setPosition({
+      x: e.clientX - dragStart.x,
+      y: e.clientY - dragStart.y,
+    });
+  }, [isDragging, dragStart]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
   const currentItems = useMemo(() => {
     if (patientAge >= 12 && patientAge <= 21) {
       return MASTER_ADOS_ITEMS.filter((item) =>
@@ -219,8 +245,8 @@ export default function AdosModal({ onClose, patientAge }: Props) {
     return isVerbal
       ? MASTER_ADOS_ITEMS.filter((item) => CODES_VERBAL.includes(item.code))
       : MASTER_ADOS_ITEMS.filter((item) =>
-          CODES_PRE_VERBAL.includes(item.code),
-        );
+        CODES_PRE_VERBAL.includes(item.code),
+      );
   }, [patientAge, isVerbal]);
 
   const handleScoreChange = (code: string, value: string) => {
@@ -248,13 +274,24 @@ export default function AdosModal({ onClose, patientAge }: Props) {
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
       onClick={onClose}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
     >
       <div
         className="w-[900px] h-[90%] bg-[#d4d0c8] border-2 border-white border-r-[#404040] border-b-[#404040] p-1 flex flex-col shadow-xl"
+        style={{
+          transform: `translate(${position.x}px, ${position.y}px)`,
+        }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="bg-[#000080] text-white px-2 py-1 flex justify-between items-center font-bold mb-1 select-none shrink-0">
-          <span>ADOS-2 진단 결과 입력표 (Module T)</span>
+        {/* 드래그 가능한 타이틀바 */}
+        <div
+          className="bg-[#000080] text-white px-2 py-1 flex justify-between items-center font-bold mb-1 select-none shrink-0"
+          style={{ cursor: isDragging ? "grabbing" : "grab" }}
+          onMouseDown={handleMouseDown}
+        >
+          <span>ADOS-2 진단 결과 입력표 (드래그하여 이동)</span>
           <WindowsButton className="text-black" onClick={onClose}>
             X 닫기
           </WindowsButton>

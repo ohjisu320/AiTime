@@ -70,26 +70,32 @@ const VideoPreview: React.FC<VideoPreviewProps> = ({
 
       {/* 1. 얼굴 가이드 (보내주신 점선 원 구조) */}
       {!isRecording && (
-        <div className="absolute inset-0 flex items-center justify-center gap-24">
-          {/* 보호자 가이드 */}
-          <div className="relative flex flex-col items-center gap-4">
+        <div className="absolute inset-0 pointer-events-none flex">
+          {/* 중앙 분리선 */}
+          <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-white/50 border-r border-dashed border-white/50 -translate-x-1/2 z-10" />
+
+          {/* 왼쪽: 보호자 영역 */}
+          <div className="flex-1 relative border-r border-white/20 flex flex-col items-center justify-center">
             <div className={cn(
-              "w-[260px] h-[260px] rounded-full border-4 border-dashed flex items-center justify-center transition-all duration-500",
-              isAligned ? "border-emerald-400 bg-emerald-400/10 shadow-[0_0_30px_rgba(52,211,153,0.3)]" : "border-white/60"
+              "absolute top-10 left-10 right-10 bottom-20 rounded-3xl border-4 border-dashed transition-all duration-500 flex items-center justify-center",
+              isAligned ? "border-emerald-400 bg-emerald-400/5" : "border-white/30"
             )}>
-              <span className="text-white font-bold text-center leading-tight drop-shadow-md">
-                보호자 얼굴을<br />원 안에 맞춰주세요
+              <span className="text-white text-xl font-bold text-center leading-relaxed drop-shadow-md bg-black/20 px-6 py-3 rounded-2xl backdrop-blur-sm">
+                보호자 영역<br />
+                <span className="text-sm opacity-80 font-normal">왼쪽 반 화면에 맞춰주세요</span>
               </span>
             </div>
           </div>
-          {/* 아이 가이드 */}
-          <div className="relative flex flex-col items-center gap-4 mt-20">
+
+          {/* 오른쪽: 자녀 영역 */}
+          <div className="flex-1 relative flex flex-col items-center justify-center">
             <div className={cn(
-              "w-[200px] h-[200px] rounded-full border-4 border-dashed flex items-center justify-center transition-all duration-500",
-              isAligned ? "border-emerald-400 bg-emerald-400/10 shadow-[0_0_30px_rgba(52,211,153,0.3)]" : "border-white/60"
+              "absolute top-10 left-10 right-10 bottom-20 rounded-3xl border-4 border-dashed transition-all duration-500 flex items-center justify-center",
+              isAligned ? "border-emerald-400 bg-emerald-400/5" : "border-white/30"
             )}>
-              <span className="text-white text-sm font-bold text-center leading-tight drop-shadow-md">
-                아이 얼굴을<br />원 안에 맞춰주세요
+              <span className="text-white text-xl font-bold text-center leading-relaxed drop-shadow-md bg-black/20 px-6 py-3 rounded-2xl backdrop-blur-sm">
+                아이 영역<br />
+                <span className="text-sm opacity-80 font-normal">오른쪽 반 화면에 맞춰주세요</span>
               </span>
             </div>
           </div>
