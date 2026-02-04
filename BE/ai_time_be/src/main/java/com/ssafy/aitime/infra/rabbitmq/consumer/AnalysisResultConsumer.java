@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ssafy.aitime.domain.exam.entity.Video;
 import com.ssafy.aitime.domain.exam.entity.enums.VideoType;
 import com.ssafy.aitime.domain.exam.repository.VideoRepository;
+import com.ssafy.aitime.domain.exam.service.AdosCalculationService;
 import com.ssafy.aitime.domain.exam.service.ResultSaveService;
 import com.ssafy.aitime.infra.rabbitmq.dto.message.AnalysisResultMessage;
 import lombok.extern.slf4j.Slf4j;
@@ -21,14 +22,17 @@ public class AnalysisResultConsumer {
     private final ObjectMapper objectMapper;
     private final VideoRepository videoRepository;
     private final ResultSaveService resultSaveService;
+    private final AdosCalculationService adosCalculationService;
 
     public AnalysisResultConsumer(
             @Qualifier("rabbitObjectMapper") ObjectMapper objectMapper,
             VideoRepository videoRepository,
-            ResultSaveService resultSaveService) {
+            ResultSaveService resultSaveService,
+            AdosCalculationService adosCalculationService) {
         this.objectMapper = objectMapper;
         this.videoRepository = videoRepository;
         this.resultSaveService = resultSaveService;
+        this.adosCalculationService = adosCalculationService;
     }
 
     @RabbitListener(queues = "analysis.resp")
@@ -70,6 +74,7 @@ public class AnalysisResultConsumer {
             // 5. 결과에 따라 처리
             if (isSuccess(result)) {
                 handleSuccess(video, result);
+                tryCalculateAdos(video.getExam().getExamId());
             } else {
                 handleFailure(video, result);
             }
@@ -118,5 +123,20 @@ public class AnalysisResultConsumer {
 
         log.warn("⚠️ 분석 실패 처리 완료 - videoId: {}, reason: {}",
                 video.getVideoId(), errorMessage);
+    }
+
+    /**
+     * ADOS 계산 시도
+     *
+     * 4개 영상이 모두 분석 완료되면 ADOS 계산
+     */
+    private void tryCalculateAdos(UUID examId) {
+        try {
+            log.info(">>> ADOS 계산 시도 - examId: {}", examId);
+            adosCalculationService.calculateAndSaveAdos(examId);
+        } catch (Exception e) {
+            log.error("❌ ADOS 계산 실패 - examId: {}", examId, e);
+            // ADOS 계산 실패해도 메인 플로우는 계속 진행
+        }
     }
 }
