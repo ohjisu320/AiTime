@@ -148,7 +148,7 @@ export const useMissions = (examId?: string) => {
   useEffect(() => {
     const accessToken = localStorage.getItem('accessToken');
     // ✅ childId 또는 selectedChildId 확인 (프로필 선택 시 selectedChildId로 저장됨)
-    const childId = localStorage.getItem('selectedChildId') || localStorage.getItem('childId');
+    const childId = localStorage.getItem('selectedChildId');
     const hasAuth = !!accessToken && !!childId;
 
     // 모의 데이터 사용 조건

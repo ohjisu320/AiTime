@@ -30,7 +30,7 @@ const ConsentPage = () => {
     setIsLoading(true);
     try {
       // ✅ 1. childId 가져오기
-      const childId = localStorage.getItem('childId') || localStorage.getItem('selectedChildId');
+      const childId = localStorage.getItem('selectedChildId');
       if (!childId) {
         Swal.fire({
           title: '자녀 정보 없음',

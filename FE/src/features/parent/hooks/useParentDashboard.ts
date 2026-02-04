@@ -18,7 +18,7 @@ export const useParentDashboard = () => {
 
       // Get child ID from localStorage
       // Priority: manually set 'childId' > profile-selected 'selectedChildId'
-      const childId = localStorage.getItem('selectedChildId') || localStorage.getItem('childId');
+      const childId = localStorage.getItem('selectedChildId');
 
       if (!childId) {
         console.warn('⚠️ No childId in localStorage. Using TEST_CHILD_ID as fallback for development.');
