@@ -1,51 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MissionCard from '@/domains/exam/components/MissionCard';
 import ConsentHeader from '@/domains/exam/components/Consent/ConsentHeader';
 import InfoNoticeBox from '@/components/common/InfoNoticeBox';
 import BigActionButton from '@/components/common/BigActionButton';
 import ConfirmModal from '@/components/common/ConfirmModal';
-import { startAnalysis, getExamInfo, type VideoTask } from '@/domains/exam/api/examApi';
+import { startAnalysis } from '@/domains/exam/api/examApi';
 import { SCREENING_CONTENT } from '@/domains/exam/constants/missionData';
+import { useMissions } from '@/domains/exam/hooks/useMissions';
 
 import Swal from 'sweetalert2';
 import MissionReviewModal from '@/domains/exam/components/MissionReviewModal';
 
 const MissionListPage: React.FC = () => {
   const navigate = useNavigate();
-  const [missions, setMissions] = useState<VideoTask[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  // 데이터 로드
-  useEffect(() => {
-    const fetchMissions = async () => {
-      try {
-        setIsLoading(true);
-        const childId = localStorage.getItem('selectedChildId') || localStorage.getItem('childId');
+  // 로컬 스토리지에서 examId 가져오기 (새로고침/이어하기 대응)
+  const examId = localStorage.getItem('currentExamId') || undefined;
+  const { missions, isLoading, error } = useMissions(examId);
 
-        if (!childId) {
-          setError("아동 정보가 없습니다.");
-          return;
-        }
 
-        const { videoTasks } = await getExamInfo(childId);
-        setMissions(sortedMissions(videoTasks));
-      } catch (err) {
-        console.error(err);
-        setError("데이터 로드 실패");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchMissions();
-  }, []);
-
-  // 정렬 헬퍼
-  const sortedMissions = (tasks: VideoTask[]) => {
-    const order = ['POSE_IMITATION', 'SPEECH_IMITATION', 'NAME_FACING', 'NAME_NON_FACING'];
-    return [...tasks].sort((a, b) => order.indexOf(a.videoType) - order.indexOf(b.videoType));
-  };
 
   // const [recheckModal, setRecheckModal] = useState({ isOpen: false, title: '', type: '' });
   const [recheckModal, setRecheckModal] = useState({ isOpen: false, title: '', type: '', videoId: '' }); // ✅ videoId 추가

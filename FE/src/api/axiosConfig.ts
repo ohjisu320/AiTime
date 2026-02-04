@@ -22,9 +22,6 @@ api.interceptors.request.use(
         const token = localStorage.getItem('accessToken');
         if (token && config.headers) {
             config.headers.Authorization = `Bearer ${token}`;
-            console.log(`🔑 [Auth] Token attached: ${token.slice(0, 10)}...`);
-        } else {
-            console.warn(`⚠️ [Auth] No Access Token found in localStorage!`);
         }
         console.log(`🚀 [Axios Request] ${config.method?.toUpperCase()} ${config.url}`, config.data ? config.data : "");
         return config;
@@ -42,6 +39,9 @@ interface QueueItem {
     resolve: (value?: unknown) => void;
     reject: (reason?: unknown) => void;
 }
+
+// API 응답 타입 정의 (명세에 맞게)
+
 
 let isRefreshing = false;
 let failedQueue: QueueItem[] = [];
@@ -65,7 +65,7 @@ const processQueue = (error: Error | null = null, token: string | null = null): 
  */
 const handleLogout = (): void => {
     localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
+    // refreshToken은 쿠키로만 관리되므로 localStorage에서 제거 불필요
     localStorage.removeItem('user');
     localStorage.removeItem('selectedChildId');
 
@@ -132,11 +132,16 @@ api.interceptors.response.use(
 
                 // refreshToken은 cookie로 자동 전송됨 (withCredentials: true)
                 const refreshEndpoint = getRefreshEndpoint();
+                const baseUrl = import.meta.env.VITE_API_BASE_URL;
+                console.log(`🔄 [Refresh Debug] BaseURL: ${baseUrl}, Endpoint: ${refreshEndpoint}`);
+
                 const response = await axios.post<ApiResponse<{ accessToken: string }>>(
-                    `${import.meta.env.VITE_API_BASE_URL}${refreshEndpoint}`,
+                    `${baseUrl}${refreshEndpoint}`,
                     {},
                     { withCredentials: true }
                 );
+
+                console.log('🔄 [Refresh Debug] Response:', response.data);
 
                 if (response.data.code === 200 && response.data.data) {
                     const { accessToken: newAccessToken } = response.data.data;
@@ -165,7 +170,13 @@ api.interceptors.response.use(
                 return Promise.reject(refreshError);
             } finally {
                 isRefreshing = false;
+                console.log('🔄 [Refresh Debug] isRefreshing set to false');
             }
+        }
+
+        // 로그인 요청이 실패한 경우
+        if (error.response?.status === 401 && isLoginRequest) {
+            console.log('❌ Login request failed (invalid credentials)');
         }
 
         // 401이 아닌 다른 에러는 그대로 반환

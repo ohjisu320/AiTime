@@ -8,17 +8,15 @@ import ConsentNotice from '@/domains/exam/components/Consent/ConsentNotice';
 import { startExam } from '@/domains/exam/api/examApi';
 import Swal from 'sweetalert2';
 
-
-
 const ConsentPage = () => {
-  const navigate = useNavigate(); // 훅 호출
+  const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
   const [agreements, setAgreements] = useState({
     media: false,     // 1. 영상·음성 수집
     aiUsage: false,   // 2. AI 학습 미사용 고지
     hospital: false,  // 3. 제3자 제공 (병원)
     disclaimer: false // 4. 한계 및 면책
   });
-  const [isLoading, setIsLoading] = useState(false); // ✅ 로딩 상태 추가
 
   const allRequiredAgreed = Object.values(agreements).every(Boolean);
 
@@ -32,7 +30,7 @@ const ConsentPage = () => {
     setIsLoading(true);
     try {
       // ✅ 1. childId 가져오기
-      const childId = localStorage.getItem('childId') || localStorage.getItem('selectedChildId');
+      const childId = localStorage.getItem('selectedChildId');
       if (!childId) {
         Swal.fire({
           title: '자녀 정보 없음',
@@ -48,6 +46,7 @@ const ConsentPage = () => {
 
       // ✅ 3. examId를 localStorage에 저장
       localStorage.setItem('examId', examId);
+      localStorage.setItem('currentExamId', examId);
       console.log(`✅ examId 저장 완료: ${examId}`);
 
       // ✅ 4. 가이드 페이지로 이동
@@ -141,7 +140,7 @@ const ConsentPage = () => {
           variant={allRequiredAgreed ? "default" : "secondary"}
           size="lg"
           className="w-full h-16 mt-10 text-xl"
-          onClick={handleStartExam} // 클릭 이벤트 연결
+          onClick={handleStartExam}
         >
           {isLoading ? "검사 시작 중..." : allRequiredAgreed ? "약관 동의 및 검사 시작" : "모든 필수 항목에 동의해주세요"}
         </Button>

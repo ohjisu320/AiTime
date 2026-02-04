@@ -1,6 +1,6 @@
 // src/domains/exam/pages/ExamPage.tsx
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useBlocker } from 'react-router-dom';
 import { useMediaRecorder } from '@/domains/video/hooks/useMediaRecorder';
 import { useExamUpload } from '@/domains/video/hooks/useExamUpload';
 import type { VideoType } from '@/domains/video/api/videoApi';
@@ -37,6 +37,47 @@ const ExamPage: React.FC = () => {
 
   const TOTAL_DURATION = content.duration || 25; // 각 미션별 시간 적용 (기본 25초)
   const CYCLE_DURATION = 8; // 3초 카운트 + 5초 지시사항
+
+  // 🚫 뒤로가기/이탈 방지 처리
+  const shouldBlock = !!stream && phase !== 'COMPLETED';
+
+  useEffect(() => {
+    console.log(`🛡️ [Guard Check] shouldBlock: ${shouldBlock}, stream: ${!!stream}, phase: ${phase}`);
+
+    // 새로고침/창닫기 방지 (브라우저 레벨)
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (shouldBlock) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [shouldBlock, stream, phase]);
+
+  // React Router 네비게이션 방지
+  const blocker = useBlocker(shouldBlock);
+
+  useEffect(() => {
+    if (blocker.state === 'blocked') {
+      Swal.fire({
+        title: '검사를 중단하시겠습니까?',
+        text: '페이지를 이동하면 영상이 저장되지 않습니다.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: '중단하고 나가기',
+        cancelButtonText: '취소',
+      }).then((result) => {
+        if (result.isConfirmed) {
+          blocker.proceed();
+        } else {
+          blocker.reset();
+        }
+      });
+    }
+  }, [blocker]);
 
   // ✅ 완료 처리 핸들러 (useCallback으로 메모이제이션하고 useEffect보다 위에 정의)
   const handleComplete = useCallback(async () => {
@@ -253,6 +294,8 @@ const ExamPage: React.FC = () => {
         description="검사가 성공적으로 저장되었습니다."
         confirmText="목록으로 돌아가기"
       />
+
+
 
     </ExamBaseLayout>
   );
