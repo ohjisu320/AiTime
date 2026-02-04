@@ -3,7 +3,7 @@ import React from 'react';
 // 1. 인터페이스에 subText 추가 (물음표?를 붙여서 선택 사항으로 만듦)
 interface FullScreenOverlayTextProps {
   text: string;
-  subText?: string; 
+  subText?: string;
 }
 
 export const FullScreenOverlayText: React.FC<FullScreenOverlayTextProps> = ({ text, subText }) => {
@@ -13,10 +13,10 @@ export const FullScreenOverlayText: React.FC<FullScreenOverlayTextProps> = ({ te
       <h1 className="text-9xl font-black text-white drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)] animate-bounce">
         {text}
       </h1>
-      
+
       {/* 2. 서브 텍스트 렌더링 추가 */}
       {subText && (
-        <p className="mt-4 text-3xl font-bold text-white/80 animate-pulse">
+        <p className="mt-8 text-4xl font-bold text-white/90 animate-pulse px-6 text-center max-w-5xl whitespace-pre-line break-keep leading-normal drop-shadow-lg">
           {subText}
         </p>
       )}

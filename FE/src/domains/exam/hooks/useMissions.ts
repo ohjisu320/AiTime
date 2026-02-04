@@ -165,7 +165,6 @@ export const useMissions = (examId?: string) => {
         // 2. 서버 데이터 매핑
         const mergedMissions: Mission[] = videoTasks.map((task: ServerVideoTask) => {
           // 서버 타입(POSE_IMITATION 등)을 그대로 UI 타입으로 사용
-          // 이제 VIDEO_TYPE_MAP 매핑 과정이 불필요함
           const uiVideoType = task.videoType;
 
           const uiMeta = MISSION_UI_META[uiVideoType] || {};
@@ -176,19 +175,26 @@ export const useMissions = (examId?: string) => {
             ageSpecificDetail = { ...ageSpecificDetail, ...detailMeta.common };
           }
 
+
+          // ✅ 월령별 분기 처리 (SCREENING_CONTENT 매핑용)
+          let resolvedVideoType: string = uiVideoType;
+          if (['POSE_IMITATION', 'SPEECH_IMITATION'].includes(uiVideoType)) {
+            resolvedVideoType = `${uiVideoType}${under18 ? '_12M' : '_18M'}`;
+          }
+
           return {
             ...task,
             ...uiMeta,
             detail: ageSpecificDetail,
-            type: uiVideoType,
-            videoType: uiVideoType,
+            type: resolvedVideoType,
+            videoType: resolvedVideoType,
             originalVideoType: task.videoType
           } as Mission;
         });
 
         // 정렬 순서 정의
         const order = ['POSE_IMITATION', 'SPEECH_IMITATION', 'NAME_FACING', 'NAME_NON_FACING'];
-        mergedMissions.sort((a, b) => order.indexOf(a.type) - order.indexOf(b.type));
+        mergedMissions.sort((a, b) => order.indexOf(a.originalVideoType || '') - order.indexOf(b.originalVideoType || ''));
 
         setMissions(mergedMissions);
 
