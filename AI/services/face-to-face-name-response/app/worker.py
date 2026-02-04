@@ -1,10 +1,10 @@
 import base64
 import contextlib
+import datetime
 import json
 import logging
 import os
 import tempfile
-import time
 
 import pika
 import requests
@@ -62,47 +62,44 @@ class FaceNameWorker:
         body: bytes,
     ) -> None:
         """메시지 처리 콜백"""
-        start_time = time.time()
-        task = json.loads(body)
+        try:
+            task = json.loads(body)
+        except json.JSONDecodeError:
+            logger.error("잘못된 JSON 형식 수신: %s", body)
+            ch.basic_ack(delivery_tag=method.delivery_tag)
+            return
 
-        task_id = task.get("task_id", "unknown")
-        logger.info("작업 수신: %s", task_id)
+        # extract identifiers for logging
+        exam_id = task.get("examId", "unknown")
+        video_id = task.get("videoId", "unknown")
+        logger.info("작업 수신: examId=%s videoId=%s", exam_id, video_id)
 
         tmp_path = None
+        analyzed_at = datetime.datetime.now().astimezone().isoformat()
 
         try:
-            # 비디오 로드
+            # 비디오 로드 (S3 Presigned URL 지원)
             video_path = self._load_video(task)
-            tmp_path = video_path if video_path != task.get("video_path") else None
+            # 다운로드된 임시 파일인 경우 나중에 삭제하기 위해 경로 저장
+            if video_path != task.get("video_path"):
+                tmp_path = video_path
 
             # 분석 실행
             result = self.engine.analyzer.analyze(video_path)
 
-            # 결과 발행
-            result_message = {
-                "task_id": task_id,
-                "status": "success",
-                "processing_time_ms": round((time.time() - start_time) * 1000, 2),
-                "result": result,
-                "metadata": task.get("metadata"),
-            }
+            # 결과 매핑 (내부 포맷 -> 요구사항 포맷)
+            output_message = self._format_success_result(task, result, analyzed_at)
 
-            summary = result.get("summary", {}) if isinstance(result, dict) else {}
             logger.info(
-                "작업 %s 완료: success=%s/%s",
-                task_id,
-                summary.get("success_count"),
-                summary.get("total_call_count"),
+                "작업 성공: examId=%s success=%s/%s",
+                exam_id,
+                result.get("summary", {}).get("success_count"),
+                result.get("summary", {}).get("total_call_count"),
             )
 
-        except Exception:
-            result_message = {
-                "task_id": task_id,
-                "status": "failed",
-                "error": str(Exception),
-                "metadata": task.get("metadata"),
-            }
-            logger.exception("작업 %s 실패", task_id)
+        except Exception as e:
+            logger.exception("작업 실패: examId=%s", exam_id)
+            output_message = self._format_error_result(task, str(e), analyzed_at)
 
         finally:
             # 임시 파일 정리
@@ -110,36 +107,98 @@ class FaceNameWorker:
                 with contextlib.suppress(Exception):
                     os.remove(tmp_path)
 
-        self.publish_result(result_message)
+        self.publish_result(output_message)
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
     def _load_video(self, task: dict) -> str:
-        """비디오 로드 (로컬 경로, URL, 또는 Base64)"""
+        """비디오 로드 (s3Uri, video_path 등)"""
+        # 1. 로컬 경로 (개발/텍스트용)
         if "video_path" in task:
             path = task["video_path"]
             if not os.path.exists(path):
                 raise ValueError(f"비디오 경로를 찾을 수 없음: {path}")
             return path
 
-        if "video_url" in task:
-            response = requests.get(task["video_url"], timeout=60)
-            response.raise_for_status()
+        # 2. S3 URI (Presigned URL) 또는 일반 URL
+        s3_uri = task.get("s3Uri")
+        if s3_uri:
+            # URL이 http로 시작하면 다운로드 (Presigned URL 포함)
+            if s3_uri.startswith("http"):
+                logger.info("비디오 다운로드 시작: %s", s3_uri)
+                response = requests.get(s3_uri, timeout=60, stream=True)
+                response.raise_for_status()
 
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp:
-                tmp.write(response.content)
-                return tmp.name
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        tmp.write(chunk)
+                    return tmp.name
 
+            # (혹시나) 로컬 경로로 들어온 경우
+            if os.path.exists(s3_uri):
+                return s3_uri
+
+        # 3. Base64 (레거시 지원)
         if "video_base64" in task:
             video_data = base64.b64decode(task["video_base64"])
-
             with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp:
                 tmp.write(video_data)
                 return tmp.name
 
-        raise ValueError(
-            "비디오 소스가 제공되지 않음 "
-            "(video_path, video_url, 또는 video_base64 중 하나 필요)"
-        )
+        raise ValueError("유효한 비디오 소스가 없습니다 (s3Uri 또는 video_path 필요)")
+
+    def _format_success_result(
+        self, task: dict, result: dict, analyzed_at: str
+    ) -> dict:
+        """분석 성공 시 결과 포맷팅"""
+
+        # metrics.per_trial 매핑
+        per_trial = []
+        for call in result.get("per_call", []):
+            per_trial.append(
+                {
+                    "trial_index": call["call_index"],
+                    "trial_start_s": call["call_start_s"],
+                    "trial_end_s": call["call_end_s"],
+                    "success": call["success"],
+                    "latency_s": call["latency_s"],
+                    "gaze_duration_s": call["gaze_duration_s"],
+                    "emotion": call["dominant_emotion"],  # null or str
+                }
+            )
+
+        return {
+            "examId": task.get("examId"),
+            "videoId": task.get("videoId"),
+            "videoType": "NAME_FACING",
+            "childName": task.get("childName"),
+            "ageMonths": task.get("ageMonths"),
+            "analyzedAt": analyzed_at,
+            "status": "SUCCESS",
+            "metrics": {"per_trial": per_trial},
+            "ADOS": result.get("ADOS", {}),
+        }
+
+    def _format_error_result(
+        self, task: dict, error_msg: str, analyzed_at: str
+    ) -> dict:
+        """분석 실패 시 결과 포맷팅"""
+        return {
+            "examId": task.get("examId"),
+            "videoId": task.get("videoId"),
+            "videoType": "NAME_FACING",
+            "childName": task.get("childName"),
+            "ageMonths": task.get("ageMonths"),
+            "analyzedAt": analyzed_at,
+            "status": "FAILED",
+            "error": error_msg,
+            "metrics": {"per_trial": []},
+            "ADOS": {
+                "B1": 0,
+                "B4": 0,
+                "B6": False,
+                "B18": False,
+            },  # 실패 시 기본값 (또는 null 처리 정책에 따라 변경 가능)
+        }
 
     def start(self) -> None:
         """워커 시작"""
