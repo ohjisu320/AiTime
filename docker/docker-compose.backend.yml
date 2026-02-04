@@ -3,7 +3,7 @@ services:
     build:
       context: ../BE/ai_time_be
       dockerfile: ../../docker/dockerfiles/Dockerfile.backend
-    container_name: spring-app
+    container_name: spring
     ports:
       - "127.0.0.1:8081:8080"
     env_file:
@@ -12,37 +12,13 @@ services:
       DB_HOST: mysql
       REDIS_HOST: redis
       RABBITMQ_HOST: rabbitmq
-      MINIO_ENDPOINT: http://minio:9000
-      LIVEKIT_URL: http://livekit-server:7880
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT}
+      LIVEKIT_URL: http://livekit:7880
       AI_SERVER_URL: http://screening:8000
       TZ: ${TZ:-Asia/Seoul}
     networks:
       - cmn-network
-    depends_on:
-      livekit:
-        condition: service_healthy
     restart: unless-stopped
-
-  livekit:
-    image: livekit/livekit-server:latest
-    container_name: livekit-server
-    ports:
-      - "127.0.0.1:7880:7880"           # HTTP API
-      - "5443:5443/tcp"                 # TURN (TCP) - 보안 그룹과 일치
-      - "3478:3478/udp"                 # STUN/TURN (UDP) - 보안 그룹과 일치
-      - "16384-32768:16384-32768/udp"  # WebRTC Media - 보안 그룹과 일치
-    volumes:
-      - ./livekit.yaml:/livekit.yaml
-    command: --config /livekit.yaml
-    networks:
-      - cmn-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:7880/"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
 
 networks:
   cmn-network:
