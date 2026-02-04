@@ -561,11 +561,32 @@ class MotionAnalyzer:
             if role_info and reaction_delay_detail:
                 role_info["reaction_delay_detail"] = reaction_delay_detail
             
+            # 아이 동작 감지 여부 확인 (reaction_delay_detail에서)
+            child_action_detected = (
+                reaction_delay_detail is not None and 
+                reaction_delay_detail.get("child_detected", False)
+            )
+            parent_action_detected = (
+                reaction_delay_detail is not None and 
+                reaction_delay_detail.get("parent_detected", False)
+            )
+            
+            # passed 판정: 아이 동작 감지 + 유사도 임계값 통과 모두 필요
+            if not child_action_detected:
+                passed = False
+                fail_reason = "child_action_not_detected"
+            elif not parent_action_detected:
+                passed = False
+                fail_reason = "parent_action_not_detected"
+            else:
+                passed = similarity_result.overall >= threshold
+                fail_reason = None if passed else "similarity_below_threshold"
+            
             result = AnalysisResult(
-                passed=similarity_result.overall >= threshold,
+                passed=passed,
                 similarity_score=similarity_result.overall,
                 reaction_delay_sec=reaction_delay,
-                duration_sec=duration,
+                duration_sec=duration if child_action_detected else None,
                 validity=validity,
                 threshold_used=threshold,
                 action_type=action_type,
@@ -573,6 +594,9 @@ class MotionAnalyzer:
                 processing_time_sec=processing_time,
                 role_info=role_info,
                 details={
+                    "fail_reason": fail_reason,
+                    "child_action_detected": child_action_detected,
+                    "parent_action_detected": parent_action_detected,
                     "upper_body_score": similarity_result.upper_body,
                     "lower_body_score": similarity_result.lower_body,
                     "head_score": similarity_result.head,
