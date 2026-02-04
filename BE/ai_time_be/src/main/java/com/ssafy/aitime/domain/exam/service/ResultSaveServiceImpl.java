@@ -35,31 +35,92 @@ public class ResultSaveServiceImpl implements ResultSaveService {
         List<AnalysisResultMessage.TrialMetric> metrics = result.getMetrics().getPerTrial();
 
         switch (taskNo) {
-            case 1 -> savePoseImitationResult(video, metrics);
-            case 2 -> saveSpeechImitationResult(video, metrics);
-            case 3 -> saveNameFacingResult(video, metrics);
-            case 4 -> saveNameNonFacingResult(video, metrics);
+            case 1 -> savePoseImitationResult(video, metrics, result.getAdos());
+            case 2 -> saveSpeechImitationResult(video, metrics, result.getAdos());
+            case 3 -> saveNameFacingResult(video, metrics, result.getAdos());
+            case 4 -> saveNameNonFacingResult(video, metrics, result.getAdos());
             default -> throw new IllegalArgumentException("Invalid taskNo: " + taskNo);
         }
 
         log.info("✅ 결과 저장 완료 - videoId: {}, taskNo: {}", video.getVideoId(), taskNo);
     }
 
-    // ========== Task 1: 대면 호명반응 ==========
-    private void saveNameFacingResult(Video video, List<AnalysisResultMessage.TrialMetric> metrics) {
-        // 집계 정보 계산
-        int totalCount = metrics.size();
-        long successCount = metrics.stream()
-                .filter(m -> Boolean.TRUE.equals(m.getSuccess()))
-                .count();
-        double successRate = totalCount > 0 ? (double) successCount / totalCount : 0.0;
+    // ========== Task 1: 동작 모방행동 (PoseImitation) ==========
+    private void savePoseImitationResult(Video video, List<AnalysisResultMessage.TrialMetric> metrics,
+                                         AnalysisResultMessage.AdosData adosData) {
+        // Trial 저장 (ADOS 원본 데이터 포함)
+        PoseImitationTrial trial = PoseImitationTrial.builder()
+                .video(video)
+                .adosB6(convertToString(adosData.getB6()))       // TRUE/FALSE
+                .adosA8(convertToString(adosData.getA8()))       // 0-3
+                .adosB18(convertToString(adosData.getB18()))     // TRUE/FALSE
+                .build();
+        poseImitationTrialRepository.save(trial);
 
-        // Trial 저장
+        // Event 저장 (시도별 상세)
+        for (AnalysisResultMessage.TrialMetric metric : metrics) {
+            PoseImitationEvent event = PoseImitationEvent.builder()
+                    .poseImitationTrial(trial)
+                    .trialIndex(metric.getTrialIndex())
+                    .actionType(metric.getActionType())
+                    .success(metric.getSuccess())
+                    .similarityScore(metric.getSimilarityScore())
+                    .parentStartTime(metric.getParentStartTime())
+                    .parentEndTime(metric.getParentEndTime())
+                    .childStartTime(metric.getChildStartTime())
+                    .childEndTime(metric.getChildEndTime())
+                    .latencyS(metric.getLatencyS())
+                    .durationS(metric.getDurationS())
+                    .attentionRatio(metric.getAttentionRatio())
+                    .build();
+            poseImitationEventRepository.save(event);
+        }
+
+        log.debug("동작 모방행동 저장 완료 - trial: {}, events: {}", trial.getPoseImitationTrialId(), metrics.size());
+    }
+
+    // ========== Task 2: 발화 모방행동 (SpeechImitation) ==========
+    private void saveSpeechImitationResult(Video video, List<AnalysisResultMessage.TrialMetric> metrics,
+                                           AnalysisResultMessage.AdosData adosData) {
+        // Trial 저장 (ADOS 원본 데이터 포함)
+        SpeechImitationTrial trial = SpeechImitationTrial.builder()
+                .video(video)
+                .adosA3(convertToString(adosData.getA3()))       // 0-3
+                .adosB18(convertToString(adosData.getB18()))     // TRUE/FALSE
+                .build();
+        speechImitationTrialRepository.save(trial);
+
+        // Event 저장 (시도별 상세)
+        for (AnalysisResultMessage.TrialMetric metric : metrics) {
+            SpeechImitationEvent event = SpeechImitationEvent.builder()
+                    .speechImitationTrial(trial)
+                    .trialIndex(metric.getTrialIndex())
+                    .trialStartS(metric.getTrialStartS())
+                    .trialEndS(metric.getTrialEndS())
+                    .stimulusId(metric.getStimulusId())
+                    .stimulusText(metric.getStimulusText())
+                    .responseDetected(metric.getResponseDetected())
+                    .latencyS(metric.getLatencyS())
+                    .success(metric.getSuccess())
+                    .failureReason(metric.getFailureReason())
+                    .freqAbnormal(metric.getFreqAbnormal())
+                    .build();
+            speechImitationEventRepository.save(event);
+        }
+
+        log.debug("발화 모방행동 저장 완료 - trial: {}, events: {}", trial.getSpeechImitationTrialId(), metrics.size());
+    }
+
+    // ========== Task 3: 대면 호명반응 (NameFacing) ==========
+    private void saveNameFacingResult(Video video, List<AnalysisResultMessage.TrialMetric> metrics,
+                                      AnalysisResultMessage.AdosData adosData) {
+        // Trial 저장 (ADOS 원본 데이터 포함)
         NameFacingTrial trial = NameFacingTrial.builder()
                 .video(video)
-                .totalCallCount(totalCount)
-                .successCount((int) successCount)
-                .successRate(successRate)
+                .adosB1(convertToString(adosData.getB1()))       // 0-3
+                .adosB4(convertToString(adosData.getB4()))       // 0-3
+                .adosB6(convertToString(adosData.getB6()))       // TRUE/FALSE
+                .adosB18(convertToString(adosData.getB18()))     // TRUE/FALSE
                 .build();
         nameFacingTrialRepository.save(trial);
 
@@ -73,6 +134,7 @@ public class ResultSaveServiceImpl implements ResultSaveService {
                     .success(metric.getSuccess())
                     .latencyS(metric.getLatencyS())
                     .gazeDurationS(metric.getGazeDurationS())
+                    .emotion(metric.getEmotion())
                     .build();
             nameFacingEventRepository.save(event);
         }
@@ -80,85 +142,14 @@ public class ResultSaveServiceImpl implements ResultSaveService {
         log.debug("대면 호명반응 저장 완료 - trial: {}, events: {}", trial.getNameFacingTrialId(), metrics.size());
     }
 
-    // ========== Task 2: 발화 모방행동 ==========
-    private void saveSpeechImitationResult(Video video, List<AnalysisResultMessage.TrialMetric> metrics) {
-        // SpeechImitationTrial은 stimulus 정보를 가지고 있어야 하므로
-        // metrics에서 첫 번째 항목의 정보를 사용 (또는 별도 처리 필요)
-
-        for (AnalysisResultMessage.TrialMetric metric : metrics) {
-            // Trial 저장 (stimulus별로 생성)
-            SpeechImitationTrial trial = SpeechImitationTrial.builder()
-                    .video(video)
-                    .stimulusId(metric.getStimulusId())
-                    .stimulusText(metric.getStimulusText())
-                    .build();
-            speechImitationTrialRepository.save(trial);
-
-            // Event 저장
-            SpeechImitationEvent event = SpeechImitationEvent.builder()
-                    .speechImitationTrial(trial)
-                    .trialIndex(metric.getTrialIndex())
-                    .responseDetected(metric.getResponseDetected())
-                    .latencyS(metric.getLatencyS())
-                    .success(metric.getSuccess())
-                    .failureReason(metric.getFailureReason())
-                    .build();
-            speechImitationEventRepository.save(event);
-        }
-
-        log.debug("발화 모방행동 저장 완료 - events: {}", metrics.size());
-    }
-
-    // ========== Task 3: 동작 모방행동 ==========
-    private void savePoseImitationResult(Video video, List<AnalysisResultMessage.TrialMetric> metrics) {
-        // 집계 정보 계산
-        int totalCount = metrics.size();
-        long successCount = metrics.stream()
-                .filter(m -> Boolean.TRUE.equals(m.getSuccess()))
-                .count();
-        double successRate = totalCount > 0 ? (double) successCount / totalCount : 0.0;
-
-        // Trial 저장
-        PoseImitationTrial trial = PoseImitationTrial.builder()
-                .video(video)
-                .totalTrialCount(totalCount)
-                .successCount((int) successCount)
-                .successRate(successRate)
-                .build();
-        poseImitationTrialRepository.save(trial);
-
-        // Event 저장 (시도별 상세)
-        for (AnalysisResultMessage.TrialMetric metric : metrics) {
-            PoseImitationEvent event = PoseImitationEvent.builder()
-                    .poseImitationTrial(trial)
-                    .trialIndex(metric.getTrialIndex())
-                    .responseSuccess(metric.getSuccess())
-                    .similarityScore(metric.getSimilarityScore())
-                    .responseLatencyS(metric.getLatencyS())
-                    .durationS(metric.getDurationS())
-                    .attentionRatio(metric.getAttentionRatio())
-                    .build();
-            poseImitationEventRepository.save(event);
-        }
-
-        log.debug("동작 모방행동 저장 완료 - trial: {}, events: {}", trial.getPoseImitationTrialId(), metrics.size());
-    }
-
-    // ========== Task 4: 비대면 호명반응 ==========
-    private void saveNameNonFacingResult(Video video, List<AnalysisResultMessage.TrialMetric> metrics) {
-        // 집계 정보 계산
-        int totalCount = metrics.size();
-        long successCount = metrics.stream()
-                .filter(m -> Boolean.TRUE.equals(m.getSuccess()))
-                .count();
-        double successRate = totalCount > 0 ? (double) successCount / totalCount : 0.0;
-
-        // Trial 저장
+    // ========== Task 4: 비대면 호명반응 (NameNonFacing) ==========
+    private void saveNameNonFacingResult(Video video, List<AnalysisResultMessage.TrialMetric> metrics,
+                                         AnalysisResultMessage.AdosData adosData) {
+        // Trial 저장 (ADOS 원본 데이터 포함)
         NameNonFacingTrial trial = NameNonFacingTrial.builder()
                 .video(video)
-                .totalCallCount(totalCount)
-                .successCount((int) successCount)
-                .successRate(successRate)
+                .adosB7(convertToString(adosData.getB7()))       // 0-3
+                .adosB18(convertToString(adosData.getB18()))     // TRUE/FALSE
                 .build();
         nameNonFacingTrialRepository.save(trial);
 
@@ -167,8 +158,17 @@ public class ResultSaveServiceImpl implements ResultSaveService {
             NameNonFacingEvent event = NameNonFacingEvent.builder()
                     .nameNonFacingTrial(trial)
                     .trialIndex(metric.getTrialIndex())
-                    .responseSuccess(metric.getSuccess())
+                    .success(metric.getSuccess())
                     .latencyS(metric.getLatencyS())
+                    .triggerStartS(metric.getTriggerStartS())
+                    .triggerEndS(metric.getTriggerEndS())
+                    .triggerText(metric.getTriggerText())
+                    .voiceDetected(metric.getVoiceDetected())
+                    .voiceStartS(metric.getVoiceStartS())
+                    .voiceEndS(metric.getVoiceEndS())
+                    .voiceDurationS(metric.getVoiceDurationS())
+                    .voiceConfidence(metric.getVoiceConfidence())
+                    .gazeMatch(metric.getGazeMatch())
                     .gazeDurationS(metric.getGazeDurationS())
                     .headYawDeg(metric.getHeadYawDeg())
                     .headPitchDeg(metric.getHeadPitchDeg())
@@ -177,5 +177,21 @@ public class ResultSaveServiceImpl implements ResultSaveService {
         }
 
         log.debug("비대면 호명반응 저장 완료 - trial: {}, events: {}", trial.getNameNonFacingTrialId(), metrics.size());
+    }
+
+    /**
+     * ADOS 데이터를 String으로 변환 (원본 데이터 저장용)
+     * API에서 Boolean 또는 Integer로 올 수 있음
+     */
+    private String convertToString(Object value) {
+        if (value == null) {
+            return null;
+        }
+
+        if (value instanceof Boolean) {
+            return ((Boolean) value) ? "TRUE" : "FALSE";
+        }
+
+        return String.valueOf(value);
     }
 }

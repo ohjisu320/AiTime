@@ -93,7 +93,9 @@ public class SecurityConfig {
                                 "/swagger-ui.html",
                                 "/hospital-staff/dummy", // 더미데이터 생성용
                                 "/screening/**",          // 스크리닝
-                                "/livekit/**"             // 스크리닝
+                                "/livekit/**" ,           // 스크리닝
+                                "/test/**",
+                                "/exams-analysis/**"        // 테스트용테스트용
                         ).permitAll()
                         .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated()
