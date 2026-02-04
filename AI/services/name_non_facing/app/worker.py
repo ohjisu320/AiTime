@@ -9,7 +9,6 @@ RabbitMQ 메시지 컨슈머 워커
 
 Reference:
     - pika: https://pika.readthedocs.io/en/stable/
-    - worker_참고용.py
 """
 
 import base64
@@ -87,7 +86,7 @@ class NameNonFacingWorker:
         child_name = task.get("child_name", "아이")
         
         logger.info("=" * 60)
-        logger.info(f"📩 작업 수신: exam_id={exam_id}")
+        logger.info(f"!!!!!!!!!!!! 작업 수신: exam_id={exam_id}")
         logger.info(f"   child_name={child_name}")
         logger.info("=" * 60)
         
@@ -154,7 +153,7 @@ class NameNonFacingWorker:
             if tmp_path and os.path.exists(tmp_path):
                 with contextlib.suppress(Exception):
                     os.remove(tmp_path)
-                    logger.debug(f"🗑️ 임시 파일 삭제: {tmp_path}")
+                    logger.debug(f"📥 임시 파일 삭제: {tmp_path}")
         
         # 결과 발행
         self.rabbitmq.publish(self.settings.OUTPUT_QUEUE, result_message)
@@ -180,13 +179,13 @@ class NameNonFacingWorker:
             path = task["video_path"]
             if not os.path.exists(path):
                 raise ValueError(f"비디오 경로를 찾을 수 없음: {path}")
-            logger.info(f"📁 로컬 비디오: {path}")
+            logger.info(f"📥 로컬 비디오: {path}")
             return path
         
         # 옵션 2: URL 다운로드
         if "video_url" in task:
             url = task["video_url"]
-            logger.info(f"🌐 URL에서 비디오 다운로드: {url}")
+            logger.info(f"📥 URL에서 비디오 다운로드: {url}")
             
             response = requests.get(url, timeout=120)
             response.raise_for_status()
@@ -202,7 +201,7 @@ class NameNonFacingWorker:
         
         # 옵션 3: Base64 디코딩
         if "video_base64" in task:
-            logger.info("🔓 Base64 디코딩 중...")
+            logger.info("📥 Base64 디코딩 중...")
             video_data = base64.b64decode(task["video_base64"])
             
             with tempfile.NamedTemporaryFile(
@@ -237,7 +236,7 @@ class NameNonFacingWorker:
         )
         
         logger.info("=" * 60)
-        logger.info(f"🚀 Worker 시작됨")
+        logger.info(f"📥 Worker 시작됨")
         logger.info(f"   요청 큐: {self.settings.INPUT_QUEUE}")
         logger.info(f"   응답 큐: {self.settings.OUTPUT_QUEUE}")
         logger.info(f"   종료하려면 CTRL+C를 누르세요")
@@ -246,12 +245,11 @@ class NameNonFacingWorker:
         try:
             self.rabbitmq.channel.start_consuming()
         except KeyboardInterrupt:
-            logger.info("🛑 Worker 종료 중...")
+            logger.info("📥 Worker 종료 중...")
             self.rabbitmq.channel.stop_consuming()
         finally:
             self.rabbitmq.close()
-            logger.info("👋 Worker 종료됨")
-
+            logger.info("📥 Worker 종료됨")
 
 def main():
     """Worker 진입점"""
