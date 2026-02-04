@@ -68,6 +68,14 @@ export default defineConfig({
           proxy.on('proxyReq', (proxyReq, req, _res) => {
             proxyReq.setHeader('Origin', 'http://70.12.246.92:8080');
           });
+          proxy.on('proxyRes', (proxyRes, req, res) => {
+            const cookies = proxyRes.headers['set-cookie'];
+            if (cookies) {
+              proxyRes.headers['set-cookie'] = cookies.map(cookie =>
+                cookie.replace(/SameSite=Strict/gi, 'SameSite=Lax')
+              );
+            }
+          });
         },
       },
     },
