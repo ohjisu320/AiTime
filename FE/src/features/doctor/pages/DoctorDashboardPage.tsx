@@ -40,13 +40,6 @@ export default function DoctorDashboardPage() {
 
   return (
     <div className="h-screen w-screen bg-[#808080] flex flex-col overflow-hidden font-['Gulim'] text-[11px]">
-      <header className="bg-[#000080] text-white h-[35px] flex items-center px-2 justify-between shrink-0">
-        <span className="font-bold">
-          ASD Clinical Support System - Data Terminal v1.0
-        </span>
-        <div className="flex gap-1"></div>
-      </header>
-
       <main className="flex-1 overflow-hidden bg-[#808080] p-[2px]">
         <DoctorLayout
           panels={{
@@ -98,6 +91,7 @@ export default function DoctorDashboardPage() {
         <WaitingListSidebar
           isOpen={states.isSidebarOpen}
           onClose={actions.toggleSidebar}
+          onSelectPatient={actions.selectPatient}
         />
       )}
     </div>
