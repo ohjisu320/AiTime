@@ -1,19 +1,16 @@
 port: 7880
 rtc:
-  port_range_start: 16384    # AWS 보안 그룹과 일치
-  port_range_end: 32768      # AWS 보안 그룹과 일치
-  use_external_ip: true
-  # node_ip: "i14a501.p.ssafy.io"
-  
-  # TURN 서버 설정
-  turn_servers:
-    - host: i14a501.p.ssafy.io
-      port: 5443
-      protocol: tcp
-    - host: i14a501.p.ssafy.io
-      port: 3478
-      protocol: udp
+  # WebRTC Media 포트 범위
+  port_range_start: 50000    # AWS 보안 그룹과 일치
+  port_range_end: 51000      # AWS 보안 그룹과 일치
 
+  # TURN 서버 포트 (LiveKit 내장 TURN 사용)
+  udp_port: 41000  # Built-in TURN UDP
+  tcp_port: 8020   # TURN TCP
+
+  use_external_ip: true
+  node_ip: "13.124.155.112"
+  
 redis:
   address: redis:6379
 
@@ -22,12 +19,3 @@ keys:
 
 logging:
   level: info
-```
-
-### 옵션 2: AWS 보안 그룹을 우리 설정에 맞추기 (간단)
-
-현재 설정 유지하고 AWS에서 추가 포트만 열기:
-```
-AWS 보안 그룹 추가 규칙:
-- TCP 7880 (LiveKit API)
-- TCP 7881 (LiveKit TURN)
