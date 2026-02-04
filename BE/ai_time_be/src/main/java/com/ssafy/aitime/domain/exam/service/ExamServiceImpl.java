@@ -1,9 +1,7 @@
 package com.ssafy.aitime.domain.exam.service;
 
-import com.ssafy.aitime.domain.child.dto.response.ChildAgeInfoResponse;
 import com.ssafy.aitime.domain.child.entity.Child;
 import com.ssafy.aitime.domain.child.entity.enums.ChildHomeStatus;
-import com.ssafy.aitime.domain.child.service.ChildService;
 import com.ssafy.aitime.domain.exam.dto.response.ExamInfoResponse;
 import com.ssafy.aitime.domain.exam.dto.response.ExamStartResponse;
 import com.ssafy.aitime.domain.exam.dto.response.ExamSummaryDTO;
@@ -200,7 +198,7 @@ public class ExamServiceImpl implements ExamService {
     public ExamInfoResponse getExamInfo(UUID childId, boolean underEighteen) {
         // 1. 가장 최신 검사 조회
         Exam latestExam = examRepository.findFirstByChild_ChildIdOrderByCreatedAtDesc(childId)
-                .orElseThrow(() -> new ExamNotFoundException());
+                .orElseThrow(ExamNotFoundException::new);
 
         // 2. 해당 검사의 모든 비디오 조회
         List<Video> videos = videoRepository.findByExamExamId(latestExam.getExamId());
