@@ -1,4 +1,3 @@
-// src/domains/exam/pages/ExamPage.tsx
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { useParams, useNavigate, useBlocker, useLocation } from 'react-router-dom';
 import { useMediaRecorder } from '@/domains/video/hooks/useMediaRecorder';

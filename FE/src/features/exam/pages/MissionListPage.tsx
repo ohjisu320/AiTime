@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MissionCard from '@/domains/exam/components/MissionCard';
-import ConsentHeader from '@/domains/exam/components/Consent/ConsentHeader';
+import ConsentHeader from '@/domains/exam/components/Consent/ConsentHeader'; // ✅ 경로 원복
 import InfoNoticeBox from '@/components/common/InfoNoticeBox';
 import BigActionButton from '@/components/common/BigActionButton';
 import ConfirmModal from '@/components/common/ConfirmModal';
@@ -13,6 +13,7 @@ import MissionReviewModal from '@/domains/exam/components/MissionReviewModal';
 const MissionListPage: React.FC = () => {
   const navigate = useNavigate();
   const [missions, setMissions] = useState<VideoTask[]>([]);
+  const [examStatus, setExamStatus] = useState<string | null>(null); // ✅ 검사 상태 추가
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   // ✅ 월령 정보 상태 추가
@@ -150,6 +151,7 @@ const MissionListPage: React.FC = () => {
         examId={localStorage.getItem('examId')}
         // videoType 제거됨
         videoId={recheckModal.videoId} // ✅ 전달
+        isCompleted={examStatus === 'COMPLETED'} // ✅ 완료 여부 전달
         onClose={() => setRecheckModal({ ...recheckModal, isOpen: false })}
         onRetake={handleRecheckConfirm}
         onDelete={() => {
