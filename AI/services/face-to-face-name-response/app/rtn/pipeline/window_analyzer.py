@@ -7,12 +7,14 @@ import cv2
 from app.rtn.config import (
     AnalysisConfig,
     ContactConfig,
+    EmotionConfig,
     GazeSmoothConfig,
     ROIConfig,
     RoleAssignConfig,
     TrackConfig,
 )
 from app.rtn.debug.renderer import DebugRenderer
+from app.rtn.emotion.emotion_recognizer import EmotionRecognizer
 from app.rtn.gaze.iris_ratio import GazeEstimatorIrisRatio
 from app.rtn.indices import (
     LEFT_EYE_OUTER,
@@ -35,20 +37,7 @@ logger = logging.getLogger("RTNAnalyzer.pipeline.window_analyzer")
 
 class WindowAnalyzer:
     """
-    호명 1회 이후 window 구간에서 눈맞춤 판정한다.
-
-    파이프라인
-    - FaceDetector로 얼굴 bbox 검출 → SORT 트래킹으로 ID 유지
-    - warmup 동안 역할(Parent/Child) 할당(RoleAssignerByArea)
-    - Parent ROI 생성: FaceMesh 성공 시 mesh 기반 / 실패 시 bbox fallback
-    - Child gaze 추정: 홍채(iris) 비율 기반(2D)으로 시선 벡터 end point 추정
-    - Raycast로 시선 벡터가 Parent eye ROI(mask)에 들어오는지 판정
-    - min_contact_frames 연속 만족 시 성공으로 간주, dt로 gaze_duration 누적
-
-    운영/주의
-    - 프레임 루프는 CPU 바운드이며 debug overlay + publish는 추가 오버헤드를 유발
-    - role 미할당/track lost 같은 실패 구간에서도
-        /debug/mjpeg 무한로딩 방지 위해 프레임 계속 publish한다.
+    호명 1회 이후 window 구간에서 눈맞춤 + 감정(Emotion) 판정한다.
     """
 
     def __init__(
@@ -61,6 +50,7 @@ class WindowAnalyzer:
         gaze_cfg: GazeSmoothConfig,
         contact_cfg: ContactConfig,
         analysis_cfg: AnalysisConfig,
+        emotion_cfg: EmotionConfig,
         conf_th: float,
         debug_publish: Callable[[FrameBGR], None] | None = None,
     ) -> None:
@@ -72,8 +62,12 @@ class WindowAnalyzer:
         self.gaze_estimator = GazeEstimatorIrisRatio(gaze_cfg)
         self.contact_cfg = contact_cfg
         self.analysis_cfg = analysis_cfg
+        self.emotion_cfg = emotion_cfg
         self.conf_th = conf_th
         self.debug_publish = debug_publish
+
+        # Emotion Recognizer
+        self.emotion_recognizer = EmotionRecognizer(emotion_cfg)
 
     def analyze_call(
         self,
@@ -82,19 +76,6 @@ class WindowAnalyzer:
         call_start: float,
         call_end: float,
     ) -> CallResult:
-        """
-        call_end 이후 [call_end, call_end + window_s] 구간을 분석한다.
-
-        계약
-        - 반환 latency_s는 '첫 접촉 시각 - call_end' (성공 시에만 존재)
-        - gaze_duration_s는 접촉으로 판정된 프레임의 dt 누적
-
-        품질/성능
-        - conf_th: 얼굴 검출 필터링(오탐/미탐 트레이드오프)
-        - warmup_s: 역할 할당 안정화(초기 흔들림 <-> 지연)
-        - min_contact_frames: 순간 스파이크 억제(오탐 <-> 민감도)
-        - raycast_samples: 판정 안정성 <-> 연산량
-        """
         t0 = time.perf_counter()
 
         # call 단위 분석이므로 트래커/시선추정기의 내부 상태를 초기화
@@ -126,7 +107,7 @@ class WindowAnalyzer:
 
         logger.info(
             "call start video=%s call=%d call_start=%.3f call_end=%.3f \
-                window=[%.3f,%.3f] \fps=%.2f",
+                window=[%.3f,%.3f] fps=%.2f",
             video_path,
             call_idx,
             call_start,
@@ -142,7 +123,9 @@ class WindowAnalyzer:
         first_contact_time: float | None = None
         gaze_duration: float = 0.0
 
-        # event logs (avoid per-frame spamming)
+        # Emotion accumulation
+        emotion_samples: list[dict[str, float]] = []
+
         role_logged = False
         first_contact_logged = False
         frames = 0
@@ -195,6 +178,7 @@ class WindowAnalyzer:
                     role_logged = True
 
                 if debug_mode and dbg is not None:
+                    # Debug Tracks
                     msg = (
                         f"t={cur_t:.2f}s tracks={len(tracks)} "
                         f"role={role_assigner.assigned}"
@@ -296,13 +280,52 @@ class WindowAnalyzer:
                     frame, child_bbox, margin=0.40
                 )
 
-                # facemesh
-                # - child mesh는 시선 추정에 필수(required)
-                #   -> 실패하면 이번 프레임은 contact 불가
-                # - parent mesh는 ROI 정밀도를 높이기 위한 옵션(optional)
-                #   -> 실패 시 bbox fallback 사용
-                plm: Landmarks | None = self.facemesh.landmarks(parent_crop)  # optional
-                clm: Landmarks | None = self.facemesh.landmarks(child_crop)  # required
+                # =========================================================
+                # Emotion Extraction (Added)
+                # =========================================================
+                current_emotion_str: str = ""
+                # DEBUG: 조건 체크
+                emo_enable = self.emotion_cfg.enable
+                emo_crop_ok = child_crop is not None and child_crop.size > 0
+                emo_size_ok = (
+                    child_crop.shape[0] >= self.emotion_cfg.min_face_size
+                    if emo_crop_ok
+                    else False
+                )
+                emo_skip_ok = frames % self.emotion_cfg.skip_frames == 0
+
+                logger.debug(
+                    "Emotion check: enable=%s crop_ok=%s size_ok=%s(shape=%s min=%d) \
+                        skip_ok=%s(frame=%d skip=%d)",
+                    emo_enable,
+                    emo_crop_ok,
+                    emo_size_ok,
+                    child_crop.shape if emo_crop_ok else None,
+                    self.emotion_cfg.min_face_size,
+                    emo_skip_ok,
+                    frames,
+                    self.emotion_cfg.skip_frames,
+                )
+
+                if emo_enable and emo_crop_ok and emo_size_ok and emo_skip_ok:
+                    em_dist = self.emotion_recognizer.predict(child_crop)
+                    logger.debug("Emotion predict result: %s", em_dist)
+                    if em_dist:
+                        emotion_samples.append(em_dist)
+                        # Find dominant for debug view
+                        dom = max(em_dist, key=em_dist.get)
+                        score = em_dist[dom]
+                        current_emotion_str = f"{dom} {int(score * 100)}%"
+                        logger.debug(
+                            "Emotion sample added: dom=%s score=%.2f total_samples=%d",
+                            dom,
+                            score,
+                            len(emotion_samples),
+                        )
+
+                plm: Landmarks | None = self.facemesh.landmarks(parent_crop)
+                clm: Landmarks | None = self.facemesh.landmarks(child_crop)
+
                 if clm is None:
                     consec_contact = 0
                     if debug_mode and dbg is not None:
@@ -325,7 +348,7 @@ class WindowAnalyzer:
                         break
                     continue
 
-                # child gaze start point: outer corners mid
+                # Gaze Estimation
                 # 시선 벡터 시작점은 양쪽 눈 바깥꼬리(midpoint)를 사용.
                 # iris 중심 단독보다 안정적, head rotation이 있어도 기준점이 덜 흔들림
                 cleft_outer = (
@@ -343,7 +366,7 @@ class WindowAnalyzer:
                     clm, (sx, sy), img_w=w, img_h=h
                 )
 
-                # parent ROI
+                # Parent ROI
                 # - mesh 기반: 눈 윤곽을 더 정확히 잡아 FP를 줄임
                 # - bbox fallback: 측면/가림 등으로 mesh 실패 시에도 동작하게 해 FN 줄임
                 if plm is not None:
@@ -355,7 +378,7 @@ class WindowAnalyzer:
                         parent_bbox, img_h=h, img_w=w
                     )
 
-                # Raycast 판정:
+                # Raycast
                 # 시선 벡터(시작점->end_pt)를 여러 샘플(n_samples: dot)로 쪼개며
                 # ROI(mask) 내부를 통과하는지 확인
                 # samples가 많을수록 안정적이지만 연산량이 증가
@@ -423,6 +446,17 @@ class WindowAnalyzer:
                         (0, 255, 255),
                         2,
                     )
+                    # Emotion Overlay
+                    if current_emotion_str:
+                        cv2.putText(
+                            dbg,
+                            current_emotion_str,
+                            (cx1, cy2 + 25),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.7,
+                            (255, 100, 255),
+                            2,
+                        )
 
                     overlay = dbg.copy()
                     overlay[eye_mask > 0] = (0, 255, 0)
@@ -477,17 +511,49 @@ class WindowAnalyzer:
         success = first_contact_time is not None
         latency = (first_contact_time - call_end) if success else None
 
+        # Aggregate Emotions
+        final_dominant: str | None = None
+        final_dist: dict[str, float] = {}
+        if emotion_samples:
+            # sum all scores
+            sums: dict[str, float] = {}
+            count = len(emotion_samples)
+            for sample in emotion_samples:
+                for k, v in sample.items():
+                    sums[k] = sums.get(k, 0.0) + v
+
+            # average
+            final_dist = {k: v / count for k, v in sums.items()}
+            # dominant
+            if final_dist:
+                final_dominant = max(final_dist, key=final_dist.get)
+                final_score = final_dist[final_dominant]
+            else:
+                final_score = 0.0
+
+        emotion_log_str = (
+            f"{final_dominant}({final_score * 100:.1f}%)" if final_dominant else "None"
+        )
+
         logger.info(
-            "call done video=%s call=%d success=%s latency_s=%s gaze_s=%.3f frames=%d \
-                elapsed_s=%.3f",
+            "call done video=%s call=%d success=%s latency_s=%s gaze_s=%.3f \
+                emotion=%s frames=%d elapsed_s=%.3f",
             video_path,
             call_idx,
             success,
             latency,
             float(gaze_duration),
+            emotion_log_str,
             frames,
             time.perf_counter() - t0,
         )
+
+        if final_dist:
+            # Sort for better readability
+            sorted_dist = dict(
+                sorted(final_dist.items(), key=lambda item: item[1], reverse=True)
+            )
+            logger.info("  -> Emotion Dist: %s", sorted_dist)
 
         return CallResult(
             call_index=call_idx,
@@ -496,6 +562,14 @@ class WindowAnalyzer:
             success=success,
             latency_s=latency,
             gaze_duration_s=float(gaze_duration),
+            dominant_emotion=final_dominant,
+            emotion_distribution=final_dist,
+            # meta for Repro Keys
+            meta={
+                "emotion_model": self.emotion_cfg.model_name,
+                "emotion_samples_count": len(emotion_samples),
+                "timestamp_ms": int(time.time() * 1000),
+            },
         )
 
     def _publish_dbg(self, dbg: FrameBGR | None) -> None:

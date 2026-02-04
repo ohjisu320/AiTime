@@ -61,9 +61,19 @@ class AnalysisConfig:
 @dataclass(frozen=True)
 class RabbitMQConfig:
     """RabbitMQ 연결 설정"""
+
     host: str = "localhost"
     port: int = 5672
     user: str = "guest"
     password: str = "guest"
     task_queue: str = "face_name_task_queue"
     result_queue: str = "face_name_result_queue"
+
+
+@dataclass(frozen=True)
+class EmotionConfig:
+    enable: bool = True
+    skip_frames: int = 5
+    min_face_size: int = 64
+    model_name: str = "enet_b0_8_best_vgaf"
+    p95_latency_ms_max: int = 50

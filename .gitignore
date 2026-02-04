@@ -607,7 +607,7 @@ $RECYCLE.BIN/
 *.lnk
 
 # face-to-face-name-response
-AI/services/face-to-face-name-response/asset
+AI/services/face-to-face-name-response/clips
 
 # preflight
 AI/services/screening/artifacts/*
