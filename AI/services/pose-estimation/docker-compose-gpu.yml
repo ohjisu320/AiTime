@@ -1,3 +1,9 @@
+# =============================================================================
+# GPU 환경용 docker-compose (NVIDIA CUDA)
+# =============================================================================
+# 사용법: docker-compose -f docker-compose-gpu.yml up -d
+# =============================================================================
+
 version: "3.8"
 
 services:
@@ -24,33 +30,23 @@ services:
       - pose-network
 
   # ==========================================================================
-  # Pose Estimation Worker (RabbitMQ Consumer)
+  # Pose Estimation Worker (GPU)
   # ==========================================================================
   pose-worker:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile-gpu
     container_name: pose-worker
     restart: unless-stopped
     depends_on:
       rabbitmq:
         condition: service_healthy
+    env_file:
+      - .env.local
     environment:
-      # RabbitMQ 연결 설정
       RABBITMQ_HOST: rabbitmq
-      RABBITMQ_PORT: 5672
-      RABBITMQ_USER: guest
-      RABBITMQ_PASSWORD: guest
-      TASK_QUEUE: pose_task_queue
-      RESULT_QUEUE: pose_result_queue
-      # 모델 설정
       DEVICE: cuda
-      # 로깅
-      LOG_LEVEL: INFO
     volumes:
-      # 영상 파일 공유 (필요시)
-      - ./sample_video:/app/sample_video:ro
-      # 모델 캐시 (다운로드 시간 단축)
       - huggingface_cache:/root/.cache/huggingface
     deploy:
       resources:
@@ -59,39 +55,6 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
-    networks:
-      - pose-network
-
-  # ==========================================================================
-  # Health Check API (선택적 - 모니터링용)
-  # ==========================================================================
-  pose-health:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: pose-health
-    restart: unless-stopped
-    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
-    ports:
-      - "8000:8000"
-    environment:
-      RABBITMQ_HOST: rabbitmq
-      RABBITMQ_PORT: 5672
-      RABBITMQ_USER: guest
-      RABBITMQ_PASSWORD: guest
-      DEVICE: cuda
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
     networks:
       - pose-network
 
