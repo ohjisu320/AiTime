@@ -163,60 +163,34 @@ class NameNonFacingWorker:
     
     def _load_video(self, task: dict) -> str:
         """
-        비디오 소스 로드
+        S3 URL에서 비디오 다운로드
         
         Args:
-            task: 작업 메시지
+            task: 작업 메시지 (s3Uri 필드 필수)
             
         Returns:
-            비디오 파일 경로
+            다운로드된 비디오 파일 경로
             
         Raises:
-            ValueError: 비디오 소스가 없거나 로드 실패
+            ValueError: s3Uri가 없거나 다운로드 실패
         """
-        # 옵션 1: 로컬 경로
-        if "video_path" in task:
-            path = task["video_path"]
-            if not os.path.exists(path):
-                raise ValueError(f"비디오 경로를 찾을 수 없음: {path}")
-            logger.info(f"📥 로컬 비디오: {path}")
-            return path
+        s3_url = task.get("s3Uri")
+        if not s3_url:
+            raise ValueError("s3Uri 필드가 필요합니다")
         
-        # 옵션 2: URL 다운로드
-        if "video_url" in task:
-            url = task["video_url"]
-            logger.info(f"📥 URL에서 비디오 다운로드: {url}")
-            
-            response = requests.get(url, timeout=120)
-            response.raise_for_status()
-            
-            with tempfile.NamedTemporaryFile(
-                delete=False, 
-                suffix=".mp4",
-                prefix="nnf_"
-            ) as tmp:
-                tmp.write(response.content)
-                logger.info(f"📥 다운로드 완료: {tmp.name}")
-                return tmp.name
+        logger.info(f"📥 S3에서 비디오 다운로드: {s3_url}")
         
-        # 옵션 3: Base64 디코딩
-        if "video_base64" in task:
-            logger.info("📥 Base64 디코딩 중...")
-            video_data = base64.b64decode(task["video_base64"])
-            
-            with tempfile.NamedTemporaryFile(
-                delete=False, 
-                suffix=".mp4",
-                prefix="nnf_"
-            ) as tmp:
-                tmp.write(video_data)
-                logger.info(f"📥 디코딩 완료: {tmp.name}")
-                return tmp.name
+        response = requests.get(s3_url, timeout=120)
+        response.raise_for_status()
         
-        raise ValueError(
-            "비디오 소스가 제공되지 않음 "
-            "(video_path, video_url, 또는 video_base64 중 하나 필요)"
-        )
+        with tempfile.NamedTemporaryFile(
+            delete=False, 
+            suffix=".mp4",
+            prefix="nnf_"
+        ) as tmp:
+            tmp.write(response.content)
+            logger.info(f"📥 다운로드 완료: {tmp.name}")
+            return tmp.name
     
     def start(self) -> None:
         """
