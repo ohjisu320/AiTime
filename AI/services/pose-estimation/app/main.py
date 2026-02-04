@@ -356,7 +356,128 @@ async def analyze_motion(
 
 
 # ============================================================================
-# 8. MAIN (CLI)
+# 8. MULTI-TRIAL POSE IMITATION ENDPOINT
+# ============================================================================
+@app.post("/api/v1/motion/analyze-multi-trial")
+async def analyze_multi_trial(
+    # === 필수 파라미터 ===
+    video: UploadFile = File(..., description="분석할 영상 파일 (mp4, webm)"),
+    actions: str = Form(..., description="동작 유형 리스트 (JSON 배열, 예: [\"clapping\", \"hurray\", \"waving\"])"),
+    age_months: int = Form(..., description="아동 월령 (12-23)"),
+    
+    # === 옵션 파라미터 ===
+    identify_roles: bool = Form(default=True, description="부모/아이 역할 자동 구분"),
+    smooth: bool = Form(default=True, description="스무딩 적용 (노이즈 감소)"),
+    smooth_method: str = Form(default="one_euro", description="스무딩 방법"),
+):
+    """
+    다중 시도 동작 모방행동 분석 API (pose_imitation)
+    
+    3개의 동작을 순차적으로 분석:
+    1. 엄마 동작 → 아이 따라하기
+    2. 엄마 동작 → 아이 따라하기  
+    3. 엄마 동작 → 아이 따라하기
+    
+    **필수 파라미터:**
+    - video: 영상 파일 (mp4, webm)
+    - actions: 동작 유형 JSON 배열 (예: ["clapping", "hurray", "waving"])
+    - age_months: 아동 월령 (12-36개월)
+    
+    **응답 구조:**
+    ```json
+    {
+      "status": "success",
+      "assessment_type": "pose_imitation",
+      "age_months": 15,
+      "processing_time_sec": 12.34,
+      "metrics": {
+        "per_trial": [
+          {
+            "trial_index": 1,
+            "action_type": "clapping",
+            "success": true,
+            "similarity_score": 0.85,
+            "parent_start_time": 0.5,
+            "parent_end_time": 2.3,
+            "child_start_time": 3.5,
+            "child_end_time": 6.0,
+            "latency_s": 1.2,
+            "duration_s": 2.5,
+            "attention_ratio": 0.92
+          },
+          ...
+        ]
+      },
+      "ados": {
+        "B6": true,
+        "A8": 0,
+        "B18": true
+      },
+      "role_info": {...}
+    }
+    ```
+    """
+    import json
+    from app.pipeline.exceptions import InvalidInputError, ReferenceNotFoundError
+    
+    # Pipeline 사용 가능 여부 확인
+    motion_analyzer = get_analyzer()
+    if motion_analyzer is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Motion analyzer not available. Pipeline modules are not fully implemented yet."
+        )
+    
+    tmp_path = None
+    
+    try:
+        # actions JSON 파싱
+        try:
+            action_list = json.loads(actions)
+            if not isinstance(action_list, list) or len(action_list) != 3:
+                raise ValueError("actions must be a JSON array with exactly 3 elements")
+        except (json.JSONDecodeError, ValueError) as e:
+            raise HTTPException(status_code=400, detail=f"Invalid actions parameter: {str(e)}")
+        
+        # 임시 파일로 저장
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp:
+            contents = await video.read()
+            tmp.write(contents)
+            tmp_path = tmp.name
+        
+        # 다중 시도 분석 (TODO: analyzer에 메서드 추가 필요)
+        result = motion_analyzer.analyze_multi_trial(
+            video_path=tmp_path,
+            action_list=action_list,
+            age_months=age_months,
+            identify_roles=identify_roles,
+            smooth=smooth,
+            smooth_method=smooth_method
+        )
+        
+        response_data = {
+            "status": "success",
+            **result.to_dict()
+        }
+        return JSONResponse(content=response_data)
+    
+    except InvalidInputError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except ReferenceNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+    finally:
+        # 임시 파일 정리
+        if tmp_path and os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
+
+# ============================================================================
+# 9. MAIN (CLI)
 # ============================================================================
 if __name__ == "__main__":
     import uvicorn

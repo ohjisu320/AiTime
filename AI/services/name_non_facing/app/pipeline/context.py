@@ -69,6 +69,11 @@ class TrialResult:
     success: bool                                # 반응 성공 여부
     latency_s: Optional[float] = None            # 반응 지연 시간 (초)
     
+    # 호명 정보 (부모의 호명 타임스탬프)
+    trigger_start_s: Optional[float] = None      # 호명 시작 시점
+    trigger_end_s: Optional[float] = None        # 호명 종료 시점 (T_start)
+    trigger_text: Optional[str] = None           # 호명 텍스트
+    
     # 음성 반응 관련
     voice_detected: bool = False                 # 음성 반응 감지 여부
     voice_start_s: Optional[float] = None        # 음성 반응 시작 시점
@@ -88,6 +93,9 @@ class TrialResult:
             "trial_index": self.trial_index,
             "success": self.success,
             "latency_s": self.latency_s,
+            "trigger_start_s": self.trigger_start_s,
+            "trigger_end_s": self.trigger_end_s,
+            "trigger_text": self.trigger_text,
             "voice_detected": self.voice_detected,
             "voice_start_s": self.voice_start_s,
             "voice_end_s": self.voice_end_s,
@@ -137,15 +145,31 @@ class PipelineContext:
     # ===== 음성 반응 결과 =====
     voice_reactions: List[Any] = field(default_factory=list)  # List[ChildVoiceReaction]
     
-    # ===== 비전 결과 (향후 확장) =====
+    # ===== 비전 결과 =====
+    # 프레임 데이터
     frames: Optional[List[np.ndarray]] = None
-    fps: float = 30.0
-    parent_positions: List[Any] = field(default_factory=list)
-    child_positions: List[Any] = field(default_factory=list)
-    gaze_results: List[Any] = field(default_factory=list)
+    frame_timestamps: List[float] = field(default_factory=list)
+    original_fps: float = 30.0
+    frame_width: int = 0
+    frame_height: int = 0
+    
+    # 얼굴 탐지 결과
+    face_detections: Dict[float, List[Any]] = field(default_factory=dict)  # {timestamp: [FaceDetection]}
+    parent_positions: List[Any] = field(default_factory=list)   # [(timestamp, (cx, cy))]
+    child_detections: List[Any] = field(default_factory=list)   # [(timestamp, FaceDetection or None)]
+    position_vectors: List[Any] = field(default_factory=list)   # [(timestamp, Vector3D)]
+    is_first_person_view: bool = False  # 1인칭 모드 여부
+    
+    # 시선 분석 결과
+    gaze_frame_results: List[Any] = field(default_factory=list)  # List[GazeFrameResult]
+    gaze_results: List[Any] = field(default_factory=list)        # List[GazeReactionResult]
     
     # ===== 최종 결과 =====
     trial_results: List[TrialResult] = field(default_factory=list)
+    
+    # ===== ADOS 점수 =====
+    ados_b7: Optional[int] = None  # 0-3점
+    ados_b18: Optional[bool] = None  # True or False
     
     # ===== 메타데이터 =====
     errors: List[str] = field(default_factory=list)
@@ -181,6 +205,10 @@ class PipelineContext:
             "status": self.status.value,
             "metrics": {
                 "per_trial": [tr.to_dict() for tr in self.trial_results]
+            },
+            "ADOS": {
+                "B7": self.ados_b7,
+                "B18": self.ados_b18
             },
             "metadata": {
                 "audio_duration_sec": self.audio_duration_sec,

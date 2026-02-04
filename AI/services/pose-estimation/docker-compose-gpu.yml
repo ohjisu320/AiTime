@@ -1,0 +1,67 @@
+# =============================================================================
+# GPU 환경용 docker-compose (NVIDIA CUDA)
+# =============================================================================
+# 사용법: docker-compose -f docker-compose-gpu.yml up -d
+# =============================================================================
+
+version: "3.8"
+
+services:
+  # ==========================================================================
+  # RabbitMQ 메시지 브로커
+  # ==========================================================================
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: pose-rabbitmq
+    ports:
+      - "5672:5672"   # AMQP
+      - "15672:15672" # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pose-network
+
+  # ==========================================================================
+  # Pose Estimation Worker (GPU)
+  # ==========================================================================
+  pose-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile-gpu
+    container_name: pose-worker
+    restart: unless-stopped
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    env_file:
+      - .env.local
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      DEVICE: cuda
+    volumes:
+      - huggingface_cache:/root/.cache/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    networks:
+      - pose-network
+
+networks:
+  pose-network:
+    driver: bridge
+
+volumes:
+  rabbitmq_data:
+  huggingface_cache:

@@ -37,16 +37,18 @@ class BaseModel(ABC, Generic[T]):
     """
     
     _instances: dict = {}  # 클래스별 싱글톤 인스턴스 저장
-    _model: Optional[T] = None
-    _model_loaded: bool = False
     
     def __new__(cls) -> "BaseModel":
-        """싱글톤 패턴 구현"""
+        """싱글톤 패턴 구현 - 클래스별로 하나의 인스턴스만 생성"""
         if cls not in cls._instances:
             instance = super().__new__(cls)
+            # 인스턴스 변수 초기화는 여기서 한 번만
             instance._model = None
             instance._model_loaded = False
             cls._instances[cls] = instance
+            logger.debug(f"{cls.__name__} 싱글톤 인스턴스 생성")
+        else:
+            logger.debug(f"{cls.__name__} 기존 싱글톤 인스턴스 재사용")
         return cls._instances[cls]
     
     @abstractmethod
@@ -80,12 +82,14 @@ class BaseModel(ABC, Generic[T]):
         pass
     
     def ensure_loaded(self) -> None:
-        """모델이 로드되었는지 확인하고, 안되었으면 로드"""
+        """모델이 로드되었는지 확인하고, 안되었으면 로드 (Lazy Loading)"""
         if not self._model_loaded:
-            logger.info(f"{self.__class__.__name__} 모델 로딩 시작...")
+            logger.info(f"🔄 {self.__class__.__name__} 모델 로딩 시작... (최초 1회만 실행)")
             self._load_model()
             self._model_loaded = True
-            logger.info(f"{self.__class__.__name__} 모델 로딩 완료")
+            logger.info(f"✅ {self.__class__.__name__} 모델 로딩 완료 (메모리에 캐시됨)")
+        else:
+            logger.debug(f"{self.__class__.__name__} 이미 로드됨 (캐시 사용)")
     
     def unload(self) -> None:
         """모델 언로드 (메모리 해제)"""

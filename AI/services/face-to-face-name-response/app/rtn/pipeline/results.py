@@ -9,3 +9,11 @@ class CallResult:
     success: bool
     latency_s: float | None
     gaze_duration_s: float
+    # Emotion Extraction
+    dominant_emotion: str | None = None
+    emotion_distribution: dict[str, float] | None = None
+    meta: dict[str, object] | None = None
+
+    # ADOS Metrics Data
+    directional_emotions: list[str] | None = None  # Emotions during eye contact
+    has_happiness: bool = False  # Happiness detected at least once

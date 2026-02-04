@@ -6,9 +6,34 @@
 하드코딩된 매직 넘버를 제거하고 중앙 집중식으로 관리합니다.
 """
 
+from dataclasses import dataclass
 from pydantic_settings import BaseSettings
 from pydantic import Field, field_validator
 from typing import Literal
+
+
+# =========================================================================
+# 표정 분석 설정 (Emotion Analysis)
+# =========================================================================
+@dataclass(frozen=True)
+class EmotionConfig:
+    """
+    표정 분석 설정.
+    
+    Attributes:
+        enable: 표정 분석 활성화 여부
+        skip_frames: 프레임 샘플링 간격
+        min_face_size: 최소 얼굴 크기 (픽셀)
+        model_name: 표정 인식 모델 이름
+        joy_threshold: ADOS B6 판정 임계값 (Happiness 비율 >= 이 값이면 B6=True)
+        face_confidence_threshold: 얼굴 탐지 신뢰도 임계값
+    """
+    enable: bool = True
+    skip_frames: int = 5
+    min_face_size: int = 64
+    model_name: str = "enet_b0_8_best_vgaf"
+    joy_threshold: float = 0.1  # Happiness 비율 >= 10%이면 ADOS B6 = True
+    face_confidence_threshold: float = 0.9
 
 
 class Settings(BaseSettings):
@@ -200,3 +225,28 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+class RabbitMQConfig:
+    """
+    RabbitMQ 연결 설정 클래스.
+    
+    settings에서 값을 가져오되, 생성자에서 오버라이드 가능.
+    의존성 주입 패턴을 통해 테스트 용이성 확보.
+    """
+    
+    def __init__(
+        self,
+        host: str | None = None,
+        port: int | None = None,
+        user: str | None = None,
+        password: str | None = None,
+        task_queue: str | None = None,
+        result_queue: str | None = None,
+    ):
+        self.host = host or settings.RABBITMQ_HOST
+        self.port = port or settings.RABBITMQ_PORT
+        self.user = user or settings.RABBITMQ_USER
+        self.password = password or settings.RABBITMQ_PASSWORD
+        self.task_queue = task_queue or settings.TASK_QUEUE
+        self.result_queue = result_queue or settings.RESULT_QUEUE

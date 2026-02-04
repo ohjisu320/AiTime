@@ -83,9 +83,20 @@
     - **최종 판정**: 설정된 임계값(기본 3프레임, 가변 설정 가능) 이상의 연속 접촉이 발생할 경우 '성공'으로 최종 확정하며, 호명 종료 시점부터 첫 접촉 시점까지의 간격을 반응 지연 시간(Latency)으로 계산
 - **한계점 (Limitations)**: 랜드마크 실패 시의 BBox Fallback ROI는 정밀도가 낮으며, 2D Raycasting 샘플링 간격에 따라 판정 오차가 존재할 수 있음
 
+### 3.6 감정 인식 (Emotion Recognition)
+- **모델**: `HSEmotion` / `EmotiEffLib` (EfficientNet-7 기반)
+- **위치**: `app/rtn/emotion/`, `app/rtn/pipeline/window_analyzer.py`
+- **입력 (Input)**: 아이(Child)의 최신 얼굴 크롭 이미지 (RGB 변환)
+- **출력 (Output)**: 8가지 감정 확률 분포 (Anger, Contempt, Disgust, Fear, Happiness, Neutral, Sadness, Surprise) 및 주요 감정(Dominant Emotion)
+- **구현 방식**:
+    - **Downsampling**: 매 프레임 분석하지 않고 설정된 간격(`skip_frames`, 기본 5~30)마다 수행하여 CPU 부하 최소화
+    - **Filtering**: 얼굴 크기가 일정 픽셀(`min_face_size`) 이상일 때만 분석하여 정확도 확보
+    - **Aggregation**: 분석 윈도우(5초) 동안 수집된 감정 확률들을 평균내어 최종 감정 분포를 산출하고, 가장 높은 확률을 가진 감정을 선택
+- **한계점 (Limitations)**: 딥러닝 모델 추론으로 인한 CPU 사용량 증가, 얼굴이 작거나 흔들릴 경우 정확도 저하
+
 ---
 
-## 3. 주요 지표 (Output Metrics)
+## 4. 주요 지표 (Output Metrics)
 서비스는 각 호명 시도마다 아래의 데이터를 JSON 형태로 반환.
 
 | 지표명 | 설명 | 비고 |
@@ -93,17 +104,16 @@
 | **success** | 시선 맞춤 성공 여부 | 윈도우 내 연속 접촉 건수 도달 시 |
 | **latency_s** | 반응 지연 시간 | `call_end` 시점부터 첫 접촉까지의 시간 |
 | **gaze_duration_s** | 시선 유지 시간 | 윈도우 기간 내 총 접촉 시간의 합 |
+| **dominant_emotion** | 주된 감정 상태 | 윈도우 내 평균 확률이 가장 높은 감정 (영문) |
+| **emotion_distribution** | 감정 확률 분포 | 8개 감정별 확률값 (0.0~1.0) 딕셔너리 |
 | **total_call_count** | 총 호명 시도 횟수 | VAD 검출 구간 합계 |
 
 ---
-
----
-
-## 4. 성능 개선 로드맵 및 한계점 (Roadmap & Limitations)
+## 5. 성능 개선 로드맵 및 한계점 (Roadmap & Limitations)
 
 현재 베이스라인 시스템은 CPU 환경에서의 효율성에 최적화되어 있으나, 특정 상황에서의 정확도 향상을 위해 아래와 같은 개선 경로를 가짐.
 
-### 4.1 음성 분석 및 VAD (베이스라인: `Silero VAD`)
+### 5.1 음성 분석 및 VAD (베이스라인: `Silero VAD`)
 - **한계점**: 화자 미구분, 키워드 미인식, 주변 소음 취약성
 - **개선 옵션**:
     - **RNNoise** `[CPU 가벼움]`: **(소음 보정)** `Silero VAD` 입력 오디오의 노이즈를 제거하여 발화 검출 정밀도 향상
@@ -111,7 +121,7 @@
     - **ASR (STT) 매칭** `[GPU 권장]`: **(유연성 개선)** `Silero VAD` 구간의 텍스트를 분석하여 다양한 호칭 및 문맥 파악
     - **화자 인증 (Speaker Verification)** `[GPU 권장]`: **(신뢰도 개선)** 부모 목소리 대조를 통해 `Silero VAD`가 잡은 아이 소리를 필터링
 
-### 4.2 ID 추적 및 역할 할당 (베이스라인: `SORT`, `Area Heuristic`)
+### 5.2 ID 추적 및 역할 할당 (베이스라인: `SORT`, `Area Heuristic`)
 - **한계점**: 거리 역전에 따른 부모/아이 역할 뒤바뀜, 측면 얼굴 시 검출 누락
 - **개선 옵션**:
     - **ByteTrack** `[CPU 가벼움]`: **(추적 강화)** `SORT` 대비 저신뢰도 검출 프레임에서도 ID를 끝까지 유지하여 단절 방지
@@ -119,15 +129,22 @@
     - **수직 위치/골격 분석** `[기하 로직]`: **(보조 알고리즘)** `Area Heuristic`의 한계인 원근법에 의한 면적 역전(아이가 카메라에 더 가까워 얼굴이 크게 보이는 경우)을 보완하기 위해 Y좌표(높이) 및 IPD(양눈의 동공 사이의 거리) 비율을 활용한 역할 판정 보정
     - **연령 추정 (Age Estimation)** `[GPU 권장]`: **(역할 확정)** `Area Heuristic` 대신 인체 특징(Age)으로 성인/아동을 완벽히 분리
 
-### 4.3 시선 추정 및 접촉 판정 (베이스라인: `Iris Ratio`, `Alpha Filter`)
+### 5.3 시선 추정 및 접촉 판정 (베이스라인: `Iris Ratio`, `Alpha Filter`)
 - **한계점**: 고개 돌림 시 시선 오차 발생, 시선 벡터의 미세 떨림(Jitter)
 - **개선 옵션**:
     - **Kalman Filter** `[CPU 가벼움]`: **(안정화 개선)** 속도 기반 예측으로 `Alpha Filter` 특유의 지연을 줄이고 떨림을 보정
     - **3D Head Pose / PnP** `[CPU 가능]`: **(기하 보정)** `Iris Ratio`가 계산한 2D 오프셋에 머리 회전 각도를 결합하여 3D 시선 벡터 산출
     - **학습 기반 Gaze 모델** `[GPU 필수적]`: **(정확도 향상)** `Iris Ratio` 대신 딥러닝 전용 모델을 도입하여 극한의 각도에서도 시선 추적 성공
 
+### 5.4 감정 인식 (베이스라인: `HSEmotion-EN7`)
+- **한계점**: CPU 연산 부하, 해상도 의존성
+- **개선 옵션**:
+    - **OpenVINO / ONNX Quantization** `[CPU 가속]`: **(속도 개선)** 모델 양자화를 통해 추론 속도 향상 및 CPU 점유율 감소
+    - **Temporal Smoothing** `[로직 개선]`: **(안정성)** 단일 프레임 예측값이 아닌, 시계열 필터링을 적용하여 감정 변화의 연속성 보장
+    - **Multimodal Fusion** `[GPU 권장]`: **(정확도 향상)** 얼굴 표정뿐만 아니라 아이의 음성(울음소리, 옹알이 톤)을 함께 분석하여 감정 판정 신뢰도 향상
+
 ---
 
-## 5. 디버깅 및 관측성 (Observability)
+## 6. 디버깅 및 관측성 (Observability)
 - **MJPEG Debug Stream**: `/debug/mjpeg`를 통해 분석 과정(BBox, 시선 벡터, ROI 마스크 등)이 오버레이된 영상을 실시간 브라우저 모니터링 가능.
 - **Log Metrics**: 각 단계별(Role 할당, 첫 접촉 시점 등) 상세 타임스탬프를 로그로 남겨 분석의 사후 검증이 용이.

@@ -109,6 +109,10 @@ class ResultStage(BaseStage):
                 trial_index=i + 1,
                 success=success,
                 latency_s=latency,
+                # 호명 정보 추가
+                trigger_start_s=name_call.start_sec,
+                trigger_end_s=name_call.end_sec,
+                trigger_text=name_call.text,
                 voice_detected=voice_detected,
                 voice_start_s=(
                     voice_reaction.start_sec 
@@ -143,6 +147,10 @@ class ResultStage(BaseStage):
             trial_results.append(trial_result)
         
         context.trial_results = trial_results
+        
+        # ADOS 점수 계산
+        context.ados_b18 = self._calculate_ados_b18(trial_results)
+        context.ados_b7 = self._calculate_ados_b7(trial_results)
         
         # 결과 요약 로깅
         success_count = sum(1 for tr in trial_results if tr.success)
@@ -192,8 +200,61 @@ class ResultStage(BaseStage):
             return voice_detected and gaze_match
         elif mode == ReactionMode.WEIGHTED:
             # 가중 평균 (향후 구현, mvp 아님.)
-            # 임시로 OR 로직 사용
-            return voice_detected or gaze_match
+            # 시선 반응 기준으로 판정
+            return gaze_match
         else:
-            # 기본값: OR
-            return voice_detected or gaze_match
+            # 기본값: 시선 반응
+            return gaze_match    
+    def _calculate_ados_b18(self, trial_results: list) -> bool:
+        """
+        ADOS B18 계산: 한 번이라도 성공하면 True
+        
+        Args:
+            trial_results: 시도별 결과 목록
+            
+        Returns:
+            성공 여부 (True/False)
+        """
+        return any(tr.success for tr in trial_results)
+    
+    def _calculate_ados_b7(self, trial_results: list) -> int:
+        """
+        ADOS B7 계산: 호명 반응 점수 (0-3점)
+        
+        기준:
+        - 0점: 처음 두 번의 호명 시도 중 적어도 한 번 3초 이내에 부모 얼굴을 쳐다봄
+        - 1점: 세 번째, 네 번째 호명 시도에서 얼굴을 쳐다봄
+        - 2점: 6번 모두 3초 이내 시선 반응 없었으나, 음성 반응은 있음
+        - 3점: 6번 모두 쳐다보지 않음
+        
+        Args:
+            trial_results: 시도별 결과 목록
+            
+        Returns:
+            ADOS B7 점수 (0-3)
+        """
+        if not trial_results:
+            return 3  # 시도가 없으면 3점
+        
+        # 각 시도별로 3초 이내 시선 반응 확인
+        immediate_gaze_trials = []
+        for tr in trial_results:
+            # 3초 이내 시선 반응이 있는가?
+            if tr.gaze_match and tr.latency_s is not None and tr.latency_s <= 3.0:
+                immediate_gaze_trials.append(tr.trial_index)
+        
+        # 0점: 처음 두 번(trial 1, 2) 중 적어도 한 번 즉각 반응
+        if any(idx in [1, 2] for idx in immediate_gaze_trials):
+            return 0
+        
+        # 1점: 세 번째, 네 번째(trial 3, 4) 중 즈각 반응
+        if any(idx in [3, 4] for idx in immediate_gaze_trials):
+            return 1
+        
+        # 2점: 3초 이내 시선 반응은 없지만, 음성 반응은 있음
+        # 모든 시도에서 시선 반응 없고, 적어도 하나의 음성 반응이 있으면
+        if not immediate_gaze_trials and any(tr.voice_detected for tr in trial_results):
+            return 2
+        
+        # 3점: 모두 쳐다보지 않음 (시선 반응 없음)
+        return 3
