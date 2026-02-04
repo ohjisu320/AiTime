@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MissionCard from '@/domains/exam/components/MissionCard';
 import ConsentHeader from '@/domains/exam/components/Consent/ConsentHeader';
@@ -16,35 +16,7 @@ const MissionListPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // 데이터 로드
-  useEffect(() => {
-    const fetchMissions = async () => {
-      try {
-        setIsLoading(true);
-        const childId = localStorage.getItem('selectedChildId') || localStorage.getItem('childId');
 
-        if (!childId) {
-          setError("아동 정보가 없습니다.");
-          return;
-        }
-
-        const { videoTasks } = await getExamInfo(childId);
-        setMissions(sortedMissions(videoTasks));
-      } catch (err) {
-        console.error(err);
-        setError("데이터 로드 실패");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchMissions();
-  }, []);
-
-  // 정렬 헬퍼
-  const sortedMissions = (tasks: VideoTask[]) => {
-    const order = ['POSE_IMITATION', 'SPEECH_IMITATION', 'NAME_FACING', 'NAME_NON_FACING'];
-    return [...tasks].sort((a, b) => order.indexOf(a.videoType) - order.indexOf(b.videoType));
-  };
 
   // const [recheckModal, setRecheckModal] = useState({ isOpen: false, title: '', type: '' });
   const [recheckModal, setRecheckModal] = useState({ isOpen: false, title: '', type: '', videoId: '' }); // ✅ videoId 추가
