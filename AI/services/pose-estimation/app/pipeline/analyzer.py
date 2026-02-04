@@ -43,7 +43,7 @@ from typing import Optional, Any
 from datetime import datetime
 from dataclasses import dataclass, asdict, field
 
-from app.config import settings
+from app.config import settings, EmotionConfig
 from app.pipeline.video_processor import VideoProcessor
 from app.pipeline.pose_extractor import PoseExtractor
 from app.pipeline.normalizer import PoseNormalizer
@@ -53,6 +53,22 @@ from app.pipeline.exceptions import (
     PipelineError,
     InvalidInputError
 )
+
+# 표정 분석 모듈 (Lazy Loading)
+_expression_analyzer = None
+
+def _get_expression_analyzer():
+    """ExpressionAnalyzer 지연 로딩"""
+    global _expression_analyzer
+    if _expression_analyzer is None:
+        try:
+            from app.pipeline.emotion import ExpressionAnalyzer
+            _expression_analyzer = ExpressionAnalyzer(EmotionConfig())
+            logger.info("✅ ExpressionAnalyzer 로드 성공")
+        except Exception as e:
+            logger.warning(f"⚠️ ExpressionAnalyzer 로드 실패: {e}")
+            _expression_analyzer = None
+    return _expression_analyzer
 
 logger = logging.getLogger(__name__)
 
@@ -169,8 +185,7 @@ class MultiTrialAnalysisResult:
         age_months: 아동 월령
         processing_time_sec: 전체 처리 소요 시간
         metrics: 시도별 결과 리스트
-        ados: ADOS 평가 점수
-        joy: 즐거움 감지 결과 (얼굴 표정 분석)
+        ados: ADOS 평가 점수 (B6: 즐거움 감지, A8: 주의/반응, B18: 사회적 모방)
         role_info: 부모/아이 역할 정보
         details: 상세 분석 정보
     """
@@ -179,7 +194,6 @@ class MultiTrialAnalysisResult:
     processing_time_sec: float
     metrics: dict[str, list[dict[str, Any]]]  # {"per_trial": [...]}
     ados: dict[str, Any]  # {"B6": bool, "A8": int, "B18": bool}
-    joy: dict[str, Any]  # {"detected": bool, "confidence": float, "method": str}
     role_info: Optional[dict[str, Any]] = field(default=None)
     details: dict[str, Any] = field(default_factory=dict)
     
@@ -191,7 +205,6 @@ class MultiTrialAnalysisResult:
             "processing_time_sec": float(round(self.processing_time_sec, 2)),
             "metrics": self.metrics,
             "ados": self.ados,
-            "joy": self.joy,
             "role_info": self.role_info,
             "details": self.details
         }
@@ -370,9 +383,13 @@ class MotionAnalyzer:
         self.dtw_aligner = DTWAligner()
         self.similarity_calculator = SimilarityCalculator()
         
+        # 표정 분석기 초기화 (Lazy Loading)
+        self.expression_analyzer = _get_expression_analyzer()
+        
         logger.info(
             f"MotionAnalyzer 초기화 완료. "
-            f"모드: {'폴더 저장' if use_folder_mode else 'Generator'}"
+            f"모드: {'폴더 저장' if use_folder_mode else 'Generator'}, "
+            f"표정분석: {'✅' if self.expression_analyzer and self.expression_analyzer.available else '❌'}"
         )
     
     def analyze(
@@ -1530,10 +1547,14 @@ class MotionAnalyzer:
         # ADOS 점수 계산
         ados_scores = self._calculate_ados_scores(trial_results)
         
-        # 즐거움 감지 (TODO: 실제 얼굴 표정 분석 모듈 연동)
+        # 즐거움 감지 (표정 분석 모듈 사용)
         joy_result = self._detect_joy(video_path, trial_results)
         
         # B6은 즐거움 감지 결과로 업데이트
+        ados_scores["B6"] = joy_result["detected"]
+        
+        # ADOS B6은 즐거움(Happiness) 비율이 임계값 이상이면 True
+        # joy_result["detected"]는 이미 joy_threshold 기반으로 판정됨
         ados_scores["B6"] = joy_result["detected"]
         
         result = MultiTrialAnalysisResult(
@@ -1542,13 +1563,18 @@ class MotionAnalyzer:
             processing_time_sec=processing_time,
             metrics={"per_trial": trial_results},
             ados=ados_scores,
-            joy=joy_result,
             role_info=role_info,
             details={
                 "action_list": action_list,
                 "total_trials": len(action_list),
                 "successful_trials": sum(1 for t in trial_results if t["success"]),
-                "smooth_method": smooth_method if smooth else None
+                "smooth_method": smooth_method if smooth else None,
+                "expression_analysis": {
+                    "method": joy_result.get("method", "unknown"),
+                    "joy_ratio": joy_result.get("ratio", 0.0),
+                    "joy_count": joy_result.get("count", 0),
+                    "frames_analyzed": joy_result.get("frames_analyzed", 0),
+                }
             }
         )
         
@@ -1608,30 +1634,101 @@ class MotionAnalyzer:
             trial_results: Trial 결과 리스트
             
         Returns:
-            즐거움 감지 결과 {"detected": bool, "confidence": float, "method": str}
-            
-        Note:
-            현재는 placeholder입니다. 실제 구현에서는:
-            1. 얼굴 감정 인식 모델 (FER, DeepFace 등) 사용
-            2. 영상에서 아이의 얼굴 표정 추출
-            3. 즐거움/기쁨 감정 점수 계산
-            4. ADOS B6 평가에 사용
+            즐거움 감지 결과 {"detected": bool, "count": int, "ratio": float, ...}
         """
-        # TODO: 실제 얼굴 표정 분석 모듈 구현
-        # 임시로 success가 1개 이상이면 즐거움이 있다고 가정
+        # 표정 분석기가 사용 가능한 경우 실제 분석 수행
+        if self.expression_analyzer and self.expression_analyzer.available:
+            try:
+                return self._detect_joy_with_expression_analyzer(video_path)
+            except Exception as e:
+                logger.warning(f"표정 분석 실패, fallback 사용: {e}")
+        
+        # Fallback: placeholder 로직
         successful_count = sum(1 for t in trial_results if t["success"])
-        
-        # Placeholder 로직
         detected = successful_count >= 1
-        confidence = min(0.3 + (successful_count * 0.2), 1.0)  # 임시 신뢰도
+        confidence = min(0.3 + (successful_count * 0.2), 1.0)
         
-        logger.info(f"즐거움 감지: detected={detected}, confidence={confidence:.2f} (placeholder)")
+        logger.info(f"즐거움 감지: detected={detected} (fallback/placeholder)")
         
         return {
             "detected": detected,
+            "count": 0,
+            "ratio": 0.0,
             "confidence": float(confidence),
-            "method": "placeholder",  # 실제로는 "FER" 또는 "DeepFace" 등
-            "note": "Facial expression analysis module not yet implemented"
+            "method": "placeholder",
+            "note": "ExpressionAnalyzer not available, using fallback"
+        }
+    
+    def _detect_joy_with_expression_analyzer(
+        self,
+        video_path: str
+    ) -> dict[str, Any]:
+        """
+        ExpressionAnalyzer를 사용한 실제 표정 분석.
+        
+        Args:
+            video_path: 분석할 영상 경로
+            
+        Returns:
+            표정 분석 결과
+        """
+        import cv2
+        
+        logger.info("표정 분석 시작 (ExpressionAnalyzer)")
+        
+        # 프레임 추출
+        frames = []
+        cap = cv2.VideoCapture(video_path)
+        
+        if not cap.isOpened():
+            raise PipelineError(
+                message=f"영상을 열 수 없습니다: {video_path}",
+                code="VIDEO_OPEN_ERROR",
+                details={"video_path": video_path}
+            )
+        
+        try:
+            while True:
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                frames.append(frame)
+        finally:
+            cap.release()
+        
+        if not frames:
+            logger.warning("프레임을 추출할 수 없습니다")
+            return {
+                "detected": False,
+                "count": 0,
+                "ratio": 0.0,
+                "method": "expression_analyzer",
+                "error": "no_frames"
+            }
+        
+        # 표정 분석 수행 (아이 머리 위치는 None으로 전달 - 크기 기반 선택 사용)
+        expression_result = self.expression_analyzer.analyze(
+            frames=frames,
+            child_head_positions=None,
+            parent_head_positions=None
+        )
+        
+        logger.info(
+            f"표정 분석 완료: joy_detected={expression_result.joy_detected}, "
+            f"joy_count={expression_result.joy_count}, "
+            f"joy_ratio={expression_result.joy_ratio:.1%}"
+        )
+        
+        return {
+            "detected": expression_result.joy_detected,
+            "count": expression_result.joy_count,
+            "ratio": round(expression_result.joy_ratio, 4),
+            "dominant": expression_result.dominant_emotion,
+            "distribution": {k: round(v, 4) for k, v in expression_result.expression_ratios.items()},
+            "method": "expression_analyzer",
+            "frames_analyzed": expression_result.total_frames_analyzed,
+            "valid_detections": expression_result.valid_detections,
+            "processing_time_sec": round(expression_result.processing_time_sec, 2)
         }
     
     def _visualize_frames(
