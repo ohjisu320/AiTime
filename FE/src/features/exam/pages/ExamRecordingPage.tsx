@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useBlocker } from 'react-router-dom';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import ExamBaseLayout from '@/domains/exam/components/layout/ExamBaseLayout';
 // import ScreeningGuide from '@/domains/exam/components/Screening/ScreeningGuide';
@@ -39,6 +39,32 @@ const ExamRecordingPage: React.FC<ExamRecordingPageProps> = ({ missionId: propMi
     startScreening,
     stopScreening
   } = useLiveKitScreening();
+
+  // 🚫 뒤로가기/이탈 방지 처리
+  const shouldBlock = true;
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (shouldBlock) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [shouldBlock]);
+
+  // React Router 네비게이션 방지
+  const blocker = useBlocker(shouldBlock);
+  const [isBlockerModalOpen, setIsBlockerModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (blocker.state === 'blocked') {
+      setIsBlockerModalOpen(true);
+    } else {
+      setIsBlockerModalOpen(false);
+    }
+  }, [blocker]);
 
   // 컴포넌트 마운트 시 스크리닝 시작
   useEffect(() => {
@@ -129,6 +155,19 @@ const ExamRecordingPage: React.FC<ExamRecordingPageProps> = ({ missionId: propMi
         description="위치와 소음도 측정이 완료되었습니다. 이제 검사가 가능합니다."
         confirmText="검사 시작하기"
       />
+
+      {/* 뒤로가기/이탈 방지 모달 */}
+      {blocker.state === 'blocked' && (
+        <ConfirmModal
+          isOpen={isBlockerModalOpen}
+          onClose={() => blocker.reset()}
+          onConfirm={() => blocker.proceed()}
+          title="검사를 중단하시겠습니까?"
+          description="페이지를 이동하면 진행 상황이 저장되지 않습니다."
+          confirmText="중단하고 나가기"
+          confirmVariant="rose"
+        />
+      )}
     </>
   );
 };
