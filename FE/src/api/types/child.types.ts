@@ -3,7 +3,7 @@
  * Endpoints: /child/*
  */
 
-import type { ApiResponse, UUID, ISODate, Gender, ChildStatus, HospitalLinkStatus } from '../types';
+import type { ApiResponse, UUID, ISODate, Gender, ChildStatus, HospitalLinkStatus, ChildDashboardStatus } from '../types';
 
 // =================================================================
 // Child Management (자녀 관리)
@@ -68,11 +68,12 @@ export interface ChildHomeResponse {
     childId: UUID;
     name: string;
     gender: Gender;
-    examStatus: 'NEED_HOSPITAL' | 'AVAILABLE' | 'AVAILABLE_EXPIRED' | 'IN_PROGRESS' | 'COOLDOWN' | 'COOLDOWN_BEFORE';
+    examStatus: ChildDashboardStatus;
     examProgress: number;
-    examStartedAt?: ISODate;
-    nextEligibleAt?: ISODate;
-    draftExpiresAt?: string; // ISO DateTime
+    examId?: string | number;
+    examStartedAt?: ISODate | null;
+    nextEligibleAt?: ISODate | null;
+    draftExpiresAt?: string | null; // ISO DateTime
     linkedHospitals: HospitalInfoDTO[];
 }
 

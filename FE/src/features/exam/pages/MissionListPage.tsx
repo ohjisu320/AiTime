@@ -13,9 +13,15 @@ import MissionReviewModal from '@/domains/exam/components/MissionReviewModal';
 
 const MissionListPage: React.FC = () => {
   const navigate = useNavigate();
+<<<<<<< HEAD:FE/src/features/exam/pages/MissionListPage.tsx
   const [missions, setMissions] = useState<VideoTask[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+=======
+  // 로컬 스토리지에서 examId 가져오기 (새로고침/이어하기 대응)
+  const examId = localStorage.getItem('currentExamId') || undefined;
+  const { missions, isLoading, error } = useMissions(examId); // examId 전달 
+>>>>>>> FE-feat-S14P11A501-222-약관및사전가이드:FE/src/domains/exam/pages/MissionListPage.tsx
 
   // 데이터 로드
   useEffect(() => {
