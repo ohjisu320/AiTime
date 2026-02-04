@@ -3,7 +3,6 @@ import os
 import tempfile
 import time
 from collections.abc import Callable
-from dataclasses import asdict
 from typing import Any
 
 import numpy as np

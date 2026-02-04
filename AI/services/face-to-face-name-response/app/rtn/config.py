@@ -67,19 +67,20 @@ class ROIConfig:
 
 @dataclass(frozen=True)
 class GazeSmoothConfig:
-    alpha: float = 0.25
-    max_jump: float = 0.12
+    alpha: float = 0.5  # 0.25 -> 0.5: faster response (less lag)
+    max_jump: float = 0.15  # 0.12 -> 0.15: allow slightly larger jumps
     deadzone: float = 0.02
-    gaze_scale: float = 1.6
+    gaze_scale: float = 2.5  # 1.6 -> 2.5: longer gaze line
+    gaze_y_offset: float = -0.03  # NEW: shift gaze slightly UP (negative = up)
 
-    end_alpha: float = 0.30
-    end_jump_px: float = 40.0
+    end_alpha: float = 0.45  # 0.30 -> 0.45: faster end point response
+    end_jump_px: float = 50.0  # 40 -> 50: allow larger jumps
 
 
 @dataclass(frozen=True)
 class ContactConfig:
-    min_contact_frames: int = 3
-    raycast_samples: int = 11
+    min_contact_frames: int = 1
+    raycast_samples: int = 81
 
 
 @dataclass(frozen=True)
