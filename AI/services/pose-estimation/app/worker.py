@@ -112,7 +112,8 @@ class PoseWorker:
         try:
             # 비디오 로드
             video_path = self._load_video(task)
-            tmp_path = video_path
+            # 로컬 경로인 경우 삭제하지 않음
+            tmp_path = video_path if "video_path" not in task else None
 
             # 필수 필드 검증
             if age_months is None:
@@ -137,7 +138,7 @@ class PoseWorker:
                 "videoId": video_id,
                 "videoType": "POSE_IMITATION",
                 "analyzedAt": datetime.now(KST).isoformat(),
-                "status": "completed",
+                "status": "SUCCESS",
                 "metrics": result.metrics,
                 "ADOS": result.ados
             }
@@ -154,7 +155,7 @@ class PoseWorker:
                 "videoId": video_id,
                 "videoType": "POSE_IMITATION",
                 "analyzedAt": datetime.now(KST).isoformat(),
-                "status": "failed",
+                "status": "FAILED",
                 "error": error_msg
             }
 
@@ -165,7 +166,7 @@ class PoseWorker:
                 "videoId": video_id,
                 "videoType": "POSE_IMITATION",
                 "analyzedAt": datetime.now(KST).isoformat(),
-                "status": "failed",
+                "status": "FAILED",
                 "error": str(e)
             }
 
@@ -176,7 +177,7 @@ class PoseWorker:
                 "videoId": video_id,
                 "videoType": "POSE_IMITATION",
                 "analyzedAt": datetime.now(KST).isoformat(),
-                "status": "failed",
+                "status": "FAILED",
                 "error": str(e)
             }
 
@@ -190,17 +191,27 @@ class PoseWorker:
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
     def _load_video(self, task: dict) -> str:
-        """비디오 로드 (S3 Presigned URL)"""
-        # s3Uri: Presigned URL
+        """비디오 로드 (로컬 경로 또는 S3 Presigned URL)"""
+        # 옵션 1: 로컬 경로 (테스트용)
+        if "video_path" in task:
+            path = task["video_path"]
+            if not os.path.exists(path):
+                raise ValueError(f"비디오 경로를 찾을 수 없음: {path}")
+            logger.info("로컬 비디오 사용: %s", path)
+            return path
+
+        # 옵션 2: s3Uri (Presigned URL)
         if "s3Uri" in task:
+            logger.info("S3에서 비디오 다운로드 중...")
             response = requests.get(task["s3Uri"], timeout=120)
             response.raise_for_status()
 
             with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp:
                 tmp.write(response.content)
+                logger.info("다운로드 완료: %s", tmp.name)
                 return tmp.name
 
-        raise ValueError("비디오 소스가 제공되지 않음 (s3Uri 필요)")
+        raise ValueError("비디오 소스가 제공되지 않음 (video_path 또는 s3Uri 필요)")
 
     def start(self) -> None:
         """워커 시작"""
