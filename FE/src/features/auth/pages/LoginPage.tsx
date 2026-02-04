@@ -1,5 +1,6 @@
 // src/features/auth/pages/LoginPage.tsx
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
 import { useLoginPage } from "../hooks/useLoginPage";
 import LoginTabs from "../components/LoginTabs";
 import LoginForm from "../components/LoginForm";
@@ -43,6 +44,17 @@ export default function LoginPage() {
           formMethods={formMethods}
           onSubmit={handleLogin}
         />
+
+        {/* 3. 병원 직원 로그인 링크 */}
+        <div className="mt-6 text-center text-sm text-slate-500">
+          <span>병원 직원이신가요? </span>
+          <Link
+            to="/staff-login"
+            className="text-[#9593D9] font-semibold hover:underline"
+          >
+            직원 로그인 →
+          </Link>
+        </div>
       </motion.div>
     </div>
   );
