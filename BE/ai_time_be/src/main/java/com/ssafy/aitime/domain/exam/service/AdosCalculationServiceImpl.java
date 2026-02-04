@@ -135,7 +135,12 @@ public class AdosCalculationServiceImpl implements AdosCalculationService{
                 examId,
                 AnalysisStatus.SUCCESS
         );
-        return successCount == 4;
+        if (successCount < 4) {
+            log.debug("분석 완료된 영상: {}/4", successCount);
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -169,10 +174,11 @@ public class AdosCalculationServiceImpl implements AdosCalculationService{
     }
 
     /**
-     * 연령 그룹 결정
+     * ⭐ 연령 그룹 결정
      *
-     * 현재는 개월수만으로 판단
-     * 추후 "말하는" 여부를 판단하는 로직 추가 필요
+     * 개월수만으로 판단 (말하는 여부 구분 X)
+     * - 12-20개월 → GROUP_A
+     * - 21-30개월 → GROUP_B
      */
     private AdosAgeGroup determineAgeGroup(Long ageMonths) {
         if (ageMonths == null || ageMonths < 12) {
@@ -180,23 +186,18 @@ public class AdosCalculationServiceImpl implements AdosCalculationService{
         }
 
         if (ageMonths <= 20) {
-            // 12-20개월은 무조건 GROUP_A
-            return AdosAgeGroup.GROUP_A;
+            return AdosAgeGroup.GROUP_A;  // 12-20개월
         }
 
         if (ageMonths <= 30) {
-            // 21-30개월은 말하는지 여부로 구분
-            // TODO: 말하는지 여부를 판단하는 로직 추가 필요
-            // 현재는 일단 GROUP_A로 설정 (보수적 접근)
-            return AdosAgeGroup.GROUP_A;
+            return AdosAgeGroup.GROUP_B;  // 21-30개월
         }
 
-        // 31개월 이상
         throw new IllegalArgumentException("30개월 초과는 ADOS-2 Toddler Module 대상이 아닙니다.");
     }
 
     /**
-     * ADOS 점수 계산
+     * 연령 별 ADOS 점수 계산
      */
     private AdosScores calculateAdosScores(
             PoseImitationTrial poseTask,
@@ -207,53 +208,85 @@ public class AdosCalculationServiceImpl implements AdosCalculationService{
 
         AdosScores scores = new AdosScores();
 
-        // ========== AI가 제공하는 데이터 ==========
+        // ========== 공통 항목 (양쪽 그룹 모두 사용) ==========
 
-        // Task1 (POSE_IMITATION): A8, B6, B18
-        scores.a8 = parseInteger(poseTask.getAdosA8());
-        // B6는 특별 계산 필요 (아래에서)
-
-        // Task2 (SPEECH_IMITATION): A3, B18
-        scores.a3 = parseInteger(speechTask.getAdosA3());
-
-        // Task3 (NAME_FACING): B1, B4, B6, B18
+        // B1, B4는 양쪽 그룹 모두 필요
         scores.b1 = parseInteger(nameFacingTask.getAdosB1());
         scores.b4 = parseInteger(nameFacingTask.getAdosB4());
 
-        // Task4 (NAME_NON_FACING): B7, B18
-        scores.b7 = parseInteger(nameNonFacingTask.getAdosB7());
+        // ========== GROUP_A 전용 (21개월 미만: 12-20개월) ==========
 
-        // ========== 특수 계산 필요한 항목 ==========
+        if (ageGroup == AdosAgeGroup.GROUP_A) {
+            // AI가 제공하는 항목
+            scores.a8 = parseInteger(poseTask.getAdosA8());  // 제스처 (동작모방)
+            scores.a3 = parseInteger(speechTask.getAdosA3());  // 음성과 언어의 억양 (발화모방)
 
-        // B6: 동작모방(task1) + 대면호명(task3)의 T/F 조합
-        scores.b6 = calculateB6Score(
-                poseTask.getAdosB6(),
-                nameFacingTask.getAdosB6()
-        );
+            // B6: 동작모방(task1) + 대면호명(task3)의 T/F 조합
+            scores.b6 = calculateB6Score(
+                    poseTask.getAdosB6(),
+                    nameFacingTask.getAdosB6()
+            );
 
-        // B18: 4개 Task 모두의 T/F 합산
-        scores.b18 = calculateB18Score(
-                poseTask.getAdosB18(),
-                speechTask.getAdosB18(),
-                nameFacingTask.getAdosB18(),
-                nameNonFacingTask.getAdosB18()
-        );
+            // AI 미제공 항목 (추후 프론트 입력)
+            scores.a2 = null;   // 다른 사람을 향해 목소리를 내는 빈도
+            scores.b5 = null;   // 도입 행동 동안의 응시와 통합
+            scores.b12 = null;  // 보여주기
+            scores.b13 = null;  // 합동 주시를 자발적으로 시도하기
+            scores.b14 = null;  // 합동 주시에 대한 반응
+            scores.b15 = null;  // 도입 행동의 질
+            scores.d1 = null;   // 놀잇감/사람에 대한 특이한 감각적 흥미
+            scores.d2 = null;   // 손과 손가락 움직임/자세
+            scores.d5 = null;   // 특이하게 반복적인 흥미
 
-        // ========== AI가 제공하지 않는 항목들 (null 또는 0) ==========
+            // GROUP_B 전용 항목은 null 처리
+            scores.a7 = null;
+            scores.b7 = null;
+            scores.b8 = null;
+            scores.b9 = null;
+            scores.b16b = null;
+            scores.b18 = null;
 
-        scores.a2 = null;   // 다른 사람을 향해 목소리를 내는 빈도
-        scores.a7 = null;   // 가리키기
-        scores.b5 = null;   // 도입 행동 동안의 응시와 통합
-        scores.b8 = null;   // 무시하기
-        scores.b9 = null;   // 요청하기
-        scores.b12 = null;  // 보여주기
-        scores.b13 = null;  // 합동 주시를 자발적으로 시도하기
-        scores.b14 = null;  // 합동 주시에 대한 반응
-        scores.b15 = null;  // 도입 행동의 질
-        scores.b16b = null; // 도입 행동의 양 - 부모/양육자
-        scores.d1 = null;   // 놀잇감/사람에 대한 특이한 감각적 흥미
-        scores.d2 = null;   // 손과 손가락 움직임/자세
-        scores.d5 = null;   // 특이하게 반복적인 흥미
+            log.debug("GROUP_A 항목 저장 - a8: {}, a3: {}, b1: {}, b4: {}, b6: {}",
+                    scores.a8, scores.a3, scores.b1, scores.b4, scores.b6);
+        }
+
+        // ========== GROUP_B 전용 (21개월 이상: 21-30개월) ==========
+
+        else {
+            // AI가 제공하는 항목
+            scores.b7 = parseInteger(nameNonFacingTask.getAdosB7());  // 이름에 대한 반응 (비대면 호명)
+
+            // B18: 4개 Task 모두의 T/F 합산
+            scores.b18 = calculateB18Score(
+                    poseTask.getAdosB18(),
+                    speechTask.getAdosB18(),
+                    nameFacingTask.getAdosB18(),
+                    nameNonFacingTask.getAdosB18()
+            );
+
+            // AI 미제공 항목 (추후 프론트 입력)
+            scores.a7 = null;   // 가리키기
+            scores.b5 = null;   // 도입 행동 동안의 응시와 통합
+            scores.b8 = null;   // 무시하기
+            scores.b9 = null;   // 요청하기
+            scores.b13 = null;  // 합동 주시를 자발적으로 시도하기
+            scores.b15 = null;  // 도입 행동의 질
+            scores.b16b = null; // 도입 행동의 양 - 부모/양육자
+            scores.d1 = null;   // 놀잇감/사람에 대한 특이한 감각적 흥미
+            scores.d2 = null;   // 손과 손가락 움직임/자세
+            scores.d5 = null;   // 특이하게 반복적인 흥미
+
+            // GROUP_A 전용 항목은 null 처리
+            scores.a2 = null;
+            scores.a3 = null;
+            scores.a8 = null;
+            scores.b6 = null;
+            scores.b12 = null;
+            scores.b14 = null;
+
+            log.debug("GROUP_B 항목 저장 - b1: {}, b4: {}, b7: {}, b18: {}",
+                    scores.b1, scores.b4, scores.b7, scores.b18);
+        }
 
         // ========== Total 계산 ==========
 
@@ -329,8 +362,8 @@ public class AdosCalculationServiceImpl implements AdosCalculationService{
      * 연령 그룹 Enum
      */
     public enum AdosAgeGroup {
-        GROUP_A,  // 12-20개월 또는 말 못하는 21-30개월
-        GROUP_B   // 말하는 21-30개월
+        GROUP_A,  // 12-20개월
+        GROUP_B   // 21-30개월
     }
 
     /**
@@ -358,13 +391,17 @@ public class AdosCalculationServiceImpl implements AdosCalculationService{
          */
         void calculateTotals(AdosAgeGroup ageGroup) {
             if (ageGroup == AdosAgeGroup.GROUP_A) {
-                // 12-20개월 또는 말 못하는 21-30개월
+                // 12-20개월 (21개월 미만)
+                // Social Affect: a2, a8, b1, b4, b5, b6, b12, b13, b14, b15
                 socialAffectTotal = sumNonNull(a2, a8, b1, b4, b5, b6, b12, b13, b14, b15);
+                // RRB: a3, d1, d2, d5
                 rrbTotal = sumNonNull(a3, d1, d2, d5);
             } else {
-                // 말하는 21-30개월
-                socialAffectTotal = sumNonNull(a7, b1, b4, b5, b6, b7, b8, b9, b13, b15, b16b, b18);
-                rrbTotal = sumNonNull(a3, d1, d2, d5);
+                // 21-30개월 (21개월 이상)
+                // Social Affect: a7, b1, b4, b5, b7, b8, b9, b13, b15, b16b, b18
+                socialAffectTotal = sumNonNull(a7, b1, b4, b5, b7, b8, b9, b13, b15, b16b, b18);
+                // RRB: d1, d2, d5 (a3 제외)
+                rrbTotal = sumNonNull(d1, d2, d5);
             }
 
             total = (socialAffectTotal != null ? socialAffectTotal : 0) +
