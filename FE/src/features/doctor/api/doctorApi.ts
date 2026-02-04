@@ -62,6 +62,21 @@ const DUMMY_DATA = {
 const pickRandom = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
 
 export const doctorApi = {
+  // [Real API] 월별 예약 캘린더 조회
+  getReservationCalendar: async (year: number, month: number): Promise<string[]> => {
+    console.log(`📅 [API] 예약 캘린더 조회: ${year}-${month}`);
+    const { data } = await api.get<{
+      code: number;
+      status: string;
+      message: string;
+      data: { data: string[] };
+    }>('/doctor/reservations/calendar', {
+      params: { year, month },
+    });
+    // data.data.data 형태로 날짜 배열 반환
+    return data.data?.data || [];
+  },
+
   // [Real API] 환자 검색
   searchPatients: async (params: {
     page: number;
