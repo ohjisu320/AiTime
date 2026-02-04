@@ -136,10 +136,10 @@ const DashboardPage = () => {
                                 ${isInstallable
                                     ? 'bg-indigo-600 text-white hover:bg-indigo-700 animate-bounce'
                                     : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
-                            title={isInstallable ? "앱 설치하기" : "현재 브라우저에서는 설치할 수 없습니다"}
+                            title={isInstallable ? "홈 화면에 추가하기" : "현재 브라우저에서는 설치할 수 없습니다"}
                         >
                             <Download size={18} />
-                            {isInstallable ? '앱 설치하기' : '설치 불가'}
+                            {isInstallable ? '홈 화면에 추가하기' : ''}
                         </button>
                     </div>
                     <HeroBanner {...heroProps} />
