@@ -1,5 +1,6 @@
 package com.ssafy.aitime.domain.user.controller;
 
+import com.ssafy.aitime.common.config.CookieProperties;
 import com.ssafy.aitime.domain.user.dto.request.PasswordResetRequest;
 import com.ssafy.aitime.domain.user.dto.request.UserJoinRequest;
 import com.ssafy.aitime.domain.user.dto.request.UserLoginRequest;
@@ -7,6 +8,7 @@ import com.ssafy.aitime.domain.user.dto.response.*;
 import com.ssafy.aitime.domain.user.entity.enums.UserRole;
 import com.ssafy.aitime.domain.user.service.UserService;
 import com.ssafy.aitime.domain.user.service.dto.UserInfoDTO;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,7 +36,22 @@ class UserControllerTest {
     private MockMvc mockMvc;
     @MockitoBean
     private UserService userService;
+
+    @MockitoBean
+    private CookieProperties cookieProperties;
+
     @Autowired private ObjectMapper objectMapper;
+
+    @BeforeEach
+    void setUp() {
+        // CookieProperties Mock 설정
+        when(cookieProperties.getName()).thenReturn("refreshToken");
+        when(cookieProperties.isHttpOnly()).thenReturn(true);
+        when(cookieProperties.isSecure()).thenReturn(false);
+        when(cookieProperties.getSameSite()).thenReturn("Lax");
+        when(cookieProperties.getPath()).thenReturn("/");
+        when(cookieProperties.getMaxAge()).thenReturn(1209600L);
+    }
 
     @Test
     @DisplayName("로그인 요청 시 AccessToken과 쿠키(Refresh)를 반환한다")
