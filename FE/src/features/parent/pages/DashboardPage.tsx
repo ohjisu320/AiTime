@@ -15,6 +15,8 @@ import ConfirmModal from '../components/ConfirmModal';
 // 데이터 및 훅 임포트
 import { useDashboardLogic } from '../hooks/useDashboardLogic';
 import { registerInviteCode } from '@/features/parent/api/dashboardApi';
+import { usePWAInstall } from '@/hooks/usePWAInstall';
+import { Download } from 'lucide-react';
 
 const DashboardPage = () => {
     const navigate = useNavigate();
@@ -23,6 +25,10 @@ const DashboardPage = () => {
     const { heroProps, isLoading, isError, data, refetch } = useDashboardLogic({
         onNeedHospital: () => setIsCodeModalOpen(true)
     });
+
+    // PWA Install Hook
+    const { isInstallable, installPWA } = usePWAInstall();
+
     // 모달 상태 관리
     const [isModifyModalOpen, setIsModifyModalOpen] = useState(false);
     const [isViewModalOpen, setIsViewModalOpen] = useState(false);
@@ -118,8 +124,25 @@ const DashboardPage = () => {
                 onCodeInputClick={() => setIsCodeModalOpen(true)}
             />
 
-            <main className="flex-1 overflow-y-auto p-8 flex flex-col gap-8 justify-center">
-                {/* HeroBanner - 더 큰 크기 */}
+            <main className="flex-1 overflow-y-auto p-8 flex flex-col gap-8 justify-center relative">
+
+                {/* PWA Install Button (Floating) */}
+                <div className="absolute top-6 right-8 z-50">
+                    <button
+                        onClick={installPWA}
+                        disabled={!isInstallable}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-full shadow-lg transition-all font-bold 
+                            ${isInstallable
+                                ? 'bg-indigo-600 text-white hover:bg-indigo-700 animate-bounce'
+                                : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
+                        title={isInstallable ? "홈 화면에 추가하기" : "현재 브라우저에서는 설치할 수 없습니다"}
+                    >
+                        <Download size={18} />
+                        {isInstallable ? '홈 화면에 추가하기' : '설치 불가'}
+                    </button>
+                </div>
+
+                {/* HeroBanner */}
                 <div className="w-full flex-shrink-0">
                     <HeroBanner {...heroProps} />
                 </div>

@@ -2,6 +2,7 @@
 import { useNavigate } from 'react-router-dom';
 import { logoutUser } from '../../auth/api/authApi';
 import { getCurrentUserFromToken } from '@/utils/jwtUtils';
+import parentLogo from '@/assets/parentLogo.svg';
 
 // 1. Props 인터페이스에 클릭 핸들러 추가
 interface SidebarProps {
@@ -31,19 +32,23 @@ const Sidebar = ({ childName, onCodeInputClick }: SidebarProps) => {
     }
   };
   return (
-    <aside className="w-64 flex flex-none flex-col sticky top-0 bg-white border-r border-gray-200 h-screen min-h-[1000px]">      <div className="h-24 px-6 pt-6 border-b border-gray-200 flex flex-col justify-start items-start shrink-0">
-      <div className="inline-flex justify-start items-center gap-3">
-        <div className="w-10 h-10 bg-gradient-to-b from-violet-400 to-violet-300 rounded-2xl flex justify-center items-center text-white font-bold text-lg">Ai</div>
-        <div className="flex flex-col">
-          <span className="text-gray-800 text-2xl font-bold leading-none tracking-tight">AiTime</span>
-          <span className="text-gray-500 text-[10px] mt-1 uppercase font-semibold">Parent Dashboard</span>
+    <aside className="w-64 flex flex-none flex-col sticky top-0 bg-white border-r border-gray-200 h-screen min-h-[1000px]">
+      <div className="h-24 px-6 pt-6 border-b border-gray-200 flex flex-col justify-start items-start shrink-0">
+        <div className="inline-flex justify-start items-center gap-3 cursor-pointer" onClick={() => navigate('/parent/select-profile')}>
+          {/* 홈 버튼 */}
+          <img src={parentLogo} alt="parentLogo" className="w-[45px] h-[45px]" />
+
+          <div className="flex flex-col">
+            <span className="text-gray-800 text-2xl font-bold leading-none tracking-tight">AiTime</span>
+            <span className="text-gray-500 text-[10px] mt-1 uppercase font-semibold">Parent Dashboard</span>
+          </div>
         </div>
       </div>
-    </div>
 
       <nav className="flex-1 px-4 pt-4 pb-4 flex flex-col gap-2">
 
-        <div className="h-12 pl-4 bg-gradient-to-b from-indigo-100 to-indigo-50 rounded-2xl inline-flex items-center gap-3 cursor-pointer">
+        {/* 홈 버튼 */}
+        <div className="h-12 pl-4 bg-gradient-to-b from-indigo-100 to-indigo-50 rounded-2xl inline-flex items-center gap-3 cursor-pointer" onClick={() => navigate('/parent/dashboard')} >
           <div className="text-indigo-600 font-bold">홈</div>
         </div>
 
@@ -79,7 +84,7 @@ const Sidebar = ({ childName, onCodeInputClick }: SidebarProps) => {
           </div>
         </div>
       </nav>
-    </aside>
+    </aside >
   );
 };
 

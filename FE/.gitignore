@@ -115,4 +115,4 @@ sketch
 
 # src/lib 폴더는 무시하지 않도록 강제 제외
 !src/lib/
-!src/lib/**
+!src/lib/**dev-dist/
