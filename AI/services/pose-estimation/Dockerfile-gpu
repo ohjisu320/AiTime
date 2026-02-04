@@ -1,4 +1,5 @@
- FROM nvidia/cuda:12.1.0-runtime-ubuntu22.04
+# GPU 환경용 Dockerfile (NVIDIA CUDA 기반)
+FROM nvidia/cuda:12.1.0-runtime-ubuntu22.04
 
 WORKDIR /app
 
@@ -15,9 +16,9 @@ RUN apt-get update && apt-get install -y \
 # Python 기본 설정
 RUN ln -sf /usr/bin/python3.11 /usr/bin/python
 
-# 의존성 설치
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# 의존성 설치 (GPU 버전)
+COPY requirements-gpu.txt .
+RUN pip install --no-cache-dir -r requirements-gpu.txt
 
 # 앱 복사
 COPY app/ ./app/
@@ -25,6 +26,7 @@ COPY app/ ./app/
 # 환경 변수
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
+ENV DEVICE=cuda
 
 # RabbitMQ 환경 변수 (docker-compose에서 오버라이드 가능)
 ENV RABBITMQ_HOST=rabbitmq
