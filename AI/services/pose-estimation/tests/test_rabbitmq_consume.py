@@ -10,16 +10,17 @@ Usage:
 
 import argparse
 import json
+import os
 import sys
 
 import pika
 
-# 기본 설정
-DEFAULT_HOST = "localhost"
-DEFAULT_PORT = 5672
-DEFAULT_USER = "guest"
-DEFAULT_PASSWORD = "guest"
-DEFAULT_QUEUE = "pose_result_queue"
+# 기본 설정 (환경 변수 우선)
+DEFAULT_HOST = os.getenv("RABBITMQ_HOST", "localhost")
+DEFAULT_PORT = int(os.getenv("RABBITMQ_PORT", "5672"))
+DEFAULT_USER = os.getenv("RABBITMQ_USER", "guest")
+DEFAULT_PASSWORD = os.getenv("RABBITMQ_PASSWORD", "guest")
+DEFAULT_QUEUE = os.getenv("RESULT_QUEUE", "pose_result_queue")
 
 
 def get_single_message(channel, queue: str, auto_ack: bool = True) -> dict | None:
