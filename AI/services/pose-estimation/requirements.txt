@@ -29,3 +29,10 @@ dtw-python>=1.3.0
 hf-transfer>=0.1.9 
 setuptools>=80.9.0 
 spaces>=0.39.0 
+
+# Emotion Recognition
+EmotiEffLib>=0.1.0
+onnxruntime>=1.15.0
+
+# Face Detection
+retinaface-py>=0.0.2
