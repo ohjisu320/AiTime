@@ -126,6 +126,10 @@ class WindowAnalyzer:
         # Emotion accumulation
         emotion_samples: list[dict[str, float]] = []
 
+        # ADOS Metrics Tracking
+        directional_emotions_set: set[str] = set()
+        has_happiness_found: bool = False
+
         role_logged = False
         first_contact_logged = False
         frames = 0
@@ -307,13 +311,19 @@ class WindowAnalyzer:
                     self.emotion_cfg.skip_frames,
                 )
 
+                current_frame_emotion_dist: dict[str, float] | None = None
                 if emo_enable and emo_crop_ok and emo_size_ok and emo_skip_ok:
                     em_dist = self.emotion_recognizer.predict(child_crop)
                     logger.debug("Emotion predict result: %s", em_dist)
                     if em_dist:
+                        current_frame_emotion_dist = em_dist
                         emotion_samples.append(em_dist)
                         # Find dominant for debug view
                         dom = max(em_dist, key=em_dist.get)
+
+                        # B6: Check Happiness
+                        if dom == "Happiness":
+                            has_happiness_found = True
                         score = em_dist[dom]
                         current_emotion_str = f"{dom} {int(score * 100)}%"
                         logger.debug(
@@ -397,6 +407,15 @@ class WindowAnalyzer:
                     # gaze_duration은 (접촉으로 판정된 프레임 수 * dt)로 누적
                     # fps가 변해도 시간 단위로 일관되게 집계
                     gaze_duration += dt
+
+                    # B4: Track Directional Emotions (during contact)
+                    if current_frame_emotion_dist:
+                        dom_c = max(
+                            current_frame_emotion_dist,
+                            key=current_frame_emotion_dist.get,
+                        )
+                        directional_emotions_set.add(dom_c)
+
                     if (
                         first_contact_time is None
                         and consec_contact >= self.contact_cfg.min_contact_frames
@@ -564,12 +583,14 @@ class WindowAnalyzer:
             gaze_duration_s=float(gaze_duration),
             dominant_emotion=final_dominant,
             emotion_distribution=final_dist,
-            # meta for Repro Keys
             meta={
                 "emotion_model": self.emotion_cfg.model_name,
                 "emotion_samples_count": len(emotion_samples),
                 "timestamp_ms": int(time.time() * 1000),
             },
+            # ADOS
+            directional_emotions=list(directional_emotions_set),
+            has_happiness=has_happiness_found,
         )
 
     def _publish_dbg(self, dbg: FrameBGR | None) -> None:
