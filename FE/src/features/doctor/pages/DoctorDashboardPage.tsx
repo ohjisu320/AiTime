@@ -8,7 +8,7 @@ import AiDiagnosisPanel from "../components/panels/AiDiagnosisPanel";
 import VideoModal from "../components/modals/VideoModal";
 import AdosModal from "../components/modals/AdosModal";
 import WaitingListSidebar from "../components/panels/WaitingListSidebar";
-import { cn } from "@/lib/utils";
+import DoctorLayout from "../components/layout/DoctorLayout";
 import type { VideoAnalysisData } from "../types/doctor";
 
 // [이동] 데이터 정의를 부모 페이지로 이동
@@ -47,52 +47,34 @@ export default function DoctorDashboardPage() {
         <div className="flex gap-1"></div>
       </header>
 
-      <main
-        className={cn(
-          "flex-1 grid gap-[2px] p-[2px] bg-[#808080]",
-          "grid-cols-[220px_180px_1fr_340px_260px]",
-          "grid-rows-[1fr]",
-          "overflow-y-auto",
-          "min-h-[720px]",
-        )}
-      >
-        {/* Col 1 */}
-        <div className="row-span-full h-full overflow-hidden">
-          <PatientDetailPanel
-            patient={states.selectedPatient}
-            toggleSidebar={actions.toggleSidebar}
-          />
-        </div>
-
-        {/* Col 2 */}
-        <div className="row-span-full h-full overflow-hidden">
-          <SessionListPanel />
-        </div>
-
-        {/* Col 3: 중앙 분석 */}
-        <div className="row-span-full h-full overflow-hidden">
-          <CentralAnalysisPanel
-            // [수정] 데이터와 핸들러 전달
-            analysisData={MOCK_ANALYSIS}
-            onExpandVideo={(currentTime) => {
-              setVideoStartTime(currentTime); // 현재 재생 시간 저장
-              actions.setVideoModalOpen(true); // 모달 열기
-            }}
-          />
-        </div>
-
-        {/* Col 4 */}
-        <div className="row-span-full h-full overflow-hidden">
-          <TrendChartPanel />
-        </div>
-
-        {/* Col 5 */}
-        <div className="row-span-full h-full overflow-hidden">
-          <AiDiagnosisPanel
-            onExpandAdos={() => actions.setAdosModalOpen(true)}
-            patientAge={patientAge}
-          />
-        </div>
+      <main className="flex-1 overflow-hidden bg-[#808080] p-[2px]">
+        <DoctorLayout
+          panels={{
+            "patient-detail": (
+              <PatientDetailPanel
+                patient={states.selectedPatient}
+                toggleSidebar={actions.toggleSidebar}
+              />
+            ),
+            "session-list": <SessionListPanel />,
+            "central-analysis": (
+              <CentralAnalysisPanel
+                analysisData={MOCK_ANALYSIS}
+                onExpandVideo={(currentTime) => {
+                  setVideoStartTime(currentTime);
+                  actions.setVideoModalOpen(true);
+                }}
+              />
+            ),
+            "trend-chart": <TrendChartPanel />,
+            "ai-diagnosis": (
+              <AiDiagnosisPanel
+                onExpandAdos={() => actions.setAdosModalOpen(true)}
+                patientAge={patientAge}
+              />
+            ),
+          }}
+        />
       </main>
 
       {/* Modals */}
