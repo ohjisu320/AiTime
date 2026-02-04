@@ -138,6 +138,8 @@ api.interceptors.response.use(
                     { withCredentials: true }
                 );
 
+                console.log('🔄 [Refresh Debug] Response:', response.data);
+
                 if (response.data.code === 200 && response.data.data) {
                     const { accessToken: newAccessToken } = response.data.data;
 
@@ -165,6 +167,7 @@ api.interceptors.response.use(
                 return Promise.reject(refreshError);
             } finally {
                 isRefreshing = false;
+                console.log('🔄 [Refresh Debug] isRefreshing set to false');
             }
         }
 
