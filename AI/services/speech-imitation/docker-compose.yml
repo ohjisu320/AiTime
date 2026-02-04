@@ -1,0 +1,62 @@
+version: "3.8"
+
+services:
+  # ==========================================================================
+  # RabbitMQ 메시지 브로커 (로컬 테스트용)
+  # ==========================================================================
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: speech-imitation-rabbitmq
+    ports:
+      - "5672:5672"   # AMQP
+      - "15672:15672" # Management UI (http://localhost:15672)
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - si-network
+
+  # ==========================================================================
+  # Speech Imitation Worker
+  # ==========================================================================
+  speech-imitation-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: speech-imitation-worker
+    restart: unless-stopped
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      # RabbitMQ 연결 등은 env_file(.env)에서 로드된 값을 사용합니다.
+      # 주의: Docker 내부에서 실행 시 .env의 RABBITMQ_URL 호스트는 'localhost'가 아니라 'rabbitmq'(컨테이너명)이어야 합니다.
+      
+      # 큐 설정 (필요시 오버라이드)
+      # INPUT_QUEUE: analysis.speech_imitation.request
+      # OUTPUT_QUEUE: analysis.speech_imitation.result
+
+    env_file:
+      - .env  # 로컬의 .env 파일 로드 (없으면 실행 안 될 수 있음)
+
+    volumes:
+      # 결과 확인을 위한 마운트
+      - ./debug_output:/app/debug_output
+      - ./test_video:/app/test_video
+    
+    networks:
+      - si-network
+
+networks:
+  si-network:
+    driver: bridge
+
+volumes:
+  rabbitmq_data:
