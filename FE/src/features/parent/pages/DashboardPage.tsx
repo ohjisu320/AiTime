@@ -126,22 +126,24 @@ const DashboardPage = () => {
 
             <main className="flex-1 overflow-y-auto p-8 flex flex-col gap-8 justify-center relative">
 
-                {/* PWA Install Button & HeroBanner */}
-                <div className="w-full flex-shrink-0 flex flex-col gap-4">
-                    <div className="flex justify-end w-full">
-                        <button
-                            onClick={installPWA}
-                            disabled={!isInstallable}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-full shadow-lg transition-all font-bold 
-                                ${isInstallable
-                                    ? 'bg-indigo-600 text-white hover:bg-indigo-700 animate-bounce'
-                                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
-                            title={isInstallable ? "홈 화면에 추가하기" : "현재 브라우저에서는 설치할 수 없습니다"}
-                        >
-                            <Download size={18} />
-                            {isInstallable ? '홈 화면에 추가하기' : ''}
-                        </button>
-                    </div>
+                {/* PWA Install Button (Floating) */}
+                <div className="absolute top-6 right-8 z-50">
+                    <button
+                        onClick={installPWA}
+                        disabled={!isInstallable}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-full shadow-lg transition-all font-bold 
+                            ${isInstallable
+                                ? 'bg-indigo-600 text-white hover:bg-indigo-700 animate-bounce'
+                                : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
+                        title={isInstallable ? "홈 화면에 추가하기" : "현재 브라우저에서는 설치할 수 없습니다"}
+                    >
+                        <Download size={18} />
+                        {isInstallable ? '홈 화면에 추가하기' : '설치 불가'}
+                    </button>
+                </div>
+
+                {/* HeroBanner */}
+                <div className="w-full flex-shrink-0">
                     <HeroBanner {...heroProps} />
                 </div>
 
