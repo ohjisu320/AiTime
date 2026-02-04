@@ -200,7 +200,7 @@ export default function AiDiagnosisPanel({ onExpandAdos, patientAge }: Props) {
             ADOS-2 결과 ({patientAge}개월 / {groupLabel})
           </span>
           <WindowsButton onClick={onExpandAdos} className="text-[9px] px-1 h-4">
-            [□] 확대
+            [□] 수정
           </WindowsButton>
         </div>
 
@@ -285,9 +285,6 @@ export default function AiDiagnosisPanel({ onExpandAdos, patientAge }: Props) {
             ASD High Risk
           </div>
         </div>
-        <WindowsButton className="w-full h-[40px] font-bold text-[12px]">
-          저장하기
-        </WindowsButton>
       </div>
     </div>
   );
