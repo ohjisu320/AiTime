@@ -1,6 +1,7 @@
 import type { VideoTask } from '../api/examApi';
 
-export interface Mission extends VideoTask {
+export interface Mission extends Omit<VideoTask, 'videoType'> {
+    videoType: string;
     title?: string;
     subTitle?: string;
     description?: string;

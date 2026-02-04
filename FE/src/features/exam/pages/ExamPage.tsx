@@ -4,6 +4,7 @@ import { useParams, useNavigate, useBlocker } from 'react-router-dom';
 import { useMediaRecorder } from '@/domains/video/hooks/useMediaRecorder';
 import { useExamUpload } from '@/domains/video/hooks/useExamUpload';
 import type { VideoType } from '@/domains/video/api/videoApi';
+import { getExamInfo } from '@/domains/exam/api/examApi'; // ✅ Import added
 import ExamBaseLayout from '@/domains/exam/components/layout/ExamBaseLayout';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import { FullScreenOverlayText } from '@/components/common/FullScreenOverlayText';
@@ -22,8 +23,49 @@ const ExamPage: React.FC = () => {
   const navigate = useNavigate();
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  const content = SCREENING_CONTENT[missionId] || SCREENING_CONTENT["1"];
-  const instructions = content.instructions || [];
+  // ✅ 월령 정보 상태 추가
+  const [isUnder18, setIsUnder18] = useState<boolean | null>(null);
+  const [isLoadingInfo, setIsLoadingInfo] = useState(true);
+
+  // ✅ childId 가져오기
+  const childId = localStorage.getItem('selectedChildId');
+
+  useEffect(() => {
+    const fetchExamInfo = async () => {
+      if (!childId) {
+        console.warn("⚠️ Child ID not found");
+        setIsLoadingInfo(false);
+        return;
+      }
+      try {
+        const info = await getExamInfo(childId);
+        setIsUnder18(info.under18);
+      } catch (error) {
+        console.error("Failed to fetch exam info:", error);
+      } finally {
+        setIsLoadingInfo(false);
+      }
+    };
+    fetchExamInfo();
+  }, [childId]);
+
+
+  // ✅ 현재 미션 ID에 월령 접미사 붙이기 (데이터가 있는 경우에만)
+  const resolvedMissionId = useMemo(() => {
+    if (isUnder18 === null) return missionId; // 로딩 중이거나 에러 시 기본값
+
+    // POSE_IMITATION, SPEECH_IMITATION만 분기 처리
+    if (missionId.startsWith("POSE_IMITATION") || missionId.startsWith("SPEECH_IMITATION")) {
+      const suffix = isUnder18 ? "_12M" : "_18M";
+      // 이미 접미사가 있는지 확인 (중복 방지)
+      if (missionId.endsWith("_12M") || missionId.endsWith("_18M")) return missionId;
+      return `${missionId}${suffix}`;
+    }
+    return missionId;
+  }, [missionId, isUnder18]);
+
+  const content = SCREENING_CONTENT[resolvedMissionId] || SCREENING_CONTENT[missionId] || SCREENING_CONTENT["POSE_IMITATION_12M"]; // Fallback safe
+  const instructions = content?.instructions || [];
 
   const { stream, isRecording, startSession, startRecording, stopRecording } = useMediaRecorder();
   const { mutate: uploadVideo, isPending } = useExamUpload();
@@ -31,11 +73,13 @@ const ExamPage: React.FC = () => {
   // ⏰ 타이머 및 상태 관리
   // phase: 'READY' (권한확인) -> 'GLOBAL_COUNTDOWN' (3초) -> 'RECORDING' (25초) -> 'COMPLETED'
   const [phase, setPhase] = useState<'READY' | 'GLOBAL_COUNTDOWN' | 'RECORDING' | 'COMPLETED'>('READY');
-  const [globalCount, setGlobalCount] = useState(3);
+  const [globalCount, setGlobalCount] = useState(content?.countdown || 3);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
 
-  const TOTAL_DURATION = content.duration || 25; // 각 미션별 시간 적용 (기본 25초)
+  // content가 undefined일 경우 방지
+  const TOTAL_DURATION = content?.duration || 25;
+  const COUNTDOWN_DURATION = content?.countdown || 3;
   const CYCLE_DURATION = 8; // 3초 카운트 + 5초 지시사항
 
   // 🚫 뒤로가기/이탈 방지 처리
@@ -166,7 +210,7 @@ const ExamPage: React.FC = () => {
         handleComplete();
       }
     }
-  }, [phase, elapsedTime, handleComplete]);
+  }, [phase, elapsedTime, handleComplete, TOTAL_DURATION]);
 
   // 🎯 현재 시간에 따른 지시사항 계산
   const currentInstructionState = useMemo(() => {
@@ -194,6 +238,10 @@ const ExamPage: React.FC = () => {
     navigate('/exam/mission'); // 미션 목록으로 이동
   };
 
+  if (isLoadingInfo) {
+    return <LoadingSpinner />;
+  }
+
   return (
     <ExamBaseLayout
       videoRef={videoRef}
@@ -214,7 +262,24 @@ const ExamPage: React.FC = () => {
 
       {/* 1. 글로벌 카운트다운 (최초 시작 전) */}
       {phase === 'GLOBAL_COUNTDOWN' && globalCount > 0 && (
-        <FullScreenOverlayText text={globalCount.toString()} subText="검사 시작" />
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <h1 className="text-[120px] font-black text-white drop-shadow-2xl mb-8 animate-bounce leading-none">
+            {globalCount}
+          </h1>
+          <div className="flex flex-row items-stretch justify-center gap-6 w-full max-w-7xl px-4 flex-wrap">
+            {(content.description || "검사 시작").split(/\n\n+/).filter((line: string) => line.trim() !== '').map((line: string, idx: number) => (
+              <div
+                key={idx}
+                className="bg-white rounded-3xl p-8 shadow-2xl text-center flex-1 min-w-[300px] flex items-center justify-center animate-in slide-in-from-left-[20%] fade-in duration-1000 fill-mode-backwards"
+                style={{ animationDelay: `${idx * 2800}ms` }}
+              >
+                <p className="text-2xl font-bold text-gray-900 break-keep leading-snug whitespace-pre-line">
+                  {line}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
       {phase === 'GLOBAL_COUNTDOWN' && globalCount === 0 && (
         <FullScreenOverlayText text="START!" />
