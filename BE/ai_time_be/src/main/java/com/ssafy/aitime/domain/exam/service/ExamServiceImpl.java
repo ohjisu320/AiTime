@@ -91,6 +91,10 @@ public class ExamServiceImpl implements ExamService {
         ExamSummaryDTO examSummary = getExamSummaryForChild(childId);
         ChildHomeStatus currentStatus = examSummary.childHomeStatus();
 
+        // ⭐ 디버깅 로그 추가
+        log.info("검사 시작 시도 - childId: {}, currentStatus: {}, examSummary: {}",
+                childId, currentStatus, examSummary);
+
         // 2. 검사 시작 가능 상태인지 확인 (AVAILABLE 또는 AVAILABLE_EXPIRED만 허용)
         if (!(currentStatus == ChildHomeStatus.AVAILABLE
                 || currentStatus == ChildHomeStatus.AVAILABLE_EXPIRED)) {
@@ -110,7 +114,7 @@ public class ExamServiceImpl implements ExamService {
                 .submitted(false)
                 .examStartedAt(null)  // 첫 비디오 업로드 시 설정됨
                 .nextEligibleAt(null) // 검사 완료 시 설정됨
-                .draftExpiresAt(null) // 첫 비디오 업로드 시 설정됨
+                .draftExpiresAt(LocalDateTime.now().plusDays(3)) // 검사 시작하면 설정!!
                 .completedAt(null)
                 .build();
 
