@@ -132,11 +132,16 @@ api.interceptors.response.use(
 
                 // refreshToken은 cookie로 자동 전송됨 (withCredentials: true)
                 const refreshEndpoint = getRefreshEndpoint();
+                const baseUrl = import.meta.env.VITE_API_BASE_URL;
+                console.log(`🔄 [Refresh Debug] BaseURL: ${baseUrl}, Endpoint: ${refreshEndpoint}`);
+
                 const response = await axios.post<ApiResponse<{ accessToken: string }>>(
-                    `${import.meta.env.VITE_API_BASE_URL}${refreshEndpoint}`,
+                    `${baseUrl}${refreshEndpoint}`,
                     {},
                     { withCredentials: true }
                 );
+
+                console.log('🔄 [Refresh Debug] Response:', response.data);
 
                 if (response.data.code === 200 && response.data.data) {
                     const { accessToken: newAccessToken } = response.data.data;
@@ -165,6 +170,7 @@ api.interceptors.response.use(
                 return Promise.reject(refreshError);
             } finally {
                 isRefreshing = false;
+                console.log('🔄 [Refresh Debug] isRefreshing set to false');
             }
         }
 
