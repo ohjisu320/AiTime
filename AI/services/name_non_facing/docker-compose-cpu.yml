@@ -1,14 +1,7 @@
 # =============================================================================
-# name_non_facing Docker Compose 설정
+# CPU 환경용 docker-compose (GPU 없는 서버)
 # =============================================================================
-# 실행 방법:
-#   docker-compose up -d
-#
-# 로그 확인:
-#   docker-compose logs -f name-non-facing-worker
-#
-# 종료:
-#   docker-compose down
+# 사용법: docker-compose -f docker-compose-cpu.yml up -d
 # =============================================================================
 
 version: "3.8"
@@ -37,60 +30,35 @@ services:
       - nnf-network
 
   # ==========================================================================
-  # Name Non-Facing Worker (RabbitMQ Consumer) - 메인 서비스
+  # Name Non-Facing Worker (CPU) - 메인 서비스
   # ==========================================================================
   name-non-facing-worker:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile-cpu
     container_name: nnf-worker
     restart: unless-stopped
     depends_on:
       rabbitmq:
         condition: service_healthy
+    env_file:
+      - .env.prod
     environment:
-      # 실행 모드 (기본: worker)
-      # RUN_MODE: worker
-      
       # RabbitMQ 연결 설정
       RABBITMQ_HOST: rabbitmq
-      RABBITMQ_PORT: 5672
-      RABBITMQ_USER: guest
-      RABBITMQ_PASSWORD: guest
       
-      # 큐 이름 ( #TODO : 백엔드 협의 후 확정)
-      INPUT_QUEUE: analysis.name_non_facing.request
-      OUTPUT_QUEUE: analysis.name_non_facing.result
-      
-      # 디바이스 설정
-      DEVICE: cuda
-      WHISPER_DEVICE: cuda
-      DIARIZATION_DEVICE: cuda
-      SIXDREPNET_DEVICE: cuda
-      
-      # 모델 설정
-      YOLO_HEAD_MODEL: yolo_p2layer_jh.pt
-      WHISPER_MODEL_SIZE: large-v3
-      
-      # HuggingFace 토큰 (필수 - pyannote 다운로드용)
-      # docker-compose 실행 전에 .env 파일에 설정하거나 여기에 직접 입력
-      DIARIZATION_USE_AUTH_TOKEN: ${DIARIZATION_USE_AUTH_TOKEN}
-      
-      # 로깅
-      LOG_LEVEL: INFO
+      # 디바이스 설정 (CPU)
+      DEVICE: cpu
+      WHISPER_DEVICE: cpu
+      DIARIZATION_DEVICE: cpu
+      SIXDREPNET_DEVICE: cpu
     volumes:
       # 영상 파일 공유 (필요시)
       - ./sample_video:/app/sample_video:ro
       # 모델 캐시 (다운로드 시간 단축)
       - huggingface_cache:/root/.cache/huggingface
       - torch_cache:/root/.cache/torch
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
+    # GPU 관련 설정 없음
     networks:
       - nnf-network
 
@@ -100,7 +68,7 @@ services:
   name-non-facing-api:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile-cpu
     container_name: nnf-api
     restart: unless-stopped
     depends_on:
@@ -124,15 +92,6 @@ services:
       retries: 3
     networks:
       - nnf-network
-    # 리소스 제한 (API는 GPU 불필요)
-    # GPU가 필요한 경우 아래 주석 해제
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: 1
-    #           capabilities: [gpu]
 
 networks:
   nnf-network:

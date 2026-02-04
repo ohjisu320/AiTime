@@ -1,24 +1,22 @@
- FROM nvidia/cuda:12.1.0-runtime-ubuntu22.04
+# CPU 환경용 Dockerfile (경량 Python 이미지)
+FROM python:3.11-slim
 
 WORKDIR /app
 
-# 시스템 패키지 설치
+# 시스템 패키지 설치 (OpenCV, FFmpeg 의존성)
 RUN apt-get update && apt-get install -y \
-    python3.11 \
-    python3-pip \
-    python3.11-venv \
-    libgl1-mesa-glx \
+    libgl1 \
     libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
     ffmpeg \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Python 기본 설정
-RUN ln -sf /usr/bin/python3.11 /usr/bin/python
-
-# 의존성 설치
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# 의존성 설치 (CPU 버전)
+COPY requirements-cpu.txt .
+RUN pip install --no-cache-dir -r requirements-cpu.txt
 
 # 앱 복사
 COPY app/ ./app/
@@ -29,6 +27,10 @@ COPY *.pt ./
 # 환경 변수
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
+ENV DEVICE=cpu
+ENV WHISPER_DEVICE=cpu
+ENV DIARIZATION_DEVICE=cpu
+ENV SIXDREPNET_DEVICE=cpu
 
 # ============================================================
 # 실행 모드 설정
