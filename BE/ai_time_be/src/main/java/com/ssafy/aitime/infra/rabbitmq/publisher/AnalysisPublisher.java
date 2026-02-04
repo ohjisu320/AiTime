@@ -31,12 +31,12 @@ public class AnalysisPublisher {
 
             rabbitTemplate.convertAndSend(queueName, jsonMessage);
 
-            log.info("✅ 분석 요청 발행 완료 - jobId: {}, taskNo: {}, queue: {}",
-                    message.getJobId(), message.getTaskNo(), queueName);
+            log.info("✅ 분석 요청 발행 완료 - examId: {}, videoId: {}, videoType: {}, queue: {}",
+                    message.getExamId(), message.getVideoId(), message.getVideoType(), queueName);
 
         } catch (Exception e) {
-            log.error("❌ 분석 요청 발행 실패 - jobId: {}, taskNo: {}",
-                    message.getJobId(), message.getTaskNo(), e);
+            log.error("❌ 분석 요청 발행 실패 - examId: {}, videoId: {}, videoType: {}",
+                    message.getExamId(), message.getVideoId(), message.getVideoType(), e);
             throw new RuntimeException("메시지 발행 실패", e);
         }
     }
