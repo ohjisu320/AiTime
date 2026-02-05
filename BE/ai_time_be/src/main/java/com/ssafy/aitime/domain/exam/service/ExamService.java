@@ -5,6 +5,7 @@ import com.ssafy.aitime.domain.exam.dto.response.ExamInfoResponse;
 import com.ssafy.aitime.domain.exam.dto.response.ExamStartResponse;
 import com.ssafy.aitime.domain.exam.dto.response.ExamSummaryDTO;
 import com.ssafy.aitime.domain.exam.entity.Exam;
+import com.ssafy.aitime.domain.hospital.dto.response.AdosReportGraphsResponse;
 
 import java.util.List;
 import java.util.Map;
@@ -45,4 +46,6 @@ public interface ExamService {
      * 특정 Child의 모든 Exam을 최신순으로 조회
      */
     List<Exam> getExamsByChildId(UUID childId);
+
+    AdosReportGraphsResponse getAdosGraphData(UUID childId);
 }

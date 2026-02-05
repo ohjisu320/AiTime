@@ -5,6 +5,7 @@ import com.ssafy.aitime.domain.child.entity.enums.ChildHomeStatus;
 import com.ssafy.aitime.domain.exam.dto.response.ExamInfoResponse;
 import com.ssafy.aitime.domain.exam.dto.response.ExamStartResponse;
 import com.ssafy.aitime.domain.exam.dto.response.ExamSummaryDTO;
+import com.ssafy.aitime.domain.exam.entity.Ados;
 import com.ssafy.aitime.domain.exam.entity.Exam;
 import com.ssafy.aitime.domain.exam.entity.Video;
 import com.ssafy.aitime.domain.exam.entity.enums.ExamStatus;
@@ -12,8 +13,10 @@ import com.ssafy.aitime.domain.exam.entity.enums.VideoStatus;
 import com.ssafy.aitime.domain.exam.entity.enums.VideoType;
 import com.ssafy.aitime.domain.exam.exception.ExamNotEligibleException;
 import com.ssafy.aitime.domain.exam.exception.ExamNotFoundException;
+import com.ssafy.aitime.domain.exam.repository.AdosRepository;
 import com.ssafy.aitime.domain.exam.repository.ExamRepository;
 import com.ssafy.aitime.domain.exam.repository.VideoRepository;
+import com.ssafy.aitime.domain.hospital.dto.response.AdosReportGraphsResponse;
 import com.ssafy.aitime.domain.hospital.service.HospitalService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,6 +39,7 @@ public class ExamServiceImpl implements ExamService {
     private final ExamRepository examRepository;
     private final VideoRepository videoRepository;
     private final HospitalService hospitalService;
+    private final AdosRepository adosRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -230,6 +234,42 @@ public class ExamServiceImpl implements ExamService {
     @Transactional(readOnly = true)
     public List<Exam> getExamsByChildId(UUID childId) {
         return examRepository.findByChild_ChildIdOrderByCompletedAtDesc(childId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AdosReportGraphsResponse getAdosGraphData(UUID childId) {
+// 1. ADOS 히스토리 조회 (완료된 검사 기준, 날짜 오름차순)
+        List<Ados> adosList = adosRepository.findAdosHistoryByChildId(childId);
+
+        // 2. 시계열 데이터 리스트 초기화
+        List<String> xAxis = new ArrayList<>();
+        List<Integer> b6List = new ArrayList<>(), a8List = new ArrayList<>(), b18List = new ArrayList<>();
+        List<Integer> a3List = new ArrayList<>();
+        List<Integer> b1List = new ArrayList<>(), b4List = new ArrayList<>();
+        List<Integer> b7List = new ArrayList<>();
+
+        // 3. 엔티티 데이터 파싱
+        for (Ados ados : adosList) {
+            xAxis.add(ados.getExam().getCompletedAt().toLocalDate().toString());
+
+            // 각 그래프에 필요한 항목 추출
+            b6List.add(ados.getB6());
+            a8List.add(ados.getA8());
+            b18List.add(ados.getB18());
+            a3List.add(ados.getA3());
+            b1List.add(ados.getB1());
+            b4List.add(ados.getB4());
+            b7List.add(ados.getB7());
+        }
+
+        // 4. 그래프별 시리즈 구성
+        var g1 = new AdosReportGraphsResponse.GraphSeries(Map.of("b6", b6List, "a8", a8List, "b18", b18List));
+        var g2 = new AdosReportGraphsResponse.GraphSeries(Map.of("a3", a3List, "b18", b18List));
+        var g3 = new AdosReportGraphsResponse.GraphSeries(Map.of("b1", b1List, "b4", b4List, "b6", b6List, "b18", b18List));
+        var g4 = new AdosReportGraphsResponse.GraphSeries(Map.of("b7", b7List, "b18", b18List));
+
+        return new AdosReportGraphsResponse(xAxis, new AdosReportGraphsResponse.GraphGroups(g1, g2, g3, g4));
     }
 
     private void addVideoTaskInfo(List<ExamInfoResponse.VideoTaskInfo> videoTasks,
