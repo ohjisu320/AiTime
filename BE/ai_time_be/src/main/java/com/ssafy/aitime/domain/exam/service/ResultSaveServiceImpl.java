@@ -76,7 +76,7 @@ public class ResultSaveServiceImpl implements ResultSaveService {
             poseImitationEventRepository.save(event);
         }
 
-        log.debug("동작 모방행동 저장 완료 - trial: {}, events: {}", trial.getPoseImitationTrialId(), metrics.size());
+        log.debug("✅ 동작 모방행동 저장 완료 - trial: {}, events: {}", trial.getPoseImitationTrialId(), metrics.size());
     }
 
     // ========== Task 2: 발화 모방행동 (SpeechImitation) ==========
@@ -108,7 +108,7 @@ public class ResultSaveServiceImpl implements ResultSaveService {
             speechImitationEventRepository.save(event);
         }
 
-        log.debug("발화 모방행동 저장 완료 - trial: {}, events: {}", trial.getSpeechImitationTrialId(), metrics.size());
+        log.debug("✅ 발화 모방행동 저장 완료 - trial: {}, events: {}", trial.getSpeechImitationTrialId(), metrics.size());
     }
 
     // ========== Task 3: 대면 호명반응 (NameFacing) ==========
@@ -139,7 +139,7 @@ public class ResultSaveServiceImpl implements ResultSaveService {
             nameFacingEventRepository.save(event);
         }
 
-        log.debug("대면 호명반응 저장 완료 - trial: {}, events: {}", trial.getNameFacingTrialId(), metrics.size());
+        log.debug("✅ 대면 호명반응 저장 완료 - trial: {}, events: {}", trial.getNameFacingTrialId(), metrics.size());
     }
 
     // ========== Task 4: 비대면 호명반응 (NameNonFacing) ==========
@@ -176,7 +176,7 @@ public class ResultSaveServiceImpl implements ResultSaveService {
             nameNonFacingEventRepository.save(event);
         }
 
-        log.debug("비대면 호명반응 저장 완료 - trial: {}, events: {}", trial.getNameNonFacingTrialId(), metrics.size());
+        log.debug("✅ 비대면 호명반응 저장 완료 - trial: {}, events: {}", trial.getNameNonFacingTrialId(), metrics.size());
     }
 
     /**

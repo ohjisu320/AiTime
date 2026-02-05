@@ -110,7 +110,7 @@ public class VideoAnalysisServiceImpl implements VideoAnalysisService {
         AnalysisRequestMessage message = AnalysisRequestMessage.from(video, ageMonths, presignedUrl);
         analysisPublisher.publishAnalysisRequest(message);
 
-        log.info("✅ 영상 분석 요청 - videoId: {}, taskNo: {}",
+        log.info("✅ 영상 분석 요청 성공 - videoId: {}, taskNo: {}",
                 video.getVideoId(), message.getTaskNo());
     }
 
