@@ -4,6 +4,7 @@ import com.ssafy.aitime.common.response.ApiResponse;
 import com.ssafy.aitime.domain.exam.dto.response.ExamWithVideosResponse;
 import com.ssafy.aitime.domain.hospital.dto.request.CalendarRequest;
 import com.ssafy.aitime.domain.hospital.dto.request.PatientSearchRequest;
+import com.ssafy.aitime.domain.hospital.dto.response.AdosReportGraphsResponse;
 import com.ssafy.aitime.domain.hospital.dto.response.CalendarReservationResponse;
 import com.ssafy.aitime.domain.hospital.dto.response.PatientSearchResponse;
 import com.ssafy.aitime.domain.hospital.service.DoctorService;
@@ -109,5 +110,22 @@ public class DoctorController {
         return ResponseEntity.ok(
                 ApiResponse.ok("환아별 검사 목록 조회 완료", response)
         );
+    }
+
+    @Operation(
+            summary = "환아 ADOS 시계열 그래프 조회",
+            description = "특정 환아의 검사 히스토리를 바탕으로 4개 영역의 ADOS 점수 추이 데이터를 반환합니다."
+    )
+    @GetMapping("/{hospitalChildrenId}/exam-reports/ados-graphs")
+    public ResponseEntity<ApiResponse<AdosReportGraphsResponse>> getAdosGraphs(
+            @AuthenticationPrincipal HospitalStaffPrincipal principal,
+            @PathVariable("hospitalChildrenId") UUID hospitalChildrenId) {
+
+        AdosReportGraphsResponse response = doctorService.getAdosGraphData(
+                principal.getHospitalStaffId(),
+                hospitalChildrenId
+        );
+
+        return ResponseEntity.ok(ApiResponse.ok("ADOS 그래프 데이터 조회 완료", response));
     }
 }

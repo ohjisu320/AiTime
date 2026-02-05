@@ -4,6 +4,7 @@ import com.ssafy.aitime.common.enums.RecordStatus;
 import com.ssafy.aitime.domain.child.entity.Child;
 import com.ssafy.aitime.domain.child.repository.ChildRepository;
 import com.ssafy.aitime.domain.exam.dto.response.ExamWithVideosResponse;
+import com.ssafy.aitime.domain.exam.entity.Ados;
 import com.ssafy.aitime.domain.exam.entity.Exam;
 import com.ssafy.aitime.domain.exam.entity.Video;
 import com.ssafy.aitime.domain.exam.entity.enums.VideoStatus;
@@ -12,6 +13,7 @@ import com.ssafy.aitime.domain.exam.service.ExamService;
 import com.ssafy.aitime.domain.exam.service.VideoService;
 import com.ssafy.aitime.domain.exam.service.dto.VideoSummary;
 import com.ssafy.aitime.domain.hospital.dto.request.PatientSearchRequest;
+import com.ssafy.aitime.domain.hospital.dto.response.AdosReportGraphsResponse;
 import com.ssafy.aitime.domain.hospital.dto.response.ChildResponse;
 import com.ssafy.aitime.domain.hospital.dto.response.PatientSearchResponse;
 import com.ssafy.aitime.domain.hospital.entity.HospitalChildren;
@@ -274,6 +276,25 @@ public class DoctorServiceImpl implements DoctorService{
 
         log.info("환아별 검사 목록 조회 완료 - childId: {}, examCount: {}", childId, responses.size());
         return responses;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AdosReportGraphsResponse getAdosGraphData(UUID hospitalStaffId, UUID hospitalChildrenId) {
+// 1. HospitalStaff 및 HospitalChildren 조회 및 권한 검증
+        HospitalStaff staff = hospitalStaffRepository.findById(hospitalStaffId)
+                .orElseThrow(HospitalStaffNotFoundException::new);
+        HospitalChildren hospitalChildren = hospitalChildrenRepository.findById(hospitalChildrenId)
+                .orElseThrow(HospitalChildrenNotFoundException::new);
+
+        // 병원 ID 일치 확인
+        if (!hospitalChildren.getHospital().getHospitalId().equals(staff.getHospital().getHospitalId())) {
+            throw new HospitalStaffAccessDeniedException();
+        }
+
+        // 2. ExamService를 통해 타 도메인(ADOS) 데이터 조회
+        UUID childId = hospitalChildren.getChild().getChildId();
+        return examService.getAdosGraphData(childId);
     }
 
     private LocalDate getExamDate(Exam exam) {
