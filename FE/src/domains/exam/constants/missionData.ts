@@ -7,7 +7,7 @@ export const SCREENING_CONTENT: Record<string, any> = {
     korTitle: "동작 모방하기",
     description: '아이에게 특정 동작을 보여주고 따라 하는지 관찰합니다.',
     variant: 'pink',
-    duration: 48, // 8초 * 6회 = 48초 (약 45초)
+    duration: 24,
     instructions: [
       { id: 1, text: "아이와 눈을 맞춘 상태에서", boldText: "가슴 높이", suffix: "에서 준비해주세요" },
       { id: 2, text: "정확하게", boldText: "3번 이상", suffix: "박수를 쳐주세요" },
@@ -18,7 +18,47 @@ export const SCREENING_CONTENT: Record<string, any> = {
     ],
     script: { lines: ["자, 엄마(아빠) 봐봐!", "짝! 짝! 짝!", "우리 ㅇㅇ이도 해볼까?"] }
   },
-  "SPEECH_IMITATION": { // TASK2: 언어/발화 모방
+
+  // =================================================================
+  // TASK 1: 동작 모방 (POSE_IMITATION)
+  // [18-23개월] 1. 점프 -> 2. 공 차기 -> 3. 공 던지기
+  // =================================================================
+  "POSE_IMITATION_18M": {
+    step: "01",
+    engTitle: "Action Imitation (18-23m)",
+    korTitle: "동작 모방",
+    description: "점프, 공 차기, 공 던지기 동작을 차례로 보여주고 따라 하는지 관찰합니다.",
+    variant: 'pink',
+    duration: 24,
+    instructions: [
+      {
+        id: 1,
+        text: "무릎을 굽혔다가",
+        boldText: "양발을 모아",
+        suffix: "쿵 소리가 나게 뛰어주세요 (점프)"
+      },
+      {
+        id: 2,
+        text: "멈춰 있는 공을",
+        boldText: "발로 힘차게",
+        suffix: "뻥 차는 시범을 보여주세요"
+      },
+      {
+        id: 3,
+        text: "공을 머리 위로 들어",
+        boldText: "앞으로 멀리",
+        suffix: "던지는 동작을 보여주세요"
+      },
+    ],
+    script: { lines: ["토끼처럼 깡충!", "공을 발로 뻥~!", "머리 위로 슝~!"] }
+  },
+
+  // =================================================================
+  // TASK 2: 언어/발화 모방 (SPEECH_IMITATION)
+  // [12-17개월] 자극: 아, 마, 바, 맘마, 까꿍
+  // 총 15단계 (5개 단어 * 3회 반복)
+  // =================================================================
+  "SPEECH_IMITATION_12M": {
     step: "02",
     engTitle: "Vocal Imitation",
     korTitle: "발화 모방 자극",
