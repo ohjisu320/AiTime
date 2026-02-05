@@ -23,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -55,6 +56,8 @@ public class RabbitMQTestController {
     private final RabbitTemplate rabbitTemplate;
     private final ObjectMapper objectMapper;
 
+    private final PasswordEncoder passwordEncoder;
+
     /**
      * 테스트용 Exam + Video 4개 생성
      */
@@ -68,9 +71,9 @@ public class RabbitMQTestController {
             log.info(">>> User 생성 중...");
             User user = User.builder()
                     .loginId("test_" + System.currentTimeMillis())
-                    .password("test1234!")
+                    .password(passwordEncoder.encode("test1234!"))
                     .name("테스트부모")
-                    .phoneNumber("010-0000-0000")
+                    .phoneNumber("010-5201-5497")
                     .userRole(UserRole.USER)
                     .privacyAgreed(true)
                     .build();

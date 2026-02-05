@@ -2,9 +2,11 @@ package com.ssafy.aitime.domain.exam.service;
 
 import com.ssafy.aitime.domain.child.entity.Child;
 import com.ssafy.aitime.domain.child.entity.enums.ChildHomeStatus;
+import com.ssafy.aitime.domain.exam.dto.response.AdosDetailResponse;
 import com.ssafy.aitime.domain.exam.dto.response.ExamInfoResponse;
 import com.ssafy.aitime.domain.exam.dto.response.ExamStartResponse;
 import com.ssafy.aitime.domain.exam.dto.response.ExamSummaryDTO;
+import com.ssafy.aitime.domain.exam.entity.Ados;
 import com.ssafy.aitime.domain.exam.entity.Exam;
 import com.ssafy.aitime.domain.exam.entity.Video;
 import com.ssafy.aitime.domain.exam.entity.enums.ExamStatus;
@@ -12,8 +14,10 @@ import com.ssafy.aitime.domain.exam.entity.enums.VideoStatus;
 import com.ssafy.aitime.domain.exam.entity.enums.VideoType;
 import com.ssafy.aitime.domain.exam.exception.ExamNotEligibleException;
 import com.ssafy.aitime.domain.exam.exception.ExamNotFoundException;
+import com.ssafy.aitime.domain.exam.repository.AdosRepository;
 import com.ssafy.aitime.domain.exam.repository.ExamRepository;
 import com.ssafy.aitime.domain.exam.repository.VideoRepository;
+import com.ssafy.aitime.domain.hospital.dto.response.AdosReportGraphsResponse;
 import com.ssafy.aitime.domain.hospital.service.HospitalService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,6 +40,7 @@ public class ExamServiceImpl implements ExamService {
     private final ExamRepository examRepository;
     private final VideoRepository videoRepository;
     private final HospitalService hospitalService;
+    private final AdosRepository adosRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -218,6 +223,117 @@ public class ExamServiceImpl implements ExamService {
                 .status(latestExam.getExamStatus())
                 .videoTasks(videoTasks)
                 .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Exam> getExamsByChildIds(List<UUID> childIds) {
+        return examRepository.findByChild_ChildIdInOrderByCompletedAtDesc(childIds);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Exam> getExamsByChildId(UUID childId) {
+        return examRepository.findByChild_ChildIdOrderByCompletedAtDesc(childId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AdosReportGraphsResponse getAdosGraphData(UUID childId) {
+// 1. ADOS 히스토리 조회 (완료된 검사 기준, 날짜 오름차순)
+        List<Ados> adosList = adosRepository.findAdosHistoryByChildId(childId);
+
+        // 2. 시계열 데이터 리스트 초기화
+        List<String> xAxis = new ArrayList<>();
+        List<Integer> b6List = new ArrayList<>(), a8List = new ArrayList<>(), b18List = new ArrayList<>();
+        List<Integer> a3List = new ArrayList<>();
+        List<Integer> b1List = new ArrayList<>(), b4List = new ArrayList<>();
+        List<Integer> b7List = new ArrayList<>();
+
+        // 3. 엔티티 데이터 파싱
+        for (Ados ados : adosList) {
+            xAxis.add(ados.getExam().getCompletedAt().toLocalDate().toString());
+
+            // 각 그래프에 필요한 항목 추출
+            b6List.add(ados.getB6());
+            a8List.add(ados.getA8());
+            b18List.add(ados.getB18());
+            a3List.add(ados.getA3());
+            b1List.add(ados.getB1());
+            b4List.add(ados.getB4());
+            b7List.add(ados.getB7());
+        }
+
+        // 4. 그래프별 시리즈 구성
+        var g1 = new AdosReportGraphsResponse.GraphSeries(Map.of("b6", b6List, "a8", a8List, "b18", b18List));
+        var g2 = new AdosReportGraphsResponse.GraphSeries(Map.of("a3", a3List, "b18", b18List));
+        var g3 = new AdosReportGraphsResponse.GraphSeries(Map.of("b1", b1List, "b4", b4List, "b6", b6List, "b18", b18List));
+        var g4 = new AdosReportGraphsResponse.GraphSeries(Map.of("b7", b7List, "b18", b18List));
+
+        return new AdosReportGraphsResponse(xAxis, new AdosReportGraphsResponse.GraphGroups(g1, g2, g3, g4));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AdosDetailResponse getAdosDetail(UUID examId) {
+        Ados ados = adosRepository.findByExamExamId(examId)
+                .orElseThrow(() -> new IllegalArgumentException("해당 검사의 ADOS 기록이 존재하지 않습니다."));
+
+        Exam exam = ados.getExam();
+        Child child = exam.getChild();
+
+        // 1. 개월수 계산 (AdosCalculationServiceImpl과 동일한 방식 권장)
+        long ageMonths = 0;
+        if (child.getBirthdate() != null) {
+            java.time.Period period = java.time.Period.between(child.getBirthdate(), java.time.LocalDate.now());
+            ageMonths = period.getYears() * 12L + period.getMonths();
+        }
+
+        AdosDetailResponse.AdosScoresDTO scoresDto;
+
+        // 2. 연령 그룹별 필드 매핑
+        if (ageMonths < 21) {
+            // [21개월 미만] 관련 항목은 null이면 0으로, 관련 없는 항목은 null 유지(응답에서 제외)
+            scoresDto = new AdosDetailResponse.AdosScoresDTO(
+                    nz(ados.getA2()), nz(ados.getA3()), null, nz(ados.getA8()),           // A
+                    nz(ados.getB1()), nz(ados.getB4()), nz(ados.getB5()), nz(ados.getB6()), // B
+                    null, null, null, nz(ados.getB12()), nz(ados.getB13()),              // B
+                    nz(ados.getB14()), nz(ados.getB15()), null, null,                    // B
+                    nz(ados.getSocialAffectTotal()),                                     // SA Total
+                    nz(ados.getD1()), nz(ados.getD2()), nz(ados.getD5()),                // D
+                    nz(ados.getRrbTotal()),                                              // RRB Total
+                    nz(ados.getTotal())                                                   // Total
+            );
+        } else {
+            // [21개월 이상] 관련 항목은 null이면 0으로, 관련 없는 항목은 null 유지(응답에서 제외)
+            scoresDto = new AdosDetailResponse.AdosScoresDTO(
+                    null, null, nz(ados.getA7()), null,                                  // A
+                    nz(ados.getB1()), nz(ados.getB4()), nz(ados.getB5()), null,            // B
+                    nz(ados.getB7()), nz(ados.getB8()), nz(ados.getB9()), null,            // B
+                    nz(ados.getB13()), null, nz(ados.getB15()), nz(ados.getB16b()),        // B
+                    nz(ados.getB18()),                                                   // B
+                    nz(ados.getSocialAffectTotal()),                                     // SA Total
+                    nz(ados.getD1()), nz(ados.getD2()), nz(ados.getD5()),                // D
+                    nz(ados.getRrbTotal()),                                              // RRB Total
+                    nz(ados.getTotal())                                                   // Total
+            );
+        }
+
+        return new AdosDetailResponse(ados.getAdosId(), examId, scoresDto);
+    }
+
+    /**
+     * Null-to-Zero Helper
+     */
+    private Integer nz(Integer val) {
+        return val == null ? 0 : val;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Exam getExamById(UUID examId) {
+        return examRepository.findById(examId)
+                .orElseThrow(ExamNotFoundException::new);
     }
 
     private void addVideoTaskInfo(List<ExamInfoResponse.VideoTaskInfo> videoTasks,

@@ -9,4 +9,5 @@ import java.util.UUID;
 
 public interface SpeechImitationTrialRepository extends JpaRepository<SpeechImitationTrial, UUID> {
     Optional<SpeechImitationTrial> findByVideo(Video video);
+    Optional<SpeechImitationTrial> findByVideoVideoId(UUID videoId);
 }

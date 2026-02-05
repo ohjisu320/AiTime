@@ -9,4 +9,5 @@ import java.util.UUID;
 
 public interface SpeechImitationEventRepository extends JpaRepository<SpeechImitationEvent, UUID> {
     List<SpeechImitationEvent> findBySpeechImitationTrial(SpeechImitationTrial trial);
+    List<SpeechImitationEvent> findBySpeechImitationTrialSpeechImitationTrialIdOrderByTrialIndex(UUID trialId);
 }

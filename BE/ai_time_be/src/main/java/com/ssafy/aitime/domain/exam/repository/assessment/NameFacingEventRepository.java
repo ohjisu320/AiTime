@@ -9,4 +9,5 @@ import java.util.UUID;
 
 public interface NameFacingEventRepository extends JpaRepository<NameFacingEvent, UUID> {
     List<NameFacingEvent> findByNameFacingTrial(NameFacingTrial trial);
+    List<NameFacingEvent> findByNameFacingTrialNameFacingTrialIdOrderByTrialIndex(UUID trialId);
 }
