@@ -1,6 +1,7 @@
 package com.ssafy.aitime.domain.hospital.controller;
 
 import com.ssafy.aitime.common.response.ApiResponse;
+import com.ssafy.aitime.domain.exam.dto.response.ExamWithVideosResponse;
 import com.ssafy.aitime.domain.hospital.dto.request.CalendarRequest;
 import com.ssafy.aitime.domain.hospital.dto.request.PatientSearchRequest;
 import com.ssafy.aitime.domain.hospital.dto.response.CalendarReservationResponse;
@@ -15,6 +16,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/doctor/")
@@ -70,4 +74,40 @@ public class DoctorController {
         );
     }
 
+    @Operation(
+            summary = "환아별 검사 목록 조회",
+            description = "특정 환아의 검사 목록을 최신순으로 조회하고, 각 검사에 속한 비디오 목록을 함께 반환합니다."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "조회 성공"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "401",
+                    description = "인증 실패"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "403",
+                    description = "권한 없음 (다른 병원의 환아)"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404",
+                    description = "환아를 찾을 수 없음"
+            )
+    })
+    @GetMapping("/{hospitalChildrenId}/exams")
+    public ResponseEntity<ApiResponse<List<ExamWithVideosResponse>>> getExamsByHospitalChildren(
+            @AuthenticationPrincipal HospitalStaffPrincipal principal,
+            @PathVariable("hospitalChildrenId") UUID hospitalChildrenId) {
+
+        List<ExamWithVideosResponse> response = doctorService.getExamsByHospitalChildren(
+                principal.getHospitalStaffId(),
+                hospitalChildrenId
+        );
+
+        return ResponseEntity.ok(
+                ApiResponse.ok("환아별 검사 목록 조회 완료", response)
+        );
+    }
 }

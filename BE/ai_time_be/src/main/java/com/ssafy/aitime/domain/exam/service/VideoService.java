@@ -3,7 +3,9 @@ package com.ssafy.aitime.domain.exam.service;
 import com.ssafy.aitime.domain.exam.dto.request.PresignedKeyRequest;
 import com.ssafy.aitime.domain.exam.dto.request.VideoUploadCompleteRequest;
 import com.ssafy.aitime.domain.exam.dto.response.*;
+import com.ssafy.aitime.domain.exam.entity.Video;
 
+import java.util.List;
 import java.util.UUID;
 
 public interface VideoService {
