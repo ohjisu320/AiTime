@@ -23,25 +23,25 @@ const MissionCard: React.FC<MissionCardProps> = ({
     <div
       onClick={onClick}
       className={cn(
-        "relative w-full p-8 rounded-[32px] flex items-center justify-between transition-all duration-300 border-2 shadow-xl cursor-pointer group",
+        "relative w-full p-5 rounded-2xl flex items-center justify-between transition-all duration-300 border-2 shadow-lg cursor-pointer group",
         isCompleted
           ? "border-green-400 bg-green-50/50"
           : "border-gray-50 bg-white hover:border-indigo-300 hover:shadow-indigo-100"
       )}
     >
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-4">
         {/* ✅ 개량된 CardIcon 사용 */}
         <CardIcon variant={variant} />
 
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-0.5">
           <div className="flex items-center gap-2">
-            <h3 className="text-gray-800 text-2xl font-bold">{title}</h3>
+            <h3 className="text-gray-800 text-lg font-bold">{title}</h3>
             {isCompleted && (
-              <span className="bg-green-500 text-white text-[10px] px-2 py-0.5 rounded-md font-bold">완료</span>
+              <span className="bg-green-500 text-white text-[9px] px-1.5 py-0.5 rounded font-bold">완료</span>
             )}
           </div>
-          <span className="text-gray-400 text-xs font-semibold uppercase tracking-widest">{subTitle}</span>
-          <p className="text-gray-600 text-sm mt-1 leading-relaxed break-keep">{description}</p>
+          <span className="text-gray-400 text-[10px] font-semibold uppercase tracking-wide">{subTitle}</span>
+          <p className="text-gray-600 text-xs mt-0.5 leading-relaxed break-keep">{description}</p>
         </div>
       </div>
 
@@ -50,8 +50,8 @@ const MissionCard: React.FC<MissionCardProps> = ({
           /* ✅ 개량된 CardBadge 사용 */
           <CardBadge />
         ) : (
-          <div className="w-12 h-12 rounded-full border-2 border-indigo-400 flex justify-center items-center text-indigo-400 group-hover:bg-indigo-400 group-hover:text-white transition-colors">
-            <Play className="w-5 h-5 fill-current ml-1" />
+          <div className="w-10 h-10 rounded-full border-2 border-indigo-400 flex justify-center items-center text-indigo-400 group-hover:bg-indigo-400 group-hover:text-white transition-colors">
+            <Play className="w-4 h-4 fill-current ml-0.5" />
           </div>
         )}
       </div>

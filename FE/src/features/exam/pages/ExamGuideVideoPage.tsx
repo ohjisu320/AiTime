@@ -45,7 +45,7 @@ const ExamGuideVideoPage: React.FC = () => {
   const videoSrc = missionId ? MISSION_VIDEOS[missionId] : null;
 
   if (!videoSrc) {
-    return <div className="w-full h-screen bg-black flex items-center justify-center p-20 text-white font-['Noto_Sans_KR']">잘못된 접근입니다. (Video not found for {missionId})</div>;
+    return <div className="w-full h-screen min-h-[820px] bg-black flex items-center justify-center p-20 text-white font-['Noto_Sans_KR']">잘못된 접근입니다. (Video not found for {missionId})</div>;
   }
 
   // ✅ 다음 단계로 이동하는 공통 함수 
@@ -71,7 +71,7 @@ const ExamGuideVideoPage: React.FC = () => {
   return (
     <>
       <div
-        className="w-full h-screen relative bg-black overflow-hidden flex items-center justify-center cursor-pointer"
+        className="w-full h-screen min-h-[820px] relative bg-black overflow-hidden flex items-center justify-center cursor-pointer"
         onClick={togglePlay}
       >
         {/* 1. 배경 비디오 영역  */}
