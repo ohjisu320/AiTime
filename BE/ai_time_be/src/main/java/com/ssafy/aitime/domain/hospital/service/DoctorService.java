@@ -4,6 +4,7 @@ import com.ssafy.aitime.domain.exam.dto.response.AdosDetailResponse;
 import com.ssafy.aitime.domain.exam.dto.response.ExamWithVideosResponse;
 import com.ssafy.aitime.domain.hospital.dto.request.PatientSearchRequest;
 import com.ssafy.aitime.domain.hospital.dto.response.AdosReportGraphsResponse;
+import com.ssafy.aitime.domain.hospital.dto.response.InitialReportResponse;
 import com.ssafy.aitime.domain.hospital.dto.response.PatientSearchResponse;
 
 import java.util.List;
@@ -19,4 +20,6 @@ public interface DoctorService {
     AdosReportGraphsResponse getAdosGraphData(UUID hospitalStaffId, UUID hospitalChildrenId);
 
     AdosDetailResponse getAdosDetail(UUID hospitalStaffId, UUID examId);
+
+    InitialReportResponse getInitialReport(UUID hospitalStaffId, UUID hospitalChildrenId, Long expiresInSec);
 }
