@@ -12,7 +12,6 @@ from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 
 from app.rtn.service.engine import build_engine
-from app.rtn.settings import DEFAULT_SETTINGS
 
 # 업로드 허용 확장자 (필요시 추가)
 ALLOWED_VIDEO_EXTS = {".mp4", ".mov", ".avi", ".mkv", ".webm"}
@@ -27,7 +26,7 @@ logging.basicConfig(
 )
 
 # 엔진/디버그 라우터 생성 (mjpeg 켤 거면 True)
-engine, debug_router = build_engine(DEFAULT_SETTINGS)
+engine, debug_router = build_engine(enable_mjpeg=True, debug=False)
 
 
 @asynccontextmanager
