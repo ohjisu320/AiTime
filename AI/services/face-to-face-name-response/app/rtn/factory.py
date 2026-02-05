@@ -42,13 +42,13 @@ def build_analyzer(
     # - 얼굴 검출 신뢰도 임계값(conf)은 downstream(트래킹/역할/ROI) 안정성에 관여
     # - model_selection=0/1은 mediapipe 옵션(거리/정확도 트레이드오프)
     #   -> 0은 2meter, 1은 5meter
-    face_cfg = FaceDetConfig(min_conf=conf, model_selection=0)
+    face_cfg = FaceDetConfig(min_conf=conf)
 
     # SORT/트래킹:
     # - max_age: 잠깐 놓친 트랙을 얼마나 유지할지(가림/회전 대비) ↔ 오탐 유지 위험
     # - min_hits: 트랙 확정까지 필요한 히트 수(초기 오탐 억제) ↔ 초기 지연 증가
     # - iou_threshold: 매칭 엄격도(아이/부모 근접 시 중요)
-    track_cfg = TrackConfig(max_age=8, min_hits=2, iou_threshold=0.3)
+    track_cfg = TrackConfig()
 
     # 역할 할당:
     # - 초반 warmup 동안 트랙 안정화/영역 기반 판정에 사용(초기 흔들림 완화)
@@ -57,7 +57,7 @@ def build_analyzer(
     # ROI
     # - 랜드마크/추정 노이즈를 흡수하기 위해 dilation 적용.
     # - mesh 실패(측면/가림) 시 bbox fallback은 불확실성이 커서 더 크게 잡음.
-    roi_cfg = ROIConfig(mesh_dilate_px=14, bbox_fallback_dilate_px=28)
+    roi_cfg = ROIConfig()
 
     # gaze:
     # 휴리스틱이라서 프레임 단위 노이즈 smoothing
@@ -66,9 +66,7 @@ def build_analyzer(
     # eye-contact 판정 튜닝:
     # - min_contact_frames: "순간 스파이크"를 접촉으로 오인하지 않도록 최소 지속 프레임
     # - raycast_samples: 추정 안정성(정확도)과 계산 비용 트레이드오프
-    contact_cfg = ContactConfig(
-        min_contact_frames=min_contact_frames, raycast_samples=11
-    )
+    contact_cfg = ContactConfig(min_contact_frames=min_contact_frames)
 
     # 분석 창 길이
     # (window_s)는 응답 지연/유지시간 집계 범위를 결정
