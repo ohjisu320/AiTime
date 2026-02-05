@@ -1,18 +1,15 @@
 services:
-  ai-task1:
+  ai-task3:
     build:
-      context: ../AI/services/pose-estimation
-      dockerfile: ../../../docker/dockerfiles/Dockerfile.ai_task1
-    container_name: ai-task1
+      context: ../AI/services/face-to-face-name-response
+      dockerfile: ../../../docker/dockerfiles/Dockerfile.ai_task3
+    container_name: ai-task3
     ports:
-      - "8001:8001"
+      - "8003:8003"
     volumes:
-      - ../AI/services/pose-estimation/app:/app/app
-      - huggingface_cache:/root/.cache/huggingface
+      - ../AI/services/face-to-face-name-response/app:/app/app
     environment:
       - PYTHONUNBUFFERED=1
-      - RABBITMQ_HOST=rabbitmq
-      - DEVICE=cpu
     networks:
       - cmn-network
     restart: unless-stopped
@@ -23,10 +20,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-
-volumes:
-  huggingface_cache:
-    driver: local
 
 networks:
   cmn-network:
