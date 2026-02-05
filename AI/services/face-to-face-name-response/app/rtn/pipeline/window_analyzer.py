@@ -23,7 +23,7 @@ from app.rtn.indices import (
     RIGHT_IRIS,
 )
 from app.rtn.pipeline.results import CallResult
-from app.rtn.pipeline.roles import RoleAssignerByArea
+from app.rtn.pipeline.roles import RoleAssignerHeuristic
 from app.rtn.roi.contact import contact_by_raycast
 from app.rtn.roi.parent_eye_roi import ParentEyeROIBuilder
 from app.rtn.tracking.byte_tracker import ByteTracker
@@ -31,6 +31,7 @@ from app.rtn.types import BBox, FrameBGR, Landmarks
 from app.rtn.utils import crop_face_square
 from app.rtn.vision.mp_face_detector import FaceDetectorMP
 from app.rtn.vision.mp_facemesh import FaceMeshMP
+from app.rtn.vision.yolo_face_detector import YOLOFaceDetector
 
 logger = logging.getLogger("RTNAnalyzer.pipeline.window_analyzer")
 
@@ -42,7 +43,7 @@ class WindowAnalyzer:
 
     def __init__(
         self,
-        detector: FaceDetectorMP,
+        detector: FaceDetectorMP | YOLOFaceDetector,
         facemesh: FaceMeshMP,
         track_cfg: TrackConfig,
         role_cfg: RoleAssignConfig,
@@ -121,7 +122,7 @@ class WindowAnalyzer:
             fps,
         )
 
-        role_assigner = RoleAssignerByArea(self.role_cfg.warmup_s)
+        role_assigner = RoleAssignerHeuristic(self.role_cfg.warmup_s)
 
         consec_contact: int = 0
         first_contact_time: float | None = None
