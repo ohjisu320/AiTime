@@ -1,6 +1,7 @@
 package com.ssafy.aitime.domain.hospital.controller;
 
 import com.ssafy.aitime.common.response.ApiResponse;
+import com.ssafy.aitime.domain.exam.dto.response.AdosDetailResponse;
 import com.ssafy.aitime.domain.exam.dto.response.ExamWithVideosResponse;
 import com.ssafy.aitime.domain.hospital.dto.request.CalendarRequest;
 import com.ssafy.aitime.domain.hospital.dto.request.PatientSearchRequest;
@@ -127,5 +128,22 @@ public class DoctorController {
         );
 
         return ResponseEntity.ok(ApiResponse.ok("ADOS 그래프 데이터 조회 완료", response));
+    }
+
+    @Operation(
+            summary = "ADOS 상세 점수 조회",
+            description = "특정 검사(Exam)에 대한 ADOS 상세 점수를 조회합니다. 환아의 연령대별로 노출 항목이 달라집니다."
+    )
+    @GetMapping("/exams/{examId}/ados")
+    public ResponseEntity<ApiResponse<AdosDetailResponse>> getAdosDetail(
+            @AuthenticationPrincipal HospitalStaffPrincipal principal,
+            @PathVariable("examId") UUID examId) {
+
+        AdosDetailResponse response = doctorService.getAdosDetail(
+                principal.getHospitalStaffId(),
+                examId
+        );
+
+        return ResponseEntity.ok(ApiResponse.ok("ADOS 조회 완료", response));
     }
 }

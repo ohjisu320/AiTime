@@ -3,6 +3,7 @@ package com.ssafy.aitime.domain.hospital.service;
 import com.ssafy.aitime.common.enums.RecordStatus;
 import com.ssafy.aitime.domain.child.entity.Child;
 import com.ssafy.aitime.domain.child.repository.ChildRepository;
+import com.ssafy.aitime.domain.exam.dto.response.AdosDetailResponse;
 import com.ssafy.aitime.domain.exam.dto.response.ExamWithVideosResponse;
 import com.ssafy.aitime.domain.exam.entity.Ados;
 import com.ssafy.aitime.domain.exam.entity.Exam;
@@ -295,6 +296,27 @@ public class DoctorServiceImpl implements DoctorService{
         // 2. ExamService를 통해 타 도메인(ADOS) 데이터 조회
         UUID childId = hospitalChildren.getChild().getChildId();
         return examService.getAdosGraphData(childId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AdosDetailResponse getAdosDetail(UUID hospitalStaffId, UUID examId) {
+// 1. 의사 및 검사 정보 조회
+        HospitalStaff staff = hospitalStaffRepository.findById(hospitalStaffId)
+                .orElseThrow(HospitalStaffNotFoundException::new);
+
+        Exam exam = examService.getExamById(examId);
+
+        // 2. 권한 검증: 검사 대상 환아가 의사와 같은 병원 소속인지 확인
+        boolean hasAccess = hospitalChildrenRepository.existsByChildAndHospitalAndLinkStatus(
+                exam.getChild(), staff.getHospital(), LinkStatus.ACTIVE);
+
+        if (!hasAccess) {
+            throw new HospitalStaffAccessDeniedException();
+        }
+
+        // 3. ExamService 호출
+        return examService.getAdosDetail(examId);
     }
 
     private LocalDate getExamDate(Exam exam) {
