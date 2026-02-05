@@ -9,4 +9,5 @@ import java.util.UUID;
 
 public interface NameNonFacingTrialRepository extends JpaRepository<NameNonFacingTrial, UUID> {
     Optional<NameNonFacingTrial> findByVideo(Video video);
+    Optional<NameNonFacingTrial> findByVideoVideoId(UUID videoId);
 }
