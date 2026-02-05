@@ -16,70 +16,70 @@ const ExamGuidePage = () => {
   ];
 
   return (
-    <div className="flex flex-col items-center w-full">
+    <div className="w-full h-screen min-h-[820px] flex flex-col overflow-hidden">
       {/* 🚦 Step 1 완료(체크표시), Step 2 활성화 상태의 헤더 */}
       <ConsentHeader
         currentStep={2}
         totalSteps={3}
-        onBack={() => navigate('/exam/consent')}
+        onBack={() => navigate('/parent/dashboard')}
+        title="촬영 환경 준비"
+        subtitle="정확한 검사를 위해 아래 환경을 준비해주세요"
       />
 
-      <main className="w-full max-w-[1187px] mt-10 mb-20 px-4 flex flex-col items-center">
-        {/* 헤더 섹션 */}
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-800 mb-3">촬영 환경 준비</h1>
-          <p className="text-xl text-gray-600">정확한 검사를 위해 아래 환경을 준비해주세요</p>
-        </div>
+      <div className="flex-1 w-full overflow-y-auto flex flex-col items-center">
+        <main className="w-full max-w-[1187px] pt-[100px] pb-10 px-4 flex flex-col items-center">
+          {/* 헤더 섹션 제거됨 (ConsentHeader로 이동) */}
 
-        {/* 환경 안내 카드 섹션 */}
-        <div className="flex gap-8 mb-12">
-          <EnvironmentCard
-            emoji="💡"
-            title="밝은 조명"
-            bgColor="bg-yellow-100"
-            description="자연광이나 밝은 실내 조명 아래에서 촬영해주세요. 아이의 얼굴이 선명하게 보여야 합니다."
-          />
-          <EnvironmentCard
-            emoji="🔇"
-            title="조용한 공간"
-            bgColor="bg-blue-100"
-            description="TV, 음악 등 배경 소음을 최소화하고 아이가 집중할 수 있는 조용한 환경을 만들어주세요."
-          />
-          <EnvironmentCard
-            emoji="📏"
-            title="적절한 거리"
-            bgColor="bg-green-100"
-            description="아이와 카메라 사이 약 1m 거리를 유지하고, 아이의 상체가 화면에 잘 보이도록 배치해주세요."
-          />
-        </div>
+          {/* 환경 안내 카드 섹션 */}
+          <div className="flex gap-4 mb-6">
+            <EnvironmentCard
+              emoji="💡"
+              title="밝은 조명"
+              bgColor="bg-yellow-100"
+              description="자연광이나 밝은 실내 조명 아래에서 촬영해주세요. 아이의 얼굴이 선명하게 보여야 합니다."
+            />
+            <EnvironmentCard
+              emoji="🔇"
+              title="조용한 공간"
+              bgColor="bg-blue-100"
+              description="TV, 음악 등 배경 소음을 최소화하고 아이가 집중할 수 있는 조용한 환경을 만들어주세요."
+            />
+            <EnvironmentCard
+              emoji="📏"
+              title="적절한 거리"
+              bgColor="bg-green-100"
+              description="아이와 카메라 사이 약 1m 거리를 유지하고, 아이의 상체가 화면에 잘 보이도록 배치해주세요."
+            />
+          </div>
 
-        {/* 정적 체크리스트 섹션 */}
-        <div className="w-full max-w-[1024px] bg-white rounded-2xl shadow-lg p-10 flex flex-col gap-6 mb-10">
-          <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-            📋 체크리스트
-          </h2>
-          <ul className="flex flex-col gap-3">
-            {checklistItems.map((item, index) => (
-              <li key={index} className="flex items-center gap-3 p-4 bg-secondary rounded-xl shadow-sm">
-                <span className="text-lg text-secondary-foreground font-medium">{item}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
+          {/* 정적 체크리스트 섹션 */}
+          <div className="w-full max-w-[1024px] bg-white rounded-xl shadow-md p-4 flex flex-col gap-3 mb-5">
+            <h2 className="text-sm font-bold text-gray-800 flex items-center gap-2">
+              📋 체크리스트
+            </h2>
+            <ul className="flex flex-col gap-1.5">
+              {checklistItems.map((item, index) => (
+                <li key={index} className="flex items-center gap-2 p-2.5 bg-secondary rounded-lg shadow-sm">
+                  <span className="text-sm text-secondary-foreground font-medium">{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
 
-        {/* 준비 완료 버튼 (항상 활성화) - 보라색 오버라이드 */}
-        <Button
-          variant="default"
-          className="w-full max-w-[1024px] h-16 text-lg font-bold rounded-2xl transition-all bg-brand-purple hover:bg-brand-purple-dark text-white"
-          onClick={() => navigate('/exam/mission')}
-        >
-          준비 완료, 미션 선택하기
-        </Button>
-      </main>
+          {/* 준비 완료 버튼 (항상 활성화) - 보라색 오버라이드 */}
+          <Button
+            variant="default"
+            className="w-full max-w-[1024px] h-12 text-sm font-bold rounded-xl transition-all bg-brand-purple hover:bg-brand-purple-dark text-white"
+            onClick={() => navigate('/exam/mission')}
+          >
+            준비 완료, 미션 선택하기
+          </Button>
+        </main>
 
-      <footer className="mt-auto mb-8 text-gray-500 text-sm">
-        AiTime은 12~23개월 무발화 영유아의 자폐 스펙트럼(ASD) 조기 진단을 보조합니다
-      </footer>
+        <footer className="mt-auto mb-8 text-gray-500 text-sm">
+          AiTime은 12~23개월 무발화 영유아의 자폐 스펙트럼(ASD) 조기 진단을 보조합니다
+        </footer>
+      </div>
     </div>
   );
 };

@@ -21,24 +21,24 @@ const HospitalTimeline = ({ hospitals, childName, onAddClick }: HospitalTimeline
   const hasHospitals = hospitals && hospitals.length > 0;
 
   return (
-    <Card className="w-full h-full rounded-3xl shadow-xl border-gray-100 flex flex-col overflow-hidden bg-white transition-all duration-300">
-      <CardHeader className="p-8 pb-4">
+    <Card className="w-full h-full rounded-2xl sm:rounded-2xl md:rounded-3xl lg:rounded-3xl shadow-lg sm:shadow-xl border-gray-100 flex flex-col overflow-hidden bg-white transition-all duration-300">
+      <CardHeader className="p-4 sm:p-5 md:p-6 lg:p-8 pb-2 sm:pb-3 md:pb-3 lg:pb-4">
         <div className="flex items-center gap-2">
-          <div className="p-2 bg-indigo-50 rounded-lg">
-            <HospitalIcon className="w-5 h-5 text-[#6366F1]" />
+          <div className="p-1.5 sm:p-2 bg-indigo-50 rounded-lg">
+            <HospitalIcon className="w-4 h-4 sm:w-5 sm:h-5 text-[#6366F1]" />
           </div>
-          <CardTitle className="text-xl font-bold text-gray-800">연결된 병원</CardTitle>
+          <CardTitle className="text-base sm:text-lg md:text-xl font-bold text-gray-800">연결된 병원</CardTitle>
         </div>
       </CardHeader>
 
-      <CardContent className="flex-1 px-8 pb-8 flex flex-col">
+      <CardContent className="flex-1 px-4 sm:px-5 md:px-6 lg:px-8 pb-4 sm:pb-5 md:pb-6 lg:pb-8 flex flex-col">
         {hasHospitals ? (
           /* 1. 병원 목록이 있을 때: 타임라인 디자인 적용 */
           <div className={`relative flex-1 transition-all duration-500 ease-in-out ${isExpanded ? 'max-h-[1000px]' : 'max-h-[400px] overflow-hidden'}`}>
-            <div className="space-y-8 mt-4 pb-4">
+            <div className="space-y-4 sm:space-y-6 md:space-y-8 mt-2 sm:mt-3 md:mt-4 pb-2 sm:pb-3 md:pb-4">
               {/* 배열을 역순으로 복사하여 렌더링 (최신순 정렬) */}
               {[...hospitals].reverse().map((h, i) => (
-                <div key={h.hospitalId} className="relative flex gap-4">
+                <div key={h.hospitalId} className="relative flex gap-2 sm:gap-3 md:gap-4">
                   {/* 타임라인 수직 선 */}
                   {i !== hospitals.length - 1 && (
                     <div className="absolute left-[7px] top-5 w-0.5 h-full bg-gray-100" />
@@ -89,7 +89,7 @@ const HospitalTimeline = ({ hospitals, childName, onAddClick }: HospitalTimeline
         {hasHospitals && (
           <Button
             variant="ghost"
-            className="w-full h-14 mt-auto bg-gray-50 text-gray-500 rounded-2xl font-bold hover:bg-gray-100 transition-colors"
+            className="w-full h-10 sm:h-12 md:h-14 mt-auto bg-gray-50 text-gray-500 rounded-xl sm:rounded-2xl font-bold hover:bg-gray-100 transition-colors text-xs sm:text-sm md:text-base"
             onClick={() => setIsExpanded(!isExpanded)}
           >
             {isExpanded ? (
