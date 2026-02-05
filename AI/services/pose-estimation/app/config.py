@@ -162,12 +162,12 @@ class Settings(BaseSettings):
     # =========================================================================
     # RabbitMQ 설정 (추후 통합용)
     # =========================================================================
-    RABBITMQ_HOST: str = "localhost"
+    RABBITMQ_HOST: str = "rabbitmq"
     RABBITMQ_PORT: int = 5672
     RABBITMQ_USER: str = "guest"
     RABBITMQ_PASSWORD: str = "guest"
-    TASK_QUEUE: str = "pose_task_queue"
-    RESULT_QUEUE: str = "pose_result_queue"
+    TASK_QUEUE: str = "analysis.req.task1"
+    RESULT_QUEUE: str = "analysis.resp"
     
     # =========================================================================
     # Validators
