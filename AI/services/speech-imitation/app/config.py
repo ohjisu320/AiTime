@@ -47,10 +47,16 @@ class Settings(BaseSettings):
     SCHEMA_VERSION: str = "1.0"
 
     # ===== RabbitMQ (옵션) =====
-    RABBITMQ_URL: str = Field(description="RabbitMQ 연결 URL")
-    INPUT_QUEUE: str = Field(description="입력 큐 이름")
-    OUTPUT_QUEUE: str = Field(description="출력 큐 이름")
-    MAX_RETRIES: int = 3
+    # RABBITMQ_URL: str = Field(description="RabbitMQ 연결 URL")
+    # INPUT_QUEUE: str = Field(description="입력 큐 이름")
+    # OUTPUT_QUEUE: str = Field(description="출력 큐 이름")
+    # MAX_RETRIES: int = 3
+
+    RABBITMQ_URL: str = Field(
+        default="amqp://guest:guest@rabbitmq:5672/", description="RabbitMQ 연결 URL"
+    )
+    INPUT_QUEUE: str = "analysis.req.task2"
+    OUTPUT_QUEUE: str = "analysis.resp"
 
     # ===== 오디오 전처리 =====
     SAMPLE_RATE: int = 16000
