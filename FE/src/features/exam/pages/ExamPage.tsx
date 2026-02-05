@@ -1,6 +1,6 @@
 // src/domains/exam/pages/ExamPage.tsx
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
-import { useParams, useNavigate, useBlocker } from 'react-router-dom';
+import { useParams, useNavigate, useBlocker, useLocation } from 'react-router-dom';
 import { useMediaRecorder } from '@/domains/video/hooks/useMediaRecorder';
 import { useExamUpload } from '@/domains/video/hooks/useExamUpload';
 import type { VideoType } from '@/domains/video/api/videoApi';
@@ -20,7 +20,21 @@ const getVideoTypeFromMissionId = (missionId: string): VideoType => {
 const ExamPage: React.FC = () => {
   const { missionId = "1" } = useParams<{ missionId: string }>();
   const navigate = useNavigate();
+  const location = useLocation(); // ✅ Location 훅 추가
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  // 🛡️ 비정상 접근 차단 (스크리닝 통과 증표 확인)
+  const [isInvalidAccessModalOpen, setIsInvalidAccessModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (!location.state?.verified) {
+      setIsInvalidAccessModalOpen(true);
+    }
+  }, [location]);
+
+  const handleInvalidAccessConfirm = () => {
+    navigate('/exam/mission', { replace: true });
+  };
 
   const content = SCREENING_CONTENT[missionId] || SCREENING_CONTENT["1"];
   const instructions = content.instructions || [];
@@ -57,25 +71,13 @@ const ExamPage: React.FC = () => {
 
   // React Router 네비게이션 방지
   const blocker = useBlocker(shouldBlock);
+  const [isBlockerModalOpen, setIsBlockerModalOpen] = useState(false);
 
   useEffect(() => {
     if (blocker.state === 'blocked') {
-      Swal.fire({
-        title: '검사를 중단하시겠습니까?',
-        text: '페이지를 이동하면 영상이 저장되지 않습니다.',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#3085d6',
-        cancelButtonColor: '#d33',
-        confirmButtonText: '중단하고 나가기',
-        cancelButtonText: '취소',
-      }).then((result) => {
-        if (result.isConfirmed) {
-          blocker.proceed();
-        } else {
-          blocker.reset();
-        }
-      });
+      setIsBlockerModalOpen(true);
+    } else {
+      setIsBlockerModalOpen(false);
     }
   }, [blocker]);
 
@@ -119,11 +121,14 @@ const ExamPage: React.FC = () => {
 
   // 1. 카메라 권한 및 스트림 연결
   useEffect(() => {
+    // 🛑 스크리닝 미통과 시 카메라 실행하지 않음
+    if (!location.state?.verified) return;
+
     startSession().catch(() => {
       Swal.fire({ title: '권한 에러', text: '카메라 권한을 확인해주세요.', icon: 'warning' })
         .then(() => navigate('/exam/mission'));
     });
-  }, [startSession, navigate]);
+  }, [startSession, navigate, location.state?.verified]);
 
   // 2. 스트림 연결 시 비디오 설정
   useEffect(() => {
@@ -202,7 +207,7 @@ const ExamPage: React.FC = () => {
       isAligned={true}
       volume={0}
       showVisualGuide={false}
-      onBack={() => navigate(-1)}
+      onBack={() => navigate('/exam/mission')}
     >
       {/* ⚠️ 로딩 중 (업로드 중 포함) */}
       {isPending && (
@@ -295,8 +300,30 @@ const ExamPage: React.FC = () => {
         confirmText="목록으로 돌아가기"
       />
 
+      {/* 4. 뒤로가기/이탈 방지 모달 (ConfirmModal로 변경) */}
+      {blocker.state === 'blocked' && (
+        <ConfirmModal
+          isOpen={isBlockerModalOpen}
+          onClose={() => blocker.reset()}
+          onConfirm={() => blocker.proceed()}
+          title="검사를 중단하시겠습니까?"
+          description="페이지를 이동하면 진행 상황이 저장되지 않습니다."
+          confirmText="중단하고 나가기"
+          confirmVariant="rose"
+          closeOnConfirm={false}
+        />
+      )}
 
-
+      {/* 5. 비정상 접근 차단 모달 */}
+      <ConfirmModal
+        isOpen={isInvalidAccessModalOpen}
+        onClose={handleInvalidAccessConfirm}
+        onConfirm={handleInvalidAccessConfirm}
+        title="잘못된 접근입니다."
+        description="스크리닝 단계를 먼저 완료해주세요."
+        confirmText="확인"
+        confirmVariant="violet"
+      />
     </ExamBaseLayout>
   );
 };

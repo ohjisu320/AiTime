@@ -24,8 +24,17 @@ const ExamRecordingPage: React.FC<ExamRecordingPageProps> = ({ missionId: propMi
   // TODO: 실제 childId는 Context나 props에서 가져와야 함
   const childId = localStorage.getItem('selectedChildId') || 'mock-child-id';
 
+  // ✅ 정상 진행 상태 관리
+  const [isProceeding, setIsProceeding] = useState(false);
+
   const handleGoToNextTask = useCallback(() => {
-    navigate(`/exam/task/${currentMissionId}`);
+    setIsProceeding(true); // ✅ 차단 해제
+    // 상태 업데이트 반영을 위해 setTimeout 사용 (선택사항, React state batching 고려)
+    setTimeout(() => {
+      navigate(`/exam/task/${currentMissionId}`, {
+        state: { verified: true } // ✅ 검증 통과 증표 전달
+      });
+    }, 0);
   }, [navigate, currentMissionId]);
 
   // LiveKit 스크리닝 훅
@@ -40,8 +49,8 @@ const ExamRecordingPage: React.FC<ExamRecordingPageProps> = ({ missionId: propMi
     stopScreening
   } = useLiveKitScreening();
 
-  // 🚫 뒤로가기/이탈 방지 처리
-  const shouldBlock = true;
+  // 🚫 뒤로가기/이탈 방지 처리 (정상 진행 시에는 차단하지 않음)
+  const shouldBlock = !isProceeding;
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -166,6 +175,7 @@ const ExamRecordingPage: React.FC<ExamRecordingPageProps> = ({ missionId: propMi
           description="페이지를 이동하면 진행 상황이 저장되지 않습니다."
           confirmText="중단하고 나가기"
           confirmVariant="rose"
+          closeOnConfirm={false}
         />
       )}
     </>
