@@ -18,6 +18,9 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    mem_limit: 2g
+    mem_reservation: 512m
+    # memswap_limit 생략 - AI 추론 시 피크 대응
 
 networks:
   cmn-network:

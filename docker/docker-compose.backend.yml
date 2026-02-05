@@ -16,9 +16,13 @@ services:
       LIVEKIT_URL: http://livekit:7880
       AI_SERVER_URL: http://screening:8000
       TZ: ${TZ:-Asia/Seoul}
+      JAVA_OPTS: -Xms512m -Xmx768m -XX:MaxMetaspaceSize=256m -XX:+UseG1GC -XX:MaxGCPauseMillis=200
     networks:
       - cmn-network
     restart: unless-stopped
+    mem_limit: 1g
+    mem_reservation: 700m
+    memswap_limit: 1g
 
 networks:
   cmn-network:
