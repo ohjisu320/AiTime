@@ -136,7 +136,7 @@ public class AdosCalculationServiceImpl implements AdosCalculationService{
                 AnalysisStatus.SUCCESS
         );
         if (successCount < 4) {
-            log.debug("분석 완료된 영상: {}/4", successCount);
+            log.debug("✅ 분석 완료된 영상: {}/4", successCount);
             return false;
         }
 
