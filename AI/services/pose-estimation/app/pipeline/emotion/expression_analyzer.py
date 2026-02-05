@@ -86,10 +86,10 @@ class EmotionConfig:
     """표정 분석 설정"""
     enable: bool = True
     skip_frames: int = 5
-    min_face_size: int = 64
+    min_face_size: int = 40  # 얼굴 크기 임계값 낮춤 (64 -> 40)
     model_name: str = "enet_b0_8_best_vgaf"
     joy_threshold: float = 0.1  # 즐거움 탐지 임계값 (비율)
-    face_confidence_threshold: float = 0.9
+    face_confidence_threshold: float = 0.7  # confidence 임계값 낮춤 (0.9 -> 0.7)
 
 
 class ExpressionAnalyzer:
@@ -234,6 +234,8 @@ class ExpressionAnalyzer:
         # 1. 얼굴 탐지
         faces = self.face_detector.detect(frame)
         if not faces:
+            if frame_index % 30 == 0:  # 30프레임마다 로그
+                logger.debug(f"프레임 {frame_index}: 얼굴 미탐지")
             return FrameExpressionResult(
                 frame_index=frame_index,
                 face_detected=False,
@@ -245,6 +247,8 @@ class ExpressionAnalyzer:
             faces, child_head_pos, parent_head_pos
         )
         if child_face is None:
+            if frame_index % 30 == 0:  # 30프레임마다 로그
+                logger.debug(f"프레임 {frame_index}: {len(faces)}개 얼굴 탐지, 아이 얼굴 선택 실패")
             return FrameExpressionResult(
                 frame_index=frame_index,
                 face_detected=True,
