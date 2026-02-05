@@ -1,9 +1,7 @@
 package com.ssafy.aitime.domain.exam.service;
 
-import com.ssafy.aitime.domain.child.dto.response.ChildAgeInfoResponse;
 import com.ssafy.aitime.domain.child.entity.Child;
 import com.ssafy.aitime.domain.child.entity.enums.ChildHomeStatus;
-import com.ssafy.aitime.domain.child.service.ChildService;
 import com.ssafy.aitime.domain.exam.dto.response.ExamInfoResponse;
 import com.ssafy.aitime.domain.exam.dto.response.ExamStartResponse;
 import com.ssafy.aitime.domain.exam.dto.response.ExamSummaryDTO;
@@ -91,6 +89,10 @@ public class ExamServiceImpl implements ExamService {
         ExamSummaryDTO examSummary = getExamSummaryForChild(childId);
         ChildHomeStatus currentStatus = examSummary.childHomeStatus();
 
+        // ⭐ 디버깅 로그 추가
+        log.info("검사 시작 시도 - childId: {}, currentStatus: {}, examSummary: {}",
+                childId, currentStatus, examSummary);
+
         // 2. 검사 시작 가능 상태인지 확인 (AVAILABLE 또는 AVAILABLE_EXPIRED만 허용)
         if (!(currentStatus == ChildHomeStatus.AVAILABLE
                 || currentStatus == ChildHomeStatus.AVAILABLE_EXPIRED)) {
@@ -110,7 +112,7 @@ public class ExamServiceImpl implements ExamService {
                 .submitted(false)
                 .examStartedAt(null)  // 첫 비디오 업로드 시 설정됨
                 .nextEligibleAt(null) // 검사 완료 시 설정됨
-                .draftExpiresAt(null) // 첫 비디오 업로드 시 설정됨
+                .draftExpiresAt(LocalDateTime.now().plusDays(3)) // 검사 시작하면 설정!!
                 .completedAt(null)
                 .build();
 
@@ -196,7 +198,7 @@ public class ExamServiceImpl implements ExamService {
     public ExamInfoResponse getExamInfo(UUID childId, boolean underEighteen) {
         // 1. 가장 최신 검사 조회
         Exam latestExam = examRepository.findFirstByChild_ChildIdOrderByCreatedAtDesc(childId)
-                .orElseThrow(() -> new ExamNotFoundException());
+                .orElseThrow(ExamNotFoundException::new);
 
         // 2. 해당 검사의 모든 비디오 조회
         List<Video> videos = videoRepository.findByExamExamId(latestExam.getExamId());

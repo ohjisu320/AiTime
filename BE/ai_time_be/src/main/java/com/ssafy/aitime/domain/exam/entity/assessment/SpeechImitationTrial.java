@@ -11,21 +11,35 @@ import java.util.UUID;
 @Table(name = "speech_imitation_trial")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class SpeechImitationTrial {
-    @Id @GeneratedValue @UuidGenerator
+
+    @Id
+    @GeneratedValue
+    @UuidGenerator
     @Column(name = "speech_imitation_trial_id", columnDefinition = "BINARY(16)")
     private UUID speechImitationTrialId;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "video_id", nullable = false, foreignKey = @ForeignKey(name = "fk_speech_imitation_video"))
+    @JoinColumn(
+            name = "video_id",
+            nullable = false,
+            foreignKey = @ForeignKey(
+                    name = "fk_speech_imitation_video",
+                    foreignKeyDefinition = "FOREIGN KEY (video_id) REFERENCES video(video_id) ON DELETE CASCADE"
+            )
+    )
     private Video video;
 
-    private String stimulusId;
-    private String stimulusText;
+    // ADOS 필드 (API에서 수신한 원본 데이터, 추후 서비스 로직에서 수치화)
+    @Column(name = "ados_a3", length = 50)
+    private String adosA3;  // 0-3점
+
+    @Column(name = "ados_b18", length = 50)
+    private String adosB18;  // TRUE/FALSE
 
     @Builder
-    public SpeechImitationTrial(Video video, String stimulusId, String stimulusText) {
+    public SpeechImitationTrial(Video video, String adosA3, String adosB18) {
         this.video = video;
-        this.stimulusId = stimulusId;
-        this.stimulusText = stimulusText;
+        this.adosA3 = adosA3;
+        this.adosB18 = adosB18;
     }
 }
