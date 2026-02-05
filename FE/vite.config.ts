@@ -79,8 +79,8 @@ export default defineConfig({
   // 1. 개발 서버 설정 (npm run dev)
   server: {
     proxy: {
-      '/api': {
-        target: 'http://70.12.246.92:8080',
+      '/api/v1': {
+        target: 'http://70.12.246.95:8080',
         changeOrigin: true,
         secure: false,
         cookieDomainRewrite: {

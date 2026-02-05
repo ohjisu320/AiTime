@@ -1,4 +1,4 @@
-//src/features/doctor/hooks/useDoctorDashboard.ts
+// src/features/doctor/hooks/useDoctorDashboard.ts
 import { useState, useEffect, useCallback } from "react";
 import { doctorApi } from "../api/doctorApi";
 import { examReportApi } from "../api/examReportApi";
@@ -13,51 +13,61 @@ import type {
 } from "@/api/types/examReport.types";
 
 export const useDoctorDashboard = () => {
+  // --- UI 상태 ---
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isVideoModalOpen, setVideoModalOpen] = useState(false);
   const [isAdosModalOpen, setAdosModalOpen] = useState(false);
 
+  // --- 환자 및 대기열 상태 ---
   const [waitingList, setWaitingList] = useState<PatientDto[]>([]);
   const [selectedPatient, setSelectedPatient] = useState<PatientDetailFull | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // ============================================================
-  // 검사 리포트 관련 상태 (새로 추가)
-  // ============================================================
+  // --- API 데이터 상태 (Mock 제거됨) ---
   const [examReportData, setExamReportData] = useState<ExamReportInitialData | null>(null);
   const [examVideoList, setExamVideoList] = useState<ExamVideoListItem[]>([]);
   const [currentVideoData, setCurrentVideoData] = useState<VideoPresignView | null>(null);
   const [adosGraphs, setAdosGraphs] = useState<AdosGraphs | null>(null);
   const [currentAdosDetail, setCurrentAdosDetail] = useState<AdosDetail | null>(null);
+
   const [isExamReportLoading, setIsExamReportLoading] = useState(false);
 
-  // hospitalChildrenId 상태 (환아-병원 매핑 ID)
-  // TODO: 현재는 childId를 사용하지만, 실제 hospitalChildrenId가 API에서 제공해야 함
-  const [currentHospitalChildrenId, setCurrentHospitalChildrenId] = useState<string | null>(null);
-
-  // ============================================================
-  // 환아 선택 시 초기 데이터 로딩
-  // ============================================================
+  /**
+   * [API 0] 통합 초기 데이터 로딩
+   * GET /api/v1/doctor/{hospitalChildrenId}/exam-reports/initial
+   * 
+   * 환자 선택 시 한 번 호출되어 화면의 모든 섹션을 채웁니다.
+   */
   const loadExamReportInitialData = useCallback(async (hospitalChildrenId: string) => {
     setIsExamReportLoading(true);
     try {
-      console.log("📡 [ExamReport] 초기 데이터 로딩 시작:", hospitalChildrenId);
+      console.log(`📡 [Dashboard] 초기 데이터 요청: ${hospitalChildrenId}`);
 
+      // 통합 API 호출
       const data = await examReportApi.getExamReportsInitial(hospitalChildrenId);
 
+      // 전체 데이터 저장
       setExamReportData(data);
-      setExamVideoList(data.examVideoList);
+
+      // 1. 세션 목록 업데이트
+      setExamVideoList(data.examVideoList || []);
+
+      // 2. 그래프 업데이트
       setAdosGraphs(data.adosGraphs);
+
+      // 3. ADOS 상세 업데이트 (초기값: 최신 검사 기준)
       setCurrentAdosDetail(data.latestAdosDetail);
 
-      // 최신 POSE_IMITATION 비디오가 있으면 설정
+      // 4. 비디오 업데이트 (최신 POSE_IMITATION이 있는 경우만)
       if (data.latestPoseImitationVideo) {
         setCurrentVideoData(data.latestPoseImitationVideo);
+      } else {
+        setCurrentVideoData(null);
       }
 
-      console.log("✅ [ExamReport] 초기 데이터 로딩 완료");
-    } catch (error: any) {
-      console.error("❌ [ExamReport] 초기 데이터 로딩 실패:", error);
+      console.log("✅ [Dashboard] 데이터 로딩 완료");
+    } catch (error) {
+      console.error("❌ [Dashboard] 데이터 로딩 실패:", error);
       // 에러 시 상태 초기화
       setExamReportData(null);
       setExamVideoList([]);
@@ -69,85 +79,86 @@ export const useDoctorDashboard = () => {
     }
   }, []);
 
-  // ============================================================
-  // 비디오 선택 (presign-view 호출)
-  // ============================================================
+  /**
+   * [API 3] 비디오 선택 (presign-view)
+   * 세션 목록에서 비디오 클릭 시 호출
+   */
   const selectVideo = useCallback(async (videoId: string) => {
     try {
-      console.log("📡 [Video] 비디오 선택:", videoId);
+      console.log(`📡 [Video] 상세 조회 요청: ${videoId}`);
       const videoData = await examReportApi.getVideoPresignView(videoId);
       setCurrentVideoData(videoData);
-      console.log("✅ [Video] 비디오 데이터 로딩 완료");
     } catch (error) {
-      console.error("❌ [Video] 비디오 데이터 로딩 실패:", error);
+      console.error("❌ [Video] 로딩 실패:", error);
     }
   }, []);
 
-  // ============================================================
-  // ADOS 상세 조회 (특정 검사 기준)
-  // ============================================================
+  /**
+   * [API 5] ADOS 상세 조회
+   * 특정 과거 검사의 ADOS 점수를 보고 싶을 때 호출
+   */
   const loadAdosDetail = useCallback(async (examId: string) => {
     try {
-      console.log("📡 [ADOS] 상세 조회:", examId);
-      const adosDetail = await examReportApi.getAdosDetail(examId);
-      setCurrentAdosDetail(adosDetail);
-      console.log("✅ [ADOS] 상세 조회 완료");
+      const detail = await examReportApi.getAdosDetail(examId);
+      setCurrentAdosDetail(detail);
     } catch (error) {
       console.error("❌ [ADOS] 상세 조회 실패:", error);
     }
   }, []);
 
-  // ============================================================
-  // ADOS 수정
-  // ============================================================
+  /**
+   * [API 6] ADOS 수정
+   * 수정 후 그래프 데이터도 갱신 필요 (점수가 그래프에 반영되므로)
+   */
   const updateAdos = useCallback(async (examId: string, scores: AdosUpdateRequest) => {
     try {
-      console.log("📡 [ADOS] 수정 요청:", examId, scores);
       const updatedAdos = await examReportApi.updateAdos(examId, scores);
       setCurrentAdosDetail(updatedAdos);
-      console.log("✅ [ADOS] 수정 완료");
+
+      // 점수가 바뀌었으므로 그래프도 최신화
+      if (selectedPatient?.childId) {
+        const newGraphs = await examReportApi.getAdosGraphs(selectedPatient.childId);
+        setAdosGraphs(newGraphs);
+      }
       return updatedAdos;
     } catch (error) {
       console.error("❌ [ADOS] 수정 실패:", error);
       throw error;
     }
-  }, []);
+  }, [selectedPatient]);
 
-  // ============================================================
-  // 환자 선택 함수 (기존 + 초기 데이터 로딩 추가)
-  // ============================================================
+  /**
+   * 환자 선택 핸들러
+   */
   const selectPatient = useCallback((patient: PatientDto) => {
+    // 1. 환자 상세 정보 설정
     const patientDetail = doctorApi.getPatientDetailFromDto(patient);
     setSelectedPatient(patientDetail);
-    console.log("📋 환자 선택:", patient.name);
 
-    // TODO: 실제로는 hospitalChildrenId를 사용해야 함
-    // 현재는 childId를 임시로 사용
-    const hospitalChildrenId = patient.childId;
-    setCurrentHospitalChildrenId(hospitalChildrenId);
+    // 2. [테스트용] 하드코딩된 hospitalChildrenId 사용
+    // TODO: 테스트 후 원래 로직으로 복원 필요
+    // const targetId = patient.hospitalChildrenId || patient.childId;
+    const targetId = 'db9d306a-9948-4823-917b-c47e277a6a44'; // 테스트용 하드코딩
 
-    // 초기 데이터 로딩
-    loadExamReportInitialData(hospitalChildrenId);
+    console.log(`📋 환자 선택됨: ${patient.name}`);
+    console.log(`👉 사용된 ID: ${targetId} (테스트용 하드코딩)`);
+
+    // 3. 통합 데이터 로딩
+    if (targetId) {
+      loadExamReportInitialData(targetId);
+    }
+
+    setSidebarOpen(false);
   }, [loadExamReportInitialData]);
 
-  // 오늘 날짜 구하기 (YYYY-MM-DD)
-  const getTodayDate = () => {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, "0");
-    const day = String(today.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  };
-
-  // 전체 환자 목록 조회 및 첫 환자 자동 선택
+  /**
+   * 대기열 조회 (오늘 날짜)
+   */
   useEffect(() => {
     const fetchWaitingList = async () => {
       setIsLoading(true);
       try {
-        const today = getTodayDate();
-        console.log("📡 [API] 대기열 조회 요청 - 날짜:", today);
-
-        // API 명세에 맞춰 date 파라미터 추가
+        const today = new Date().toISOString().split('T')[0];
         const response = await doctorApi.searchPatients({
           page: 0,
           size: 100,
@@ -157,47 +168,25 @@ export const useDoctorDashboard = () => {
 
         if (response.code === 200 && response.data?.childResponses?.length > 0) {
           const patients = response.data.childResponses;
-          console.log("📡 [API] 대기열 조회 성공:", patients.length, "명");
           setWaitingList(patients);
           // 첫 번째 환자 자동 선택
           selectPatient(patients[0]);
         } else {
-          console.warn("📡 [API] 대기 환자 없음");
           setWaitingList([]);
           setSelectedPatient(null);
         }
-      } catch (error: any) {
-        console.error("📡 [API] 대기열 조회 실패:", error);
-
-        // 인증 에러(500) 처리 로그
-        if (error.response?.status === 500 && error.response?.data?.trace?.includes("UserPrincipal")) {
-          console.error("🚨 [CRITICAL] 서버에서 사용자 정보를 찾을 수 없습니다. (NullPointerException)");
-          console.error("👉 조치방법: 로그아웃 후 다시 로그인하여 새 토큰을 발급받아보세요.");
-        }
-
+      } catch (error) {
+        console.error("API Error:", error);
         setWaitingList([]);
-        setSelectedPatient(null);
       } finally {
         setIsLoading(false);
       }
     };
-
     fetchWaitingList();
   }, [selectPatient]);
 
+  // UI 액션들
   const toggleSidebar = () => setSidebarOpen((prev) => !prev);
-
-  // ESC 키 이벤트 핸들러
-  useEffect(() => {
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setVideoModalOpen(false);
-        setAdosModalOpen(false);
-      }
-    };
-    window.addEventListener("keydown", handleEsc);
-    return () => window.removeEventListener("keydown", handleEsc);
-  }, []);
 
   return {
     states: {
@@ -207,25 +196,22 @@ export const useDoctorDashboard = () => {
       selectedPatient,
       waitingList,
       isLoading,
-      // 새로 추가된 상태
+      // API Data
       examReportData,
       examVideoList,
       currentVideoData,
       adosGraphs,
       currentAdosDetail,
       isExamReportLoading,
-      currentHospitalChildrenId,
     },
     actions: {
       toggleSidebar,
       setVideoModalOpen,
       setAdosModalOpen,
       selectPatient,
-      // 새로 추가된 액션
       selectVideo,
       loadAdosDetail,
       updateAdos,
-      loadExamReportInitialData,
     },
   };
 };
