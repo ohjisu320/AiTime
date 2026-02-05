@@ -19,6 +19,7 @@ interface ConfirmModalProps {
   description?: string | React.ReactNode; // 👈 ? 추가 (선택 사항)
   confirmText?: string; // 👈 ? 추가 (선택 사항)
   confirmVariant?: 'violet' | 'rose' | 'slate';
+  hideCloseButton?: boolean; // 👈 닫기 버튼 숨김 옵션 추가
 }
 
 const ConfirmModal = ({
@@ -29,7 +30,8 @@ const ConfirmModal = ({
   description,
   confirmText = "확인",
   confirmVariant = 'violet',
-  closeOnConfirm = true // 👈 추가
+  closeOnConfirm = true, // 👈 추가
+  hideCloseButton = false // 👈 닫기 버튼 숨김
 }: ConfirmModalProps & { closeOnConfirm?: boolean }) => {
 
   const variantStyles = {
@@ -63,13 +65,15 @@ const ConfirmModal = ({
         </DialogHeader>
 
         <DialogFooter className="flex flex-row gap-3 mt-8">
-          <Button
-            variant="ghost"
-            className="flex-1 h-14 bg-gray-50 hover:bg-gray-100 text-gray-500 font-semibold rounded-2xl transition-all"
-            onClick={onClose}
-          >
-            닫기
-          </Button>
+          {!hideCloseButton && (
+            <Button
+              variant="ghost"
+              className="flex-1 h-14 bg-gray-50 hover:bg-gray-100 text-gray-500 font-semibold rounded-2xl transition-all"
+              onClick={onClose}
+            >
+              닫기
+            </Button>
+          )}
           <Button
             className={cn(
               "flex-1 h-14 text-white text-lg font-bold rounded-2xl shadow-lg transition-all",
