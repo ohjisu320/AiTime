@@ -22,7 +22,7 @@ class ChildFaceSelector:
     탐지된 얼굴 중 아이 얼굴을 선택합니다.
     """
     
-    def __init__(self, distance_threshold: float = 100.0):
+    def __init__(self, distance_threshold: float = 200.0):
         """
         ChildFaceSelector 초기화.
         
@@ -107,11 +107,20 @@ class ChildFaceSelector:
                 (face_center[1] - head_pos[1]) ** 2
             )
             
-            if distance < best_distance and distance < self.distance_threshold:
+            if distance < best_distance:
                 best_distance = distance
                 best_face = face
         
-        return best_face
+        # 임계값 내에 없으면 가장 가까운 것을 반환 (조금 더 관대하게)
+        if best_distance < self.distance_threshold:
+            logger.debug(f"Pose 매칭 성공: distance={best_distance:.1f}px")
+            return best_face
+        elif best_distance < self.distance_threshold * 1.5:  # 1.5배까지 허용
+            logger.debug(f"Pose 매칭 (확장 임계값): distance={best_distance:.1f}px")
+            return best_face
+        else:
+            logger.debug(f"Pose 매칭 실패: best_distance={best_distance:.1f}px > threshold={self.distance_threshold}px")
+            return None
     
     def _exclude_parent(
         self,
