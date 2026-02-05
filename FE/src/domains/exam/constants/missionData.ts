@@ -158,9 +158,10 @@ export const SCREENING_CONTENT: Record<string, any> = {
     step: "03",
     engTitle: "Name Response (Offline)",
     korTitle: "비대면 호명 반응",
-    description: "아이의 시야 밖에서 이름을 불렀을 때 고개를 돌려 반응하는지 확인합니다. 아이는 카메라를 등지게 하고, 보호자는 아이의 뒤에서 카메라 방향으로 크게 두 발자국 이동하여 검사를 시행해 주세요. 보호자와 아이 모두 화면에 나와야 하며, 각 지시가 끝날 때마다 보호자는 화면을 보고 다음 가이드를 확인해 주시기 바랍니다.",
+    description: "아이의 시야 밖에서\n이름을 불렀을 때\n고개를 돌려 반응하는지\n확인합니다.\n\n아이는 카메라를 등지게 하고,\n보호자는 아이의 뒤에서\n카메라 방향으로 크게 두 발자국 이동하여\n검사를 시행해 주세요.\n\n보호자와 아이 모두\n화면에 나와야 하며,\n각 지시가 끝날 때마다\n보호자는 화면을 보고\n다음 가이드를 확인해 주시기 바랍니다.",
     variant: 'violet',
-    duration: 48,
+    countdown: 10,
+    duration: 60,
     instructions: [
       { id: 1, text: "시야 밖(등 뒤)에서", boldText: "평소 목소리로", suffix: "이름을 불러주세요" },
       { id: 2, text: "한번 더", boldText: "평소 목소리로", suffix: "한 번 더 불러주세요" },
