@@ -16,6 +16,7 @@ import com.ssafy.aitime.domain.exam.exception.*;
 import com.ssafy.aitime.domain.exam.repository.ExamRepository;
 import com.ssafy.aitime.domain.exam.repository.VideoRepository;
 import com.ssafy.aitime.domain.exam.repository.assessment.*;
+import com.ssafy.aitime.domain.hospital.dto.response.LatestPoseVideoResponse;
 import com.ssafy.aitime.domain.hospital.service.HospitalChildrenService;
 import com.ssafy.aitime.security.principal.HospitalStaffPrincipal;
 import com.ssafy.aitime.security.principal.UserPrincipal;
@@ -612,6 +613,36 @@ public class VideoServiceImpl implements VideoService {
     @Transactional(readOnly = true)
     public List<Video> getVideosByExamIds(List<UUID> examIds) {
         return videoRepository.findByExam_ExamIdInAndVideoStatusNot(examIds, VideoStatus.DELETED);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public LatestPoseVideoResponse getLatestPoseVideoResponse(Object principal, UUID examId, UUID videoId, int expiresInSec) {
+// 1. 기존 검증 로직 재활용 (권한, 상태, S3 존재 여부 체크)
+        Video video = validateAndGetVideo(principal, examId, videoId);
+
+        // 2. Presigned URL 생성
+        String viewUrl = generatePresignedGetUrl(video.getS3Bucket(), video.getS3Key(), expiresInSec);
+        LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(expiresInSec);
+
+        // 3. 타임스탬프 조회 (기존 getPoseImitationTimestamps 로직 결과 매핑)
+        List<TimestampInfo> timestamps = getTimestampsForVideo(video);
+
+        // 4. DTO 변환 (TimestampInfo -> LatestPoseVideoResponse.TimestampDTO)
+        List<LatestPoseVideoResponse.TimestampDTO> timestampDTOs = timestamps.stream()
+                .map(t -> new LatestPoseVideoResponse.TimestampDTO(t.startS(), t.endS(), t.trialIndex()))
+                .toList();
+
+        return new LatestPoseVideoResponse(
+                video.getVideoId().toString(),
+                video.getVideoType().name(),
+                examId.toString(),
+                video.getS3Bucket(),
+                video.getS3Key(),
+                viewUrl,
+                expiresAt,
+                timestampDTOs
+        );
     }
 
     /**

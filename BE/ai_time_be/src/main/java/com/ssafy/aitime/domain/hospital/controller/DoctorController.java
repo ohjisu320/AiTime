@@ -7,6 +7,7 @@ import com.ssafy.aitime.domain.hospital.dto.request.CalendarRequest;
 import com.ssafy.aitime.domain.hospital.dto.request.PatientSearchRequest;
 import com.ssafy.aitime.domain.hospital.dto.response.AdosReportGraphsResponse;
 import com.ssafy.aitime.domain.hospital.dto.response.CalendarReservationResponse;
+import com.ssafy.aitime.domain.hospital.dto.response.InitialReportResponse;
 import com.ssafy.aitime.domain.hospital.dto.response.PatientSearchResponse;
 import com.ssafy.aitime.domain.hospital.service.DoctorService;
 import com.ssafy.aitime.domain.hospital.service.ReservationService;
@@ -145,5 +146,24 @@ public class DoctorController {
         );
 
         return ResponseEntity.ok(ApiResponse.ok("ADOS 조회 완료", response));
+    }
+
+    @Operation(
+            summary = "환아 검사 리포트 초기 데이터 통합 조회",
+            description = "의사가 환아 선택 시 필요한 모든 정보를 한 번에 반환합니다."
+    )
+    @GetMapping("/{hospitalChildrenId}/exam-reports/initial")
+    public ResponseEntity<ApiResponse<InitialReportResponse>> getInitialReport(
+            @AuthenticationPrincipal HospitalStaffPrincipal principal,
+            @PathVariable("hospitalChildrenId") UUID hospitalChildrenId,
+            @RequestParam(value = "expiresInSec", defaultValue = "300") Long expiresInSec) {
+
+        InitialReportResponse response = doctorService.getInitialReport(
+                principal.getHospitalStaffId(),
+                hospitalChildrenId,
+                expiresInSec
+        );
+
+        return ResponseEntity.ok(ApiResponse.ok("환아 검사 리포트 초기 데이터 조회 완료", response));
     }
 }

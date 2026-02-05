@@ -14,9 +14,7 @@ import com.ssafy.aitime.domain.exam.service.ExamService;
 import com.ssafy.aitime.domain.exam.service.VideoService;
 import com.ssafy.aitime.domain.exam.service.dto.VideoSummary;
 import com.ssafy.aitime.domain.hospital.dto.request.PatientSearchRequest;
-import com.ssafy.aitime.domain.hospital.dto.response.AdosReportGraphsResponse;
-import com.ssafy.aitime.domain.hospital.dto.response.ChildResponse;
-import com.ssafy.aitime.domain.hospital.dto.response.PatientSearchResponse;
+import com.ssafy.aitime.domain.hospital.dto.response.*;
 import com.ssafy.aitime.domain.hospital.entity.HospitalChildren;
 import com.ssafy.aitime.domain.hospital.entity.HospitalStaff;
 import com.ssafy.aitime.domain.hospital.entity.enums.LinkStatus;
@@ -29,6 +27,7 @@ import com.ssafy.aitime.domain.hospital.exception.HospitalStaffNotFoundException
 import com.ssafy.aitime.domain.hospital.repository.HospitalChildrenRepository;
 import com.ssafy.aitime.domain.hospital.repository.HospitalStaffRepository;
 import com.ssafy.aitime.domain.hospital.repository.ReservationRepository;
+import com.ssafy.aitime.security.principal.HospitalStaffPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -317,6 +316,71 @@ public class DoctorServiceImpl implements DoctorService{
 
         // 3. ExamService 호출
         return examService.getAdosDetail(examId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public InitialReportResponse getInitialReport(UUID hospitalStaffId, UUID hospitalChildrenId, Long expiresInSec) {
+// 1. 의사 정보 조회 및 권한 확인 (기존 로직 재활용)
+        HospitalStaff staff = hospitalStaffRepository.findById(hospitalStaffId)
+                .orElseThrow(HospitalStaffNotFoundException::new);
+        HospitalChildren hospitalChildren = hospitalChildrenRepository.findById(hospitalChildrenId)
+                .orElseThrow(HospitalChildrenNotFoundException::new);
+        HospitalStaffPrincipal principal = HospitalStaffPrincipal.from(staff); // 권한 검증용 객체 생성
+
+        // 2. 권한 검증
+        if (!hospitalChildren.getHospital().getHospitalId().equals(staff.getHospital().getHospitalId())) {
+            throw new HospitalStaffAccessDeniedException();
+        }
+
+        int expiresAt = (expiresInSec != null) ? expiresInSec.intValue() : 300;
+
+        // 2. 환아별 검사 목록 조회 (기존 getExamsByHospitalChildren 재활용)
+        List<ExamWithVideosResponse> examVideoList = getExamsByHospitalChildren(hospitalStaffId, hospitalChildrenId);
+
+        // 검사 이력이 없는 경우 조기 반환
+        if (examVideoList.isEmpty()) {
+            return new InitialReportResponse(Collections.emptyList(), null, null, null);
+        }
+
+        // 3. 최신(Latest) 정보 추출 (첫 번째 요소가 최신)
+        ExamWithVideosResponse latestExamInfo = examVideoList.get(0);
+        UUID latestExamId = UUID.fromString(latestExamInfo.examId());
+
+        // 4. 최신 ADOS 상세 조회 (기존 examService.getAdosDetail 재활용)
+        AdosDetailResponse latestAdosDetail = null;
+        try {
+            latestAdosDetail = examService.getAdosDetail(latestExamId);
+        } catch (Exception e) {
+            log.warn("최신 ADOS 상세 정보가 없습니다. examId: {}", latestExamId);
+        }
+
+        // 5. ADOS 그래프 데이터 조회 (기존 getAdosGraphData 재활용)
+        UUID childId = hospitalChildren.getChild().getChildId(); // childId 조회 필요
+        AdosReportGraphsResponse adosGraphs = examService.getAdosGraphData(childId);
+
+        // 6. 최신 POSE_IMITATION 비디오 상세 정보 구성
+        LatestPoseVideoResponse latestPoseVideo = null;
+        Optional<String> poseVideoId = latestExamInfo.videos().stream()
+                .filter(v -> "POSE_IMITATION".equals(v.videoType()))
+                .map(v -> v.videoId())
+                .findFirst();
+
+        if (poseVideoId.isPresent()) {
+            latestPoseVideo = videoService.getLatestPoseVideoResponse(
+                    principal,
+                    latestExamId,
+                    UUID.fromString(poseVideoId.get()),
+                    expiresAt
+            );
+        }
+
+        return new InitialReportResponse(
+                examVideoList,
+                latestPoseVideo,
+                adosGraphs,
+                latestAdosDetail
+        );
     }
 
     private LocalDate getExamDate(Exam exam) {
