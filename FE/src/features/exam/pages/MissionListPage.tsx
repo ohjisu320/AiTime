@@ -94,6 +94,7 @@ const MissionListPage: React.FC = () => {
       <ConsentHeader
         currentStep={3}
         totalSteps={3}
+        onBack={() => navigate('/parent/dashboard')}
         title="검사 미션 선택"
         subtitle={`촬영할 미션을 선택해주세요 (총 ${missions.length}개 미션을 완료해야 합니다)`}
       />
