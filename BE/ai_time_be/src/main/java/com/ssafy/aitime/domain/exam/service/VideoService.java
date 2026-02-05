@@ -32,4 +32,9 @@ public interface VideoService {
      * DB는 soft delete로 처리 (status를 DELETED로 변경)
      */
     VideoDeleteResponse deleteVideo(UUID userId, UUID examId, UUID videoId);
+
+
+    String generatePresignedGetUrl(String bucket, String s3Key, int expiresInSec);
+
+    boolean verifyS3FileExists(String bucket, String s3Key);
 }

@@ -230,7 +230,7 @@ public class VideoServiceImpl implements VideoService {
      * S3(MinIO)에 파일이 실제로 존재하는지 확인
      * HEAD 요청을 통해 파일의 메타데이터만 조회하여 파일 존재 여부를 확인
      */
-    private boolean verifyS3FileExists(String bucket, String s3Key) {
+    public boolean verifyS3FileExists(String bucket, String s3Key) {
         try {
             s3Client.headObject(builder -> builder
                     .bucket(bucket)
@@ -355,21 +355,9 @@ public class VideoServiceImpl implements VideoService {
     }
 
     /**
-     * VideoType String을 Enum으로 변환 및 검증
-     */
-    private VideoType validateAndParseVideoType(String videoType) {
-        try {
-            return VideoType.valueOf(videoType);
-        } catch (IllegalArgumentException e) {
-            log.error("유효하지 않은 VideoType: {}", videoType);
-            throw new InvalidVideoTypeException(videoType);
-        }
-    }
-
-    /**
      * S3 Presigned GET URL 생성 (조회용)
      */
-    private String generatePresignedGetUrl(String bucket, String s3Key, int expiresInSec) {
+    public String generatePresignedGetUrl(String bucket, String s3Key, int expiresInSec) {
         try {
             GetObjectRequest getObjectRequest = GetObjectRequest.builder()
                     .bucket(bucket)
