@@ -1,13 +1,11 @@
 import api from '@/api/axiosConfig';
 import type {
     ChildHomeResponse,
-    ChildHospitalListResponse,
     ChildHospitalLinkRequest,
     HospitalResponseDto,
     ApiResponseChildHome,
     ApiResponseChildHospitalList
 } from '@/api/types/child.types';
-import { ChildDashboardStatus } from '@/api/types';
 
 // =================================================================
 // 테스트용 UUID (localStorage에 selectedChildId가 없을 때 fallback)
@@ -15,51 +13,10 @@ import { ChildDashboardStatus } from '@/api/types';
 export const TEST_CHILD_ID = "136d8eb8-8264-4953-9c9c-19baf49dc8b4";
 
 // =================================================================
-// 타입 정의 (Re-export for backward compatibility)
+// Re-export types for backward compatibility
 // =================================================================
-
-export type ChildDashboardStatus =
-    | 'NEED_HOSPITAL'       // 병원 연결 필요
-    | 'AVAILABLE'           // 새 검사 가능
-    | 'AVAILABLE_EXPIRED'   // 검사 가능 (이전 임시저장 만료됨)
-    | 'IN_PROGRESS'         // 검사 진행 중 (이어하기)
-    | 'COOLDOWN'            // 쿨타임 (다음 검사 대기)
-    | 'COOLDOWN_BEFORE'     // 쿨타임 중 병원 연동됨 (특수 케이스)
-    | 'WAITING';            // 대기 중
-
-export interface LinkedHospital {
-    hospitalId: string;
-    name: string;
-}
-
-export interface ChildHomeResponse {
-    code: number;
-    status: string;
-    message: string;
-    data: {
-        childId: string;
-        examId: string | null;             // ✅ 추가: 현재 진행 중인 검사 ID
-        name: string;
-        gender: 'MALE' | 'FEMALE';
-        examStartedAt: string | null;      // ✅ 추가
-        examStatus: ChildDashboardStatus;  // ✅ examStatus (API 명세)
-        examProgress: number;
-        draftExpiresAt: string | null;
-        nextEligibleAt: string | null;
-        linkedHospitals: LinkedHospital[];
-    };
-}
-
-export interface HospitalLinkRequest {
-    inviteCode: string;
-}
-
-export interface HospitalLinkResponse {
-    code: number;
-    status: string;
-    message: string;
-    data?: string;
-}
+export type { ChildDashboardStatus } from '@/api/types';
+export type { ChildHomeResponse, HospitalInfoDTO as LinkedHospital } from '@/api/types/child.types';
 
 
 // --- [API Functions] ---------------------------------------------
@@ -131,62 +88,4 @@ export const registerInviteCode = async (childId: string, inviteCode: string) =>
     }
 };
 
-// =================================================================
-// 🚨 [Fix] Missing Exports for Build Error
-// useParentDashboard.ts 에서 import 하고 있는 Mock 상수들을 복구합니다.
-// =================================================================
 
-const MOCK_BASE_DATA: ChildHomeResponse = {
-    childId: TEST_CHILD_ID,
-    examId: null,
-    name: "오하나",
-    gender: "FEMALE",
-    examStatus: "AVAILABLE",
-    examProgress: 0,
-    examStartedAt: null,
-    nextEligibleAt: null,
-    draftExpiresAt: null,
-    linkedHospitals: [],
-};
-
-export const MOCK_CASE_AVAILABLE: ApiResponseChildHome = {
-    code: 200,
-    status: "200 OK",
-    message: "Success",
-    data: MOCK_BASE_DATA
-};
-
-export const MOCK_CASE_WAITING: ApiResponseChildHome = {
-    code: 200,
-    status: "200 OK",
-    message: "Success",
-    data: { ...MOCK_BASE_DATA, examStatus: "WAITING", examProgress: 2 }
-};
-
-export const MOCK_CASE_COOLDOWN: ApiResponseChildHome = {
-    code: 200,
-    status: "200 OK",
-    message: "Success",
-    data: { ...MOCK_BASE_DATA, examStatus: "COOLDOWN", examProgress: 4 }
-};
-
-export const MOCK_CASE_NEED_HOSPITAL: ApiResponseChildHome = {
-    code: 200,
-    status: "200 OK",
-    message: "Success",
-    data: { ...MOCK_BASE_DATA, examStatus: "NEED_HOSPITAL", linkedHospitals: [] }
-};
-
-export const MOCK_CASE_COOLDOWN_BEFORE: ApiResponseChildHome = {
-    code: 200,
-    status: "200 OK",
-    message: "Success",
-    data: { ...MOCK_BASE_DATA, examStatus: "COOLDOWN_BEFORE", examProgress: 4 }
-};
-
-export const MOCK_CASE_IN_PROGRESS: ApiResponseChildHome = {
-    code: 200,
-    status: "200 OK",
-    message: "Success",
-    data: { ...MOCK_BASE_DATA, examStatus: "IN_PROGRESS", examProgress: 2 }
-};
