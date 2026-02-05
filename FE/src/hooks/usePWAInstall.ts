@@ -8,8 +8,21 @@ interface BeforeInstallPromptEvent extends Event {
 export const usePWAInstall = () => {
     const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
     const [isInstallable, setIsInstallable] = useState(false);
+    const [isIOS, setIsIOS] = useState(false);
+    const [isStandalone, setIsStandalone] = useState(false);
 
     useEffect(() => {
+        // iOS 감지
+        const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+        setIsIOS(isIOSDevice);
+
+        // 이미 PWA로 실행 중인지 확인 (standalone 모드)
+        const isInStandaloneMode =
+            window.matchMedia('(display-mode: standalone)').matches ||
+            (window.navigator as any).standalone === true;
+        setIsStandalone(isInStandaloneMode);
+
+        // beforeinstallprompt 이벤트 (Android/Chrome 지원)
         const handleBeforeInstallPrompt = (e: Event) => {
             // Prevent the mini-infobar from appearing on mobile
             e.preventDefault();
@@ -20,6 +33,13 @@ export const usePWAInstall = () => {
         };
 
         window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+        // 앱이 설치되었을 때
+        window.addEventListener('appinstalled', () => {
+            console.log('🎉 PWA was installed');
+            setIsInstallable(false);
+            setDeferredPrompt(null);
+        });
 
         return () => {
             window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -40,5 +60,12 @@ export const usePWAInstall = () => {
         setIsInstallable(false);
     };
 
-    return { isInstallable, installPWA };
+    return {
+        isInstallable,
+        installPWA,
+        isIOS,
+        isStandalone,
+        // iOS에서는 수동 설치 안내가 필요
+        showIOSInstallGuide: isIOS && !isStandalone
+    };
 };
