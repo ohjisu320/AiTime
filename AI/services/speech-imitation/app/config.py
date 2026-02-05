@@ -48,10 +48,10 @@ class Settings(BaseSettings):
 
     # ===== RabbitMQ (옵션) =====
     RABBITMQ_URL: str = Field(
-        default="amqp://guest:guest@localhost:5672/", description="RabbitMQ 연결 URL"
+        default="amqp://guest:guest@rabbitmq:5672/", description="RabbitMQ 연결 URL"
     )
-    INPUT_QUEUE: str = "analysis.speech_imitation.request"
-    OUTPUT_QUEUE: str = "analysis.speech_imitation.result"
+    INPUT_QUEUE: str = "analysis.req.task2"
+    OUTPUT_QUEUE: str = "analysis.resp"
 
     # ===== 오디오 전처리 =====
     SAMPLE_RATE: int = 16000

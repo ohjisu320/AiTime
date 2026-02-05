@@ -65,7 +65,7 @@ class RabbitMQConfig:
     port: int = 5672
     user: str = "guest"
     password: str = "guest"
-    task_queue: str = "analysis.req.task1"
+    task_queue: str = "analysis.req.task3"
     result_queue: str = "analysis.resp"
 
 @dataclass(frozen=True)
