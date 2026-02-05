@@ -19,7 +19,7 @@ class OpenVINOFaceDetector:
     def __init__(self, cfg: YOLOConfig) -> None:
         if not OPENVINO_AVAILABLE:
             raise RuntimeError(
-                "OpenVINO not found. Please install proper package (e.g. pip install openvino)."
+                "OpenVINO not found. Please install (e.g. pip install openvino)."
             )
 
         self.cfg = cfg
