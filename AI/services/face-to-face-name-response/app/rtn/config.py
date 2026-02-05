@@ -21,7 +21,7 @@ class YOLOConfig:
 @dataclass(frozen=True)
 class FaceDetConfig:
     min_conf: float = 0.6
-    model_selection: int = 1  # 0: MediaPipe, 1: YOLOv11n-face
+    model_selection: int = 2  # 0: MediaPipe, 1: YOLOv11n-face, 2: OpenVINO
     yolo_cfg: YOLOConfig = YOLOConfig()
 
 
@@ -89,6 +89,11 @@ class GazeSmoothConfig:
 
     end_alpha: float = 0.45  # 0.30 -> 0.45: faster end point response
     end_jump_px: float = 50.0  # 40 -> 50: allow larger jumps
+
+    # Kalman Filter Options
+    filter_type: str = "kalman"  # "alpha" | "kalman"
+    kf_process_noise: float = 0.01  # Q: 낮을수록 부드러움 (지연 증가)
+    kf_measurement_noise: float = 0.1  # R: 높을수록 부드러움 (지연 증가)
 
 
 @dataclass(frozen=True)
