@@ -14,12 +14,27 @@ import MissionReviewModal from '@/domains/exam/components/MissionReviewModal';
 
 const MissionListPage: React.FC = () => {
   const navigate = useNavigate();
-
   // 로컬 스토리지에서 examId 가져오기 (새로고침/이어하기 대응)
   const examId = localStorage.getItem('currentExamId') || undefined;
-  const { missions, isLoading, error } = useMissions(examId);
+
+  // ✅ useMissions 훅 사용 (중복 선언 제거 및 isUnder18 구조 분해 할당)
+  const { missions, isLoading, error, isUnder18 } = useMissions(examId);
 
 
+
+  // ✅ 컨텐츠 리졸버 헬퍼
+  const getResolvedContent = (videoType: string, isChildUnder18: boolean | null) => {
+    if (isChildUnder18 === null) return SCREENING_CONTENT[videoType];
+
+    let resolvedKey = videoType;
+    if (videoType === 'POSE_IMITATION' || videoType === 'SPEECH_IMITATION') {
+      const suffix = isChildUnder18 ? "_12M" : "_18M";
+      resolvedKey = `${videoType}${suffix}`;
+    }
+
+    // Fallback if specific key doesn't exist but base key does (though unlikely based on data structure)
+    return SCREENING_CONTENT[resolvedKey] || SCREENING_CONTENT[videoType];
+  };
 
   // const [recheckModal, setRecheckModal] = useState({ isOpen: false, title: '', type: '' });
   const [recheckModal, setRecheckModal] = useState({ isOpen: false, title: '', type: '', videoId: '' }); // ✅ videoId 추가
@@ -37,7 +52,10 @@ const MissionListPage: React.FC = () => {
       // ✅ task.videoId 저장
       setRecheckModal({ isOpen: true, title: task.title, type: task.videoType, videoId: task.videoId });
     } else {
-      navigate(`/exam/guide/${task.videoType}`); // SPEECH_IMITATION, NAME 등으로 이동
+      // ✅ 여기서도 정확한 URL로 이동 (Suffix가 필요하다면 붙일 수 있지만, 라우팅은 보통 BaseType을 쓰거나 ExamPage에서 다시 처리함)
+      // 문제: ExamPage는 URL 파라미터를 그대로 missionId로 씀. ExamPage가 Suffix 처리를 하므로 BaseType만 넘겨도 됨.
+      // 단, ExamPage URL이 /exam/task/:missionId 구조라면 BaseType만 넘기면 됨.
+      navigate(`/exam/guide/${task.videoType}`);
     }
   };
 
@@ -89,7 +107,8 @@ const MissionListPage: React.FC = () => {
         <div className="flex gap-10 items-start">
           <div className="flex flex-col gap-6 flex-1">
             {missions.map((task) => {
-              const content = SCREENING_CONTENT[task.videoType];
+              // ✅ 여기 수정: getResolvedContent 사용
+              const content = getResolvedContent(task.videoType, isUnder18);
               // MissionCard status mapping: EMPTY/FAIL/PASS -> PENDING, UPLOADED -> UPLOADED
               const cardStatus = task.status === 'UPLOADED' ? 'UPLOADED' : 'PENDING';
 

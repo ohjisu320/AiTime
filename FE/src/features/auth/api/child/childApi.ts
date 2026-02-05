@@ -7,8 +7,6 @@ import type {
   ChildInfoResponse,
   ChildHomeData,
   ChildHomeResponse,
-  ChildDashboardStatus,
-  LinkedHospital,
   HospitalResponseDto,
   HospitalLinkRequest,
 } from "./types";
@@ -138,64 +136,4 @@ export const deleteChild = async (childId: string): Promise<void> => {
     console.error('❌ deleteChild Error:', error);
     throw error;
   }
-};
-
-// =================================================================
-// 🚨 [Mock Data Exports]
-// useParentDashboard.ts 등의 다른 파일 의존성을 위해 유지
-// =================================================================
-
-const MOCK_BASE_DATA = {
-  childId: TEST_CHILD_ID,
-  examId: null,
-  name: "오하나",
-  gender: "FEMALE" as const,
-  examStatus: "AVAILABLE" as ChildDashboardStatus,
-  examProgress: 0,
-  examStartedAt: null,
-  nextEligibleAt: null,
-  draftExpiresAt: null,
-  linkedHospitals: [] as LinkedHospital[],
-};
-
-export const MOCK_CASE_AVAILABLE: ChildHomeResponse = {
-  code: 200,
-  status: "OK",
-  message: "Success",
-  data: MOCK_BASE_DATA,
-};
-
-export const MOCK_CASE_WAITING: ChildHomeResponse = {
-  code: 200,
-  status: "OK",
-  message: "Success",
-  data: { ...MOCK_BASE_DATA, examStatus: "WAITING", examProgress: 2 },
-};
-
-export const MOCK_CASE_COOLDOWN: ChildHomeResponse = {
-  code: 200,
-  status: "OK",
-  message: "Success",
-  data: { ...MOCK_BASE_DATA, examStatus: "COOLDOWN", examProgress: 4 },
-};
-
-export const MOCK_CASE_NEED_HOSPITAL: ChildHomeResponse = {
-  code: 200,
-  status: "OK",
-  message: "Success",
-  data: { ...MOCK_BASE_DATA, examStatus: "NEED_HOSPITAL", linkedHospitals: [] },
-};
-
-export const MOCK_CASE_COOLDOWN_BEFORE: ChildHomeResponse = {
-  code: 200,
-  status: "OK",
-  message: "Success",
-  data: { ...MOCK_BASE_DATA, examStatus: "COOLDOWN_BEFORE", examProgress: 4 },
-};
-
-export const MOCK_CASE_IN_PROGRESS: ChildHomeResponse = {
-  code: 200,
-  status: "OK",
-  message: "Success",
-  data: { ...MOCK_BASE_DATA, examStatus: "IN_PROGRESS", examProgress: 2 },
 };
