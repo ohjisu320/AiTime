@@ -43,7 +43,7 @@ from typing import Optional, Any
 from datetime import datetime
 from dataclasses import dataclass, asdict, field
 
-from app.config import settings
+from app.config import settings, EmotionConfig
 from app.pipeline.video_processor import VideoProcessor
 from app.pipeline.pose_extractor import PoseExtractor
 from app.pipeline.normalizer import PoseNormalizer
@@ -53,6 +53,22 @@ from app.pipeline.exceptions import (
     PipelineError,
     InvalidInputError
 )
+
+# 표정 분석 모듈 (Lazy Loading)
+_expression_analyzer = None
+
+def _get_expression_analyzer():
+    """ExpressionAnalyzer 지연 로딩"""
+    global _expression_analyzer
+    if _expression_analyzer is None:
+        try:
+            from app.pipeline.emotion import ExpressionAnalyzer
+            _expression_analyzer = ExpressionAnalyzer(EmotionConfig())
+            logger.info("✅ ExpressionAnalyzer 로드 성공")
+        except Exception as e:
+            logger.warning(f"⚠️ ExpressionAnalyzer 로드 실패: {e}")
+            _expression_analyzer = None
+    return _expression_analyzer
 
 logger = logging.getLogger(__name__)
 
@@ -109,6 +125,118 @@ VIDEO_FOURCC = 'mp4v'  # MP4 비디오 코덱
 IMAGE_EXTENSION = ".jpg"
 VIDEO_EXTENSION = ".mp4"
 # ================================================
+
+
+@dataclass
+class TrialResult:
+    """
+    단일 시도(trial) 결과 데이터.
+    
+    Attributes:
+        trial_index: 시도 번호 (1, 2, 3)
+        action_type: 동작 유형
+        success: 성공 여부
+        similarity_score: 동작 유사도 (0.0 ~ 1.0)
+        parent_start_time: 부모 동작 시작 시간 (초)
+        parent_end_time: 부모 동작 종료 시간 (초)
+        child_start_time: 아이 동작 시작 시간 (초, None일 수 있음)
+        child_end_time: 아이 동작 종료 시간 (초, None일 수 있음)
+        latency_s: 부모 종료 → 아이 시작 반응 지연 시간 (초, None일 수 있음)
+        duration_s: 아이 동작 지속 시간 (초, None일 수 있음)
+        attention_ratio: 주의/상호작용 유효성 (0.0 ~ 1.0)
+    """
+    trial_index: int
+    action_type: str
+    success: bool
+    similarity_score: float
+    parent_start_time: float
+    parent_end_time: float
+    child_start_time: Optional[float]
+    child_end_time: Optional[float]
+    latency_s: Optional[float]
+    duration_s: Optional[float]
+    attention_ratio: float
+    
+    def to_dict(self) -> dict[str, Any]:
+        """딕셔너리로 변환"""
+        result = {
+            "trial_index": self.trial_index,
+            "action_type": self.action_type,
+            "success": bool(self.success),
+            "similarity_score": float(round(self.similarity_score, 4)),
+            "parent_start_time": float(round(self.parent_start_time, 2)),
+            "parent_end_time": float(round(self.parent_end_time, 2)),
+            "child_start_time": float(round(self.child_start_time, 2)) if self.child_start_time is not None else None,
+            "child_end_time": float(round(self.child_end_time, 2)) if self.child_end_time is not None else None,
+            "latency_s": float(round(self.latency_s, 2)) if self.latency_s is not None else None,
+            "duration_s": float(round(self.duration_s, 2)) if self.duration_s is not None else None,
+            "attention_ratio": float(round(self.attention_ratio, 4))
+        }
+        return result
+
+
+@dataclass
+class MultiTrialAnalysisResult:
+    """
+    다중 시도 분석 결과 (pose_imitation).
+    
+    Attributes:
+        assessment_type: 평가 유형 ("pose_imitation")
+        age_months: 아동 월령
+        processing_time_sec: 전체 처리 소요 시간
+        metrics: 시도별 결과 리스트
+        ados: ADOS 평가 점수 (B6: 즐거움 감지, A8: 주의/반응, B18: 사회적 모방)
+        role_info: 부모/아이 역할 정보
+        details: 상세 분석 정보
+    """
+    assessment_type: str  # "pose_imitation"
+    age_months: int
+    processing_time_sec: float
+    metrics: dict[str, list[dict[str, Any]]]  # {"per_trial": [...]}
+    ados: dict[str, Any]  # {"B6": bool, "A8": int, "B18": bool}
+    role_info: Optional[dict[str, Any]] = field(default=None)
+    details: dict[str, Any] = field(default_factory=dict)
+    
+    def to_dict(self) -> dict[str, Any]:
+        """딕셔너리로 변환"""
+        return {
+            "assessment_type": self.assessment_type,
+            "age_months": int(self.age_months),
+            "processing_time_sec": float(round(self.processing_time_sec, 2)),
+            "metrics": self.metrics,
+            "ados": self.ados,
+            "role_info": self.role_info,
+            "details": self.details
+        }
+
+
+@dataclass
+class PoseImitationResponse:
+    """
+    RabbitMQ 응답용 간결한 데이터 구조.
+    
+    Attributes:
+        request_id: 요청 고유 ID (UUID)
+        analyzed_at: 분석 완료 시각 (ISO 8601, KST)
+        status: 분석 상태 ("completed" | "failed")
+        metrics: per_trial 리스트
+        ados: ADOS 평가 점수
+    """
+    request_id: str
+    analyzed_at: str  # ISO 8601 형식 (KST)
+    status: str  # "completed" | "failed"
+    metrics: dict[str, list[dict[str, Any]]]  # {"per_trial": [...]}
+    ados: dict[str, Any]  # {"B6": bool, "A8": int, "B18": bool}
+    
+    def to_dict(self) -> dict[str, Any]:
+        """RabbitMQ 응답용 딕셔너리로 변환"""
+        return {
+            "request_id": self.request_id,
+            "analyzed_at": self.analyzed_at,
+            "status": self.status,
+            "metrics": self.metrics,
+            "ADOS": self.ados  # 대문자 키
+        }
 
 
 @dataclass
@@ -255,9 +383,13 @@ class MotionAnalyzer:
         self.dtw_aligner = DTWAligner()
         self.similarity_calculator = SimilarityCalculator()
         
+        # 표정 분석기 초기화 (Lazy Loading)
+        self.expression_analyzer = _get_expression_analyzer()
+        
         logger.info(
             f"MotionAnalyzer 초기화 완료. "
-            f"모드: {'폴더 저장' if use_folder_mode else 'Generator'}"
+            f"모드: {'폴더 저장' if use_folder_mode else 'Generator'}, "
+            f"표정분석: {'✅' if self.expression_analyzer and self.expression_analyzer.available else '❌'}"
         )
     
     def analyze(
@@ -429,11 +561,32 @@ class MotionAnalyzer:
             if role_info and reaction_delay_detail:
                 role_info["reaction_delay_detail"] = reaction_delay_detail
             
+            # 아이 동작 감지 여부 확인 (reaction_delay_detail에서)
+            child_action_detected = (
+                reaction_delay_detail is not None and 
+                reaction_delay_detail.get("child_detected", False)
+            )
+            parent_action_detected = (
+                reaction_delay_detail is not None and 
+                reaction_delay_detail.get("parent_detected", False)
+            )
+            
+            # passed 판정: 아이 동작 감지 + 유사도 임계값 통과 모두 필요
+            if not child_action_detected:
+                passed = False
+                fail_reason = "child_action_not_detected"
+            elif not parent_action_detected:
+                passed = False
+                fail_reason = "parent_action_not_detected"
+            else:
+                passed = similarity_result.overall >= threshold
+                fail_reason = None if passed else "similarity_below_threshold"
+            
             result = AnalysisResult(
-                passed=similarity_result.overall >= threshold,
+                passed=passed,
                 similarity_score=similarity_result.overall,
                 reaction_delay_sec=reaction_delay,
-                duration_sec=duration,
+                duration_sec=duration if child_action_detected else None,
                 validity=validity,
                 threshold_used=threshold,
                 action_type=action_type,
@@ -441,6 +594,9 @@ class MotionAnalyzer:
                 processing_time_sec=processing_time,
                 role_info=role_info,
                 details={
+                    "fail_reason": fail_reason,
+                    "child_action_detected": child_action_detected,
+                    "parent_action_detected": parent_action_detected,
                     "upper_body_score": similarity_result.upper_body,
                     "lower_body_score": similarity_result.lower_body,
                     "head_score": similarity_result.head,
@@ -1264,6 +1420,340 @@ class MotionAnalyzer:
                 code="ANALYSIS_ERROR",
                 details={"video_path": video_path, "action_type": action_type}
             )
+    
+    def analyze_multi_trial(
+        self,
+        video_path: str,
+        action_list: list[str],
+        age_months: int,
+        identify_roles: bool = True,
+        smooth: bool = True,
+        smooth_method: str = "one_euro"
+    ) -> MultiTrialAnalysisResult:
+        """
+        다중 시도 동작 모방행동 분석 (pose_imitation).
+        
+        Args:
+            video_path: 분석할 영상 경로
+            action_list: 동작 유형 리스트 (3개, 예: ["clapping", "hurray", "waving"])
+            age_months: 아동 월령
+            identify_roles: 부모/아이 역할 자동 구분
+            smooth: 스무딩 적용
+            smooth_method: 스무딩 방법
+            
+        Returns:
+            MultiTrialAnalysisResult: 다중 시도 분석 결과
+            
+        Note:
+            현재 버전은 프로토타입입니다. 실제 구현에서는:
+            1. 영상을 시간대별로 자동 분할하여 각 trial 추출
+            2. 각 trial마다 부모/아이 동작 시간 구간 자동 감지
+            3. ADOS 점수 자동 계산 로직 추가
+            
+            임시로 전체 영상을 각 동작에 대해 순차 분석합니다.
+        """
+        start_time = datetime.now()
+        logger.info(f"다중 시도 분석 시작: {len(action_list)} trials")
+        
+        if len(action_list) != 3:
+            raise InvalidInputError(
+                message="action_list must contain exactly 3 actions",
+                field="action_list",
+                value=action_list
+            )
+        
+        trial_results = []
+        role_info = None
+        
+        # 1차: 각 trial 분석 수행 (raw 결과 수집)
+        raw_trials = []
+        
+        # TODO: 실제 구현에서는 영상을 시간대별로 분할하여 각 trial 추출
+        # 현재는 임시로 전체 영상을 각 동작에 대해 분석
+        for trial_idx, action_type in enumerate(action_list, start=1):
+            logger.info(f"Trial {trial_idx}/{len(action_list)}: {action_type}")
+            
+            try:
+                # 기존 analyze 메서드 활용
+                single_result = self.analyze(
+                    video_path=video_path,
+                    action_type=action_type,
+                    age_months=age_months,
+                    use_parent_reference=True,
+                    identify_roles=identify_roles,
+                    smooth=smooth,
+                    smooth_method=smooth_method
+                )
+                
+                # 첫 번째 trial에서 role_info 저장
+                if trial_idx == 1 and single_result.role_info:
+                    role_info = single_result.role_info
+                
+                # TODO: 실제 구현에서는 영상 분석으로부터 정확한 시간 추출
+                # 현재는 임시 값 사용
+                parent_start = (trial_idx - 1) * 10.0  # 임시: 10초 간격
+                parent_end = parent_start + 3.0
+                
+                # latency 음수 처리: 음수이면 0으로 보정
+                raw_latency = single_result.reaction_delay_sec
+                latency = max(0.0, raw_latency) if raw_latency is not None else None
+                
+                child_start = parent_end + (latency or 0) if latency is not None else None
+                
+                raw_trials.append({
+                    "trial_idx": trial_idx,
+                    "action_type": action_type,
+                    "success": single_result.passed,
+                    "similarity_score": single_result.similarity_score,
+                    "parent_start": parent_start,
+                    "parent_end": parent_end,
+                    "child_start": child_start,
+                    "latency": latency,
+                    "duration": single_result.duration_sec,
+                    "attention_ratio": single_result.validity
+                })
+                
+                logger.info(f"Trial {trial_idx} 완료: success={single_result.passed}, score={single_result.similarity_score:.4f}")
+                
+            except Exception as e:
+                logger.warning(f"Trial {trial_idx} 실패: {e}")
+                # 실패한 trial도 기록
+                raw_trials.append({
+                    "trial_idx": trial_idx,
+                    "action_type": action_type,
+                    "success": False,
+                    "similarity_score": 0.0,
+                    "parent_start": (trial_idx - 1) * 10.0,
+                    "parent_end": (trial_idx - 1) * 10.0 + 3.0,
+                    "child_start": None,
+                    "latency": None,
+                    "duration": None,
+                    "attention_ratio": 0.0
+                })
+        
+        # 2차: child_end_time 계산 (다음 trial의 child_start_time 이전까지)
+        for i, raw in enumerate(raw_trials):
+            child_start = raw["child_start"]
+            duration = raw["duration"]
+            
+            # 기본 child_end 계산
+            if child_start is not None and duration is not None:
+                child_end = child_start + duration
+            else:
+                child_end = None
+            
+            # 다음 trial의 child_start_time으로 제한
+            if child_end is not None and i < len(raw_trials) - 1:
+                next_child_start = raw_trials[i + 1]["child_start"]
+                if next_child_start is not None and child_end > next_child_start:
+                    child_end = next_child_start
+                    # duration도 재계산
+                    duration = child_end - child_start if child_start is not None else None
+            
+            trial = TrialResult(
+                trial_index=raw["trial_idx"],
+                action_type=raw["action_type"],
+                success=raw["success"],
+                similarity_score=raw["similarity_score"],
+                parent_start_time=raw["parent_start"],
+                parent_end_time=raw["parent_end"],
+                child_start_time=child_start,
+                child_end_time=child_end,
+                latency_s=raw["latency"],
+                duration_s=duration,
+                attention_ratio=raw["attention_ratio"]
+            )
+            
+            trial_results.append(trial.to_dict())
+        
+        processing_time = (datetime.now() - start_time).total_seconds()
+        
+        # ADOS 점수 계산
+        ados_scores = self._calculate_ados_scores(trial_results)
+        
+        # 즐거움 감지 (표정 분석 모듈 사용)
+        joy_result = self._detect_joy(video_path, trial_results)
+        
+        # B6은 즐거움 감지 결과로 업데이트
+        ados_scores["B6"] = joy_result["detected"]
+        
+        # ADOS B6은 즐거움(Happiness) 비율이 임계값 이상이면 True
+        # joy_result["detected"]는 이미 joy_threshold 기반으로 판정됨
+        ados_scores["B6"] = joy_result["detected"]
+        
+        result = MultiTrialAnalysisResult(
+            assessment_type="pose_imitation",
+            age_months=age_months,
+            processing_time_sec=processing_time,
+            metrics={"per_trial": trial_results},
+            ados=ados_scores,
+            role_info=role_info,
+            details={
+                "action_list": action_list,
+                "total_trials": len(action_list),
+                "successful_trials": sum(1 for t in trial_results if t["success"]),
+                "smooth_method": smooth_method if smooth else None,
+                "expression_analysis": {
+                    "method": joy_result.get("method", "unknown"),
+                    "joy_ratio": joy_result.get("ratio", 0.0),
+                    "joy_count": joy_result.get("count", 0),
+                    "frames_analyzed": joy_result.get("frames_analyzed", 0),
+                }
+            }
+        )
+        
+        logger.info(f"다중 시도 분석 완료: {result.details['successful_trials']}/{len(action_list)} trials 성공")
+        return result
+    
+    def _calculate_ados_scores(self, trial_results: list[dict]) -> dict[str, Any]:
+        """
+        ADOS 점수 계산.
+        
+        Args:
+            trial_results: Trial 결과 리스트
+            
+        Returns:
+            ADOS 점수 딕셔너리 {"B6": bool, "A8": int, "B18": bool}
+            
+        Note:
+            - B18: 1개 이상 성공 시 True
+            - A8: success 개수 기반 (3개=0점, 2개=1점, 1개=2점, 0개=3점)
+            - B6: 얼굴 표정 분석으로 즐거움 감지 여부 (별도 모듈에서 처리)
+        """
+        successful_count = sum(1 for t in trial_results if t["success"])
+        
+        # B18: 사회적 모방 - 1개 이상 성공 시 True
+        b18 = successful_count >= 1
+        
+        # A8: 주의 및 반응 - success 개수에 따라 점수 부여 (0-3점)
+        if successful_count == 3:
+            a8 = 0  # 모두 성공: 0점 (가장 좋음)
+        elif successful_count == 2:
+            a8 = 1  # 2개 성공: 1점
+        elif successful_count == 1:
+            a8 = 2  # 1개 성공: 2점
+        else:  # successful_count == 0
+            a8 = 3  # 모두 실패: 3점 (가장 나쁨)
+        
+        # B6: 즐거움 감지 - 얼굴 표정 분석 모듈에서 처리 (여기서는 placeholder)
+        # 실제로는 _detect_joy() 결과를 사용하여 설정됨
+        b6 = False  # placeholder, 나중에 joy 결과로 업데이트
+        
+        return {
+            "B6": b6,  # 즐거움 감지 (얼굴 표정 분석)
+            "A8": a8,  # 주의 및 반응 (0-3점)
+            "B18": b18  # 사회적 모방 (1개 이상 성공)
+        }
+    
+    def _detect_joy(
+        self,
+        video_path: str,
+        trial_results: list[dict]
+    ) -> dict[str, Any]:
+        """
+        얼굴 표정에서 즐거움 감지.
+        
+        Args:
+            video_path: 분석할 영상 경로
+            trial_results: Trial 결과 리스트
+            
+        Returns:
+            즐거움 감지 결과 {"detected": bool, "count": int, "ratio": float, ...}
+        """
+        # 표정 분석기가 사용 가능한 경우 실제 분석 수행
+        if self.expression_analyzer and self.expression_analyzer.available:
+            try:
+                return self._detect_joy_with_expression_analyzer(video_path)
+            except Exception as e:
+                logger.warning(f"표정 분석 실패, fallback 사용: {e}")
+        
+        # Fallback: placeholder 로직
+        successful_count = sum(1 for t in trial_results if t["success"])
+        detected = successful_count >= 1
+        confidence = min(0.3 + (successful_count * 0.2), 1.0)
+        
+        logger.info(f"즐거움 감지: detected={detected} (fallback/placeholder)")
+        
+        return {
+            "detected": detected,
+            "count": 0,
+            "ratio": 0.0,
+            "confidence": float(confidence),
+            "method": "placeholder",
+            "note": "ExpressionAnalyzer not available, using fallback"
+        }
+    
+    def _detect_joy_with_expression_analyzer(
+        self,
+        video_path: str
+    ) -> dict[str, Any]:
+        """
+        ExpressionAnalyzer를 사용한 실제 표정 분석.
+        
+        Args:
+            video_path: 분석할 영상 경로
+            
+        Returns:
+            표정 분석 결과
+        """
+        import cv2
+        
+        logger.info("표정 분석 시작 (ExpressionAnalyzer)")
+        
+        # 프레임 추출
+        frames = []
+        cap = cv2.VideoCapture(video_path)
+        
+        if not cap.isOpened():
+            raise PipelineError(
+                message=f"영상을 열 수 없습니다: {video_path}",
+                code="VIDEO_OPEN_ERROR",
+                details={"video_path": video_path}
+            )
+        
+        try:
+            while True:
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                frames.append(frame)
+        finally:
+            cap.release()
+        
+        if not frames:
+            logger.warning("프레임을 추출할 수 없습니다")
+            return {
+                "detected": False,
+                "count": 0,
+                "ratio": 0.0,
+                "method": "expression_analyzer",
+                "error": "no_frames"
+            }
+        
+        # 표정 분석 수행 (아이 머리 위치는 None으로 전달 - 크기 기반 선택 사용)
+        expression_result = self.expression_analyzer.analyze(
+            frames=frames,
+            child_head_positions=None,
+            parent_head_positions=None
+        )
+        
+        logger.info(
+            f"표정 분석 완료: joy_detected={expression_result.joy_detected}, "
+            f"joy_count={expression_result.joy_count}, "
+            f"joy_ratio={expression_result.joy_ratio:.1%}"
+        )
+        
+        return {
+            "detected": expression_result.joy_detected,
+            "count": expression_result.joy_count,
+            "ratio": round(expression_result.joy_ratio, 4),
+            "dominant": expression_result.dominant_emotion,
+            "distribution": {k: round(v, 4) for k, v in expression_result.expression_ratios.items()},
+            "method": "expression_analyzer",
+            "frames_analyzed": expression_result.total_frames_analyzed,
+            "valid_detections": expression_result.valid_detections,
+            "processing_time_sec": round(expression_result.processing_time_sec, 2)
+        }
     
     def _visualize_frames(
         self,

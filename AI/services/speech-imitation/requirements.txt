@@ -1,0 +1,8 @@
+pydantic-settings
+pika
+librosa
+requests
+numpy
+torch
+torchaudio
+soundfile

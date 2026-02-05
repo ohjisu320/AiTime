@@ -12,6 +12,7 @@ from app.rtn.audio.vad_silero import SileroVAD
 from app.rtn.config import (
     AnalysisConfig,
     ContactConfig,
+    EmotionConfig,
     FaceDetConfig,
     GazeSmoothConfig,
     ROIConfig,
@@ -39,11 +40,13 @@ class VideoAnalyzer:
         gaze_cfg: GazeSmoothConfig,
         contact_cfg: ContactConfig,
         analysis_cfg: AnalysisConfig,
+        emotion_cfg: EmotionConfig,
         conf_th: float,
         debug_publish: Callable[[FrameBGR], None] | None = None,
     ) -> None:
         self.vad_cfg = vad_cfg
         self.analysis_cfg = analysis_cfg
+        self.emotion_cfg = emotion_cfg
 
         self.vad = SileroVAD(vad_cfg)
         self.detector = FaceDetectorMP(face_cfg)
@@ -58,6 +61,7 @@ class VideoAnalyzer:
             gaze_cfg=gaze_cfg,
             contact_cfg=contact_cfg,
             analysis_cfg=analysis_cfg,
+            emotion_cfg=emotion_cfg,
             conf_th=conf_th,
             debug_publish=debug_publish,
         )
@@ -141,6 +145,42 @@ class VideoAnalyzer:
             float(total_gaze),
         )
 
+        # ADOS Aggregation
+        # B1: Eye Contact (0-3 scale based on frequency)
+        b1_score = min(3, int(success_calls))
+
+        # B4: Facial Expressions (diversity during contact)
+        all_directional_emotions = set()
+        for r in results:
+            if r.directional_emotions:
+                all_directional_emotions.update(r.directional_emotions)
+
+        # Exclude Neutral
+        all_directional_emotions.discard("Neutral")
+
+        unique_emotion_count = len(all_directional_emotions)
+        if unique_emotion_count >= 3:
+            b4_score = 0
+        elif unique_emotion_count == 2:
+            b4_score = 1
+        elif unique_emotion_count == 1:
+            b4_score = 2
+        else:
+            b4_score = 3
+
+        # B6: Happiness (at least once)
+        b6_happiness = any(r.has_happiness for r in results)
+
+        # B18: Response to Name (at least once success)
+        b18_response = success_calls > 0
+
+        ados_result = {
+            "B1": b1_score,
+            "B4": b4_score,
+            "B6": b6_happiness,
+            "B18": b18_response,
+        }
+
         params = {
             "window_s": self.analysis_cfg.window_s,
             "vad_merge_gap_s": self.vad_cfg.merge_gap_s,
@@ -160,6 +200,7 @@ class VideoAnalyzer:
                 "avg_latency_s": avg_latency,
                 "total_gaze_duration_s": float(total_gaze),
             },
+            "ADOS": ados_result,
             "per_call": [
                 {
                     "call_index": r.call_index,
@@ -168,6 +209,10 @@ class VideoAnalyzer:
                     "success": r.success,
                     "latency_s": r.latency_s,
                     "gaze_duration_s": r.gaze_duration_s,
+                    "dominant_emotion": r.dominant_emotion,
+                    "emotion_distribution": r.emotion_distribution,
+                    "directional_emotions": r.directional_emotions,
+                    "has_happiness": r.has_happiness,
                 }
                 for r in results
             ],

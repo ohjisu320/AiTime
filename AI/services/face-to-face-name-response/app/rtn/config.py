@@ -67,3 +67,12 @@ class RabbitMQConfig:
     password: str = "guest"
     task_queue: str = "analysis.req.task1"
     result_queue: str = "analysis.resp"
+
+@dataclass(frozen=True)
+class EmotionConfig:
+    enable: bool = True
+    skip_frames: int = 5
+    min_face_size: int = 64
+    model_name: str = "enet_b0_8_best_vgaf"
+    p95_latency_ms_max: int = 50
+    

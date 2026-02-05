@@ -28,6 +28,10 @@ def build_engine(
     conf: float = 0.6,
     debug: bool = False,  # 로컬 cv2.imshow
     fps_override: float | None = None,
+    # Emotion
+    emotion_enable: bool = True,
+    emotion_skip_frames: int = 5,
+    emotion_model: str = "enet_b0_8_best_vgaf",
 ) -> tuple[RTNEngine, object | None]:
     """
     분석 엔진 + (선택) 디버그 스트림 라우터를 생성한다.
@@ -44,6 +48,10 @@ def build_engine(
         conf=conf,
         debug=debug,
         fps_override=fps_override,
+        # Emotion
+        emotion_enable=emotion_enable,
+        emotion_skip_frames=emotion_skip_frames,
+        emotion_model=emotion_model,
         debug_publish=(broker.publish if enable_mjpeg else None),
     )
 

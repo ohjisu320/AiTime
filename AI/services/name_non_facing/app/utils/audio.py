@@ -107,7 +107,7 @@ def load_audio(
     """
     오디오 파일 로드
     
-    torchaudio 우선 사용, 실패 시 librosa fallback
+    soundfile 사용 (torchcodec DLL 호환 문제 회피)
     
     Args:
         file_path: 오디오 파일 경로
@@ -124,25 +124,23 @@ def load_audio(
         raise FileNotFoundError(f"✖️ 오디오 파일이 존재하지 않습니다: {file_path}")
     
     try:
-        # torchaudio 사용 (더 빠름)
-        import torchaudio
+        # soundfile 사용 (안정적)
+        import soundfile as sf
         
-        waveform, sr = torchaudio.load(str(file_path))
+        audio, sr = sf.read(str(file_path), dtype='float32')
         
-        # 모노 변환
-        if mono and waveform.shape[0] > 1:
-            waveform = waveform.mean(dim=0, keepdim=True)
+        # 스테레오 → 모노 변환
+        if mono and len(audio.shape) > 1 and audio.shape[1] > 1:
+            audio = audio.mean(axis=1)
         
         # 리샘플링
         if sample_rate is not None and sr != sample_rate:
-            resampler = torchaudio.transforms.Resample(sr, sample_rate)
-            waveform = resampler(waveform)
+            import librosa
+            audio = librosa.resample(audio, orig_sr=sr, target_sr=sample_rate)
             sr = sample_rate
         
-        audio = waveform.squeeze().numpy()
-        
-    except ImportError:
-        logger.warning("torchaudio 미설치, librosa 사용")
+    except Exception as e:
+        logger.warning(f"soundfile 실패 ({e}), librosa 사용")
         import librosa
         
         audio, sr = librosa.load(
