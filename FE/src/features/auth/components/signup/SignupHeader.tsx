@@ -1,4 +1,5 @@
 import { ArrowLeft } from "lucide-react";
+import parentLogo from '@/assets/parentLogo.svg';
 
 interface SignupHeaderProps {
   onBack: () => void;
@@ -8,9 +9,11 @@ export default function SignupHeader({ onBack }: SignupHeaderProps) {
   return (
     <div className="w-full max-w-[600px] flex items-center justify-between mb-4 mt-2 px-2">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 bg-[#9593D9] rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-md">
-          Ai
-        </div>
+        <img
+          src={parentLogo}
+          alt="AiTime Logo"
+          className="w-10 h-10"
+        />
         <span className="text-3xl font-bold text-[#1A1A1A] tracking-tight font-['DM_Sans']">
           AiTime
         </span>
@@ -26,3 +29,4 @@ export default function SignupHeader({ onBack }: SignupHeaderProps) {
     </div>
   );
 }
+
