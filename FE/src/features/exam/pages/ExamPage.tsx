@@ -4,6 +4,7 @@ import { useParams, useNavigate, useBlocker, useLocation } from 'react-router-do
 import { useMediaRecorder } from '@/domains/video/hooks/useMediaRecorder';
 import { useExamUpload } from '@/domains/video/hooks/useExamUpload';
 import type { VideoType } from '@/domains/video/api/videoApi';
+import { getExamInfo } from '@/domains/exam/api/examApi';
 import ExamBaseLayout from '@/domains/exam/components/layout/ExamBaseLayout';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import { FullScreenOverlayText } from '@/components/common/FullScreenOverlayText';
@@ -36,8 +37,41 @@ const ExamPage: React.FC = () => {
     navigate('/exam/mission', { replace: true });
   };
 
-  const content = SCREENING_CONTENT[missionId] || SCREENING_CONTENT["1"];
-  const instructions = content.instructions || [];
+  // ✅ 월령 정보 상태 추가 (재추가)
+  const [isUnder18, setIsUnder18] = useState<boolean | null>(null);
+  const childId = localStorage.getItem('selectedChildId');
+
+  useEffect(() => {
+    const fetchExamInfo = async () => {
+      if (!childId) return;
+      try {
+        const info = await getExamInfo(childId);
+        setIsUnder18(info.under18);
+      } catch (error) {
+        console.error("Failed to fetch exam info:", error);
+      }
+    };
+    fetchExamInfo();
+  }, [childId]);
+
+  // ✅ 현재 미션 ID에 월령 접미사 붙이기 logic
+  const resolvedMissionId = useMemo(() => {
+    if (isUnder18 === null) return null; // 로딩 중
+
+    if (missionId.startsWith("POSE_IMITATION") || missionId.startsWith("SPEECH_IMITATION")) {
+      const suffix = isUnder18 ? "_12M" : "_18M";
+      if (missionId.endsWith("_12M") || missionId.endsWith("_18M")) return missionId;
+      return `${missionId}${suffix}`;
+    }
+    return missionId;
+  }, [missionId, isUnder18]);
+
+  // content 로딩 대기: resolvedMissionId가 없으면 로딩 중 or 기본값
+  const content = (resolvedMissionId && SCREENING_CONTENT[resolvedMissionId])
+    || SCREENING_CONTENT[missionId]
+    || SCREENING_CONTENT["POSE_IMITATION_12M"]; // Safe fallback
+
+  const instructions = content?.instructions || [];
 
   const { stream, isRecording, startSession, startRecording, stopRecording } = useMediaRecorder();
   const { mutate: uploadVideo, isPending } = useExamUpload();
@@ -230,43 +264,52 @@ const ExamPage: React.FC = () => {
         <>
           {/* 지시사항 카드 (8초 주기 동안 계속 표시) */}
           <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-[90%] max-w-2xl z-40 flex flex-col gap-4">
-            <div
-              key={currentInstructionState.instruction.text} // 텍스트가 바뀔 때만 애니메이션 다시 실행
-              className={`bg-white/90 backdrop-blur-xl rounded-3xl p-8 shadow-2xl flex flex-col items-center text-center border border-white/50 transition-all duration-300 ${currentInstructionState.type === 'COUNTDOWN' ? 'animate-in slide-in-from-bottom-10 fade-in' : 'scale-100'
-                }`}
-            >
-              {/* 배지 (준비 vs 시작) */}
+            {/* 1. 준비 단계 (COUNTDOWN) - 노란색 카드 */}
+            {currentInstructionState.type === 'COUNTDOWN' ? (
               <div
-                key={currentInstructionState.type} // 타입 변경 시 애니메이션 리셋
-                className={`mb-3 px-4 py-1 rounded-full text-sm font-bold transition-colors duration-300 ${currentInstructionState.type === 'COUNTDOWN'
-                  ? "bg-amber-100 text-amber-700"
-                  : "bg-brand-purple text-white animate-pulse"
-                  }`}
+                key={`prep-${currentInstructionState.instruction.id}`}
+                className="bg-yellow-300/95 backdrop-blur-xl rounded-3xl p-8 shadow-2xl flex flex-col items-center text-center border-4 border-white/50 transition-all duration-300 animate-in slide-in-from-bottom-5 fade-in"
               >
-                {currentInstructionState.type === 'COUNTDOWN' ? "준비하세요" : "지금 따라하세요!"}
+                <div className="mb-4 px-6 py-2 rounded-full text-lg font-black bg-white text-yellow-600 shadow-sm flex items-center gap-2">
+                  <span>✋ 잠시 후 시작됩니다</span>
+                </div>
+                <div className="bg-white/40 rounded-2xl p-6 w-full backdrop-blur-sm">
+                  <p className="text-xl font-bold text-yellow-950 leading-snug break-keep opacity-80 mb-2">
+                    다음 지시사항
+                  </p>
+                  <h3 className="text-2xl font-black text-yellow-900 leading-snug break-keep">
+                    {currentInstructionState.instruction.text}
+                    {currentInstructionState.instruction.boldText && <span className="text-yellow-700 mx-1">{currentInstructionState.instruction.boldText}</span>}
+                    {currentInstructionState.instruction.suffix}
+                  </h3>
+                </div>
               </div>
+            ) : (
+              /* 2. 실행 단계 (INSTRUCTION) - 기존 스타일 (흰색) */
+              <div
+                key={`action-${currentInstructionState.instruction.id}`}
+                className="bg-white/90 backdrop-blur-xl rounded-3xl p-8 shadow-2xl flex flex-col items-center text-center border border-white/50 transition-all duration-300 scale-100"
+              >
+                <div className="mb-3 px-4 py-1 rounded-full text-sm font-bold bg-brand-purple text-white animate-pulse">
+                  지금 따라하세요!
+                </div>
 
-              <h3 className="text-3xl font-bold text-gray-900 leading-snug break-keep">
-                {currentInstructionState.instruction.id && <span className="text-brand-purple mr-2">{currentInstructionState.instruction.id}.</span>}
-                {currentInstructionState.instruction.text}
-                {currentInstructionState.instruction.boldText && <span className="text-brand-purple mx-1">{currentInstructionState.instruction.boldText}</span>}
-                {currentInstructionState.instruction.suffix}
-              </h3>
-            </div>
+                <h3 className="text-2xl font-bold text-gray-900 leading-snug break-keep">
+                  {currentInstructionState.instruction.id && <span className="text-brand-purple mr-2">{currentInstructionState.instruction.id}.</span>}
+                  {currentInstructionState.instruction.text}
+                  {currentInstructionState.instruction.boldText && <span className="text-brand-purple mx-1">{currentInstructionState.instruction.boldText}</span>}
+                  {currentInstructionState.instruction.suffix}
+                </h3>
+              </div>
+            )}
 
             {/* ⏳ 타이머 게이지 */}
-            <div className="w-full h-3 bg-gray-300/50 rounded-full overflow-hidden backdrop-blur-sm">
+            <div className="w-full h-3 bg-gray-300/50 rounded-full overflow-hidden backdrop-blur-sm shadow-inner">
               <div
                 key={`gauge-${Math.floor(elapsedTime / 8)}`} // 사이클(8초)마다 리셋
-                className={`h-full bg-brand-purple ${currentInstructionState.type === 'INSTRUCTION'
-                  ? 'w-full animate-[width_5s_linear_forwards]'
-                  : 'w-full'
-                  }`}
+                className={`h-full shadow-md ${currentInstructionState.type === 'COUNTDOWN' ? 'bg-yellow-400' : 'bg-brand-purple'}`}
                 style={{
                   width: '100%',
-                  // Tailwind v4 Arbitrary values not work? use standard style animation if needed.
-                  // But the issue was likely the key resetting every second.
-                  // Let's also add a clear animation style fallback
                   animation: currentInstructionState.type === 'INSTRUCTION' ? 'shrink 5s linear forwards' : 'none'
                 }}
               />
