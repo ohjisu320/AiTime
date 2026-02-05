@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useDoctorDashboard } from "../hooks/useDoctorDashboard";
 import PatientDetailPanel from "../components/panels/PatientDetailPanel";
 import SessionListPanel from "../components/panels/SessionListPanel";
@@ -10,6 +10,7 @@ import AdosModal from "../components/modals/AdosModal";
 import WaitingListSidebar from "../components/panels/WaitingListSidebar";
 import DoctorLayout from "../components/layout/DoctorLayout";
 import type { VideoAnalysisData } from "../types/doctor";
+import type { AdosUpdateRequest } from "@/api/types/examReport.types";
 
 // [이동] 데이터 정의를 부모 페이지로 이동
 const MOCK_ANALYSIS: VideoAnalysisData = {
@@ -38,6 +39,15 @@ export default function DoctorDashboardPage() {
   // [추가] 모달로 전달할 영상 시작 시간 상태
   const [videoStartTime, setVideoStartTime] = useState(0);
 
+  // ADOS 저장 핸들러
+  const handleAdosSave = useCallback(async (examId: string, scores: AdosUpdateRequest) => {
+    await actions.updateAdos(examId, scores);
+  }, [actions]);
+
+  // 최신 examId 가져오기
+  const latestExamId = states.currentAdosDetail?.examId ||
+    (states.examVideoList.length > 0 ? states.examVideoList[0].examId : undefined);
+
   return (
     <div className="h-screen w-screen bg-[#808080] flex flex-col overflow-hidden font-['Gulim'] text-[11px]">
       <main className="flex-1 overflow-hidden bg-[#808080] p-[2px]">
@@ -59,7 +69,7 @@ export default function DoctorDashboardPage() {
                 }}
               />
             ),
-            "trend-chart": <TrendChartPanel />,
+            "trend-chart": <TrendChartPanel adosGraphs={states.adosGraphs} />,
             "ai-diagnosis": (
               <AiDiagnosisPanel
                 onExpandAdos={() => actions.setAdosModalOpen(true)}
@@ -84,6 +94,9 @@ export default function DoctorDashboardPage() {
         <AdosModal
           onClose={() => actions.setAdosModalOpen(false)}
           patientAge={patientAge}
+          adosDetail={states.currentAdosDetail}
+          examId={latestExamId}
+          onSave={handleAdosSave}
         />
       )}
 
@@ -97,3 +110,4 @@ export default function DoctorDashboardPage() {
     </div>
   );
 }
+

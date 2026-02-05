@@ -1,7 +1,9 @@
 import api from '@/api/axiosConfig';
 import type {
+    ChildHomeResponse,
     ChildHospitalLinkRequest,
     HospitalResponseDto,
+    ApiResponseChildHome,
     ApiResponseChildHospitalList
 } from '@/api/types/child.types';
 
@@ -11,70 +13,25 @@ import type {
 export const TEST_CHILD_ID = "136d8eb8-8264-4953-9c9c-19baf49dc8b4";
 
 // =================================================================
-// 타입 정의 (Re-export for backward compatibility)
+// Re-export types for backward compatibility
 // =================================================================
-
-export type ChildDashboardStatus =
-    | 'NEED_HOSPITAL'       // 병원 연결 필요
-    | 'AVAILABLE'           // 새 검사 가능
-    | 'AVAILABLE_EXPIRED'   // 검사 가능 (이전 임시저장 만료됨)
-    | 'IN_PROGRESS'         // 검사 진행 중 (이어하기)
-    | 'COOLDOWN'            // 쿨타임 (다음 검사 대기)
-    | 'COOLDOWN_BEFORE'     // 쿨타임 중 병원 연동됨 (특수 케이스)
-    | 'WAITING';            // 대기 중
-
-export interface LinkedHospital {
-    hospitalId: string;
-    name: string;
-}
-
-// 실제 아이 정보 데이터 타입 (API 응답의 data 부분)
-export interface ChildHomeData {
-    childId: string;
-    examId: string | null;
-    name: string;
-    gender: 'MALE' | 'FEMALE';
-    examStartedAt: string | null;
-    examStatus: ChildDashboardStatus;
-    examProgress: number;
-    draftExpiresAt: string | null;
-    nextEligibleAt: string | null;
-    linkedHospitals: LinkedHospital[];
-}
-
-// API 응답 전체 구조
-export interface ChildHomeResponse {
-    code: number;
-    status: string;
-    message: string;
-    data: ChildHomeData;
-}
-
-export interface HospitalLinkRequest {
-    inviteCode: string;
-}
-
-export interface HospitalLinkResponse {
-    code: number;
-    status: string;
-    message: string;
-    data?: string;
-}
+export type { ChildDashboardStatus } from '@/api/types';
+export type { ChildHomeResponse, HospitalInfoDTO as LinkedHospital } from '@/api/types/child.types';
 
 
 // --- [API Functions] ---------------------------------------------
 
 /**
  * 1. 메인 대시보드 정보 조회 (GET)
- * @returns ChildHomeData - API 응답의 data 부분만 반환
+ * @returns ChildHomeResponse - API 응답의 data 부분만 반환
  */
-export const fetchChildHomeInfo = async (childId: string): Promise<ChildHomeData> => {
+export const fetchChildHomeInfo = async (childId: string): Promise<ChildHomeResponse> => {
     // childId가 없거나 이상하면 테스트 ID로 대체
     const targetId = childId || TEST_CHILD_ID;
     console.log(`🚀 [GET] Dashboard Info for: ${targetId}`);
 
     try {
-        const response = await api.get<ChildHomeResponse>(`/child/${targetId}`);
+        const response = await api.get<ApiResponseChildHome>(`/child/${targetId}`);
         console.log("✅ Fetch Success:", response.data);
         // data.data가 실제 아이 정보
         return response.data.data;
@@ -131,3 +88,5 @@ export const registerInviteCode = async (childId: string, inviteCode: string) =>
         throw error;
     }
 };
+
+
