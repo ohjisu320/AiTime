@@ -20,11 +20,7 @@ const MissionListPage: React.FC = () => {
   // ✅ useMissions 훅 사용 (중복 선언 제거 및 isUnder18 구조 분해 할당)
   const { missions, isLoading, error, isUnder18 } = useMissions(examId);
 
-  // 정렬 헬퍼
-  const sortedMissions = (tasks: VideoTask[]) => {
-    const order = ['POSE_IMITATION', 'SPEECH_IMITATION', 'NAME_FACING', 'NAME_NON_FACING'];
-    return [...tasks].sort((a, b) => order.indexOf(a.videoType) - order.indexOf(b.videoType));
-  };
+
 
   // ✅ 컨텐츠 리졸버 헬퍼
   const getResolvedContent = (videoType: string, isChildUnder18: boolean | null) => {
