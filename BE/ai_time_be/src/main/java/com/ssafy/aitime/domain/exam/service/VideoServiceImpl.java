@@ -2,18 +2,20 @@ package com.ssafy.aitime.domain.exam.service;
 
 import com.ssafy.aitime.domain.exam.dto.request.PresignedKeyRequest;
 import com.ssafy.aitime.domain.exam.dto.request.VideoUploadCompleteRequest;
-import com.ssafy.aitime.domain.exam.dto.response.PresignedKeyResponse;
-import com.ssafy.aitime.domain.exam.dto.response.PresignedViewUrlResponse;
-import com.ssafy.aitime.domain.exam.dto.response.VideoDeleteResponse;
-import com.ssafy.aitime.domain.exam.dto.response.VideoUploadCompleteResponse;
+import com.ssafy.aitime.domain.exam.dto.response.*;
 import com.ssafy.aitime.domain.exam.entity.Exam;
 import com.ssafy.aitime.domain.exam.entity.Video;
+import com.ssafy.aitime.domain.exam.entity.assessment.NameFacingEvent;
+import com.ssafy.aitime.domain.exam.entity.assessment.NameNonFacingEvent;
+import com.ssafy.aitime.domain.exam.entity.assessment.PoseImitationEvent;
+import com.ssafy.aitime.domain.exam.entity.assessment.SpeechImitationEvent;
 import com.ssafy.aitime.domain.exam.entity.enums.ExamStatus;
 import com.ssafy.aitime.domain.exam.entity.enums.VideoStatus;
 import com.ssafy.aitime.domain.exam.entity.enums.VideoType;
 import com.ssafy.aitime.domain.exam.exception.*;
 import com.ssafy.aitime.domain.exam.repository.ExamRepository;
 import com.ssafy.aitime.domain.exam.repository.VideoRepository;
+import com.ssafy.aitime.domain.exam.repository.assessment.*;
 import com.ssafy.aitime.domain.hospital.service.HospitalChildrenService;
 import com.ssafy.aitime.security.principal.HospitalStaffPrincipal;
 import com.ssafy.aitime.security.principal.UserPrincipal;
@@ -33,9 +35,8 @@ import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignReques
 
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -47,6 +48,18 @@ public class VideoServiceImpl implements VideoService {
     private final ExamRepository examRepository;
     private final S3Presigner s3Presigner;
     private final S3Client s3Client;  // S3 파일 검증을 위해 추가
+
+    // Trial Repositories
+    private final SpeechImitationTrialRepository speechImitationTrialRepository;
+    private final PoseImitationTrialRepository poseImitationTrialRepository;
+    private final NameNonFacingTrialRepository nameNonFacingTrialRepository;
+    private final NameFacingTrialRepository nameFacingTrialRepository;
+
+    // Event Repositories
+    private final SpeechImitationEventRepository speechImitationEventRepository;
+    private final PoseImitationEventRepository poseImitationEventRepository;
+    private final NameNonFacingEventRepository nameNonFacingEventRepository;
+    private final NameFacingEventRepository nameFacingEventRepository;
 
 
     @Value("${minio.bucket-name}")
@@ -250,34 +263,7 @@ public class VideoServiceImpl implements VideoService {
     @Transactional(readOnly = true)
     public PresignedViewUrlResponse generatePresignedViewUrl(Object principal, UUID examId, UUID videoId, int expiresInSec) {
 
-        // 1. Video 조회
-        Video video = videoRepository.findById(videoId)
-                .orElseThrow(() -> new VideoNotFoundException(videoId));
-
-        // 2. Video가 요청된 Exam에 속하는지 확인
-        if (!video.getExam().getExamId().equals(examId)) {
-            log.error("Video가 해당 Exam에 속하지 않음 - videoId: {}, examId: {}, actualExamId: {}",
-                    videoId, examId, video.getExam().getExamId());
-            throw new VideoNotFoundException(videoId);
-        }
-
-        // 3. Principal 타입 검증 및 권한 확인
-        validatePrincipalAndAuthorization(principal, examId);
-
-        // 4. Video 상태 확인 - UPLOADED 상태만 조회 가능
-        if (video.getVideoStatus() != VideoStatus.UPLOADED) {
-            log.warn("업로드되지 않은 영상 조회 시도 - videoId: {}, status: {}",
-                    video.getVideoId(), video.getVideoStatus());
-            throw new VideoNotUploadedException(video.getVideoStatus());
-        }
-
-        // 5. url 생성 전 S3 파일 존재 확인
-        boolean fileExists = verifyS3FileExists(video.getS3Bucket(), video.getS3Key());
-        if (!fileExists) {
-            log.error("S3 파일이 존재하지 않음 - bucket: {}, Key: {}", video.getS3Bucket(), video.getS3Key());
-            throw new S3FileVerificationException(video.getS3Key());
-        }
-
+        Video video = validateAndGetVideo(principal, examId, videoId);
         // 7. Presigned GET URL 생성
         String presignedUrl = generatePresignedGetUrl(video.getS3Bucket(), video.getS3Key(), expiresInSec);
         LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(expiresInSec);
@@ -296,6 +282,177 @@ public class VideoServiceImpl implements VideoService {
             .build();
     }
 
+    /**
+     * 비디오 재생 Presigned URL 발급 + 이벤트 타임스탬프 조회 (의료진 전용 API)
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public PresignedViewUrlWithTimestampsResponse generatePresignedViewUrlWithTimestamps(Object principal, UUID examId, UUID videoId, int expiresInSec) {
+
+        // 1. Video 검증 및 Presigned URL 생성
+        Video video = validateAndGetVideo(principal, examId, videoId);
+        String presignedUrl = generatePresignedGetUrl(video.getS3Bucket(), video.getS3Key(), expiresInSec);
+        LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(expiresInSec);
+
+        // 2. 이벤트 타임스탬프 조회
+        List<TimestampInfo> timestamps = getTimestampsForVideo(video);
+
+        log.info("Presigned View URL + Timestamps 생성 완료 - videoId: {}, expiresAt: {}, timestamps count: {}",
+                video.getVideoId(), expiresAt, timestamps.size());
+
+        // 3. Response 생성 (타임스탬프 포함)
+        return PresignedViewUrlWithTimestampsResponse.builder()
+                .videoId(video.getVideoId().toString())
+                .videoType(video.getVideoType().name())
+                .examId(video.getExam().getExamId().toString())
+                .bucket(video.getS3Bucket())
+                .s3Key(video.getS3Key())
+                .viewUrl(presignedUrl)
+                .expiresAt(expiresAt)
+                .timestamps(timestamps)
+                .build();
+    }
+
+    /**
+     * Video 검증 및 조회 공통 로직
+     */
+    private Video validateAndGetVideo(Object principal, UUID examId, UUID videoId) {
+        // 1. 권한 검증
+        validatePrincipalAndAuthorization(principal, examId);
+
+        // 2. Video 조회
+        Video video = videoRepository.findById(videoId)
+                .orElseThrow(() -> new VideoNotFoundException(videoId));
+
+        // 3. Video가 해당 Exam에 속하는지 확인
+        if (!video.getExam().getExamId().equals(examId)) {
+            log.error("Video가 해당 Exam에 속하지 않음 - videoId: {}, examId: {}", videoId, examId);
+            throw new VideoNotFoundException(videoId);
+        }
+
+        // 4. Video 상태 확인
+        if (video.getVideoStatus() != VideoStatus.UPLOADED) {
+            log.warn("업로드되지 않은 비디오 조회 시도 - videoId: {}, status: {}",
+                    video.getVideoId(), video.getVideoStatus());
+            throw new VideoNotUploadedException(video.getVideoStatus());
+        }
+
+        // 5. S3 파일 존재 확인
+        boolean fileExists = verifyS3FileExists(video.getS3Bucket(), video.getS3Key());
+        if (!fileExists) {
+            log.error("S3 파일이 존재하지 않음 - bucket: {}, Key: {}", video.getS3Bucket(), video.getS3Key());
+            throw new S3FileVerificationException(video.getS3Key());
+        }
+
+        return video;
+    }
+
+    /**
+     * VideoType에 따라 해당 비디오의 이벤트 타임스탬프를 조회
+     */
+    private List<TimestampInfo> getTimestampsForVideo(Video video) {
+        VideoType videoType = video.getVideoType();
+        UUID videoId = video.getVideoId();
+
+        return switch (videoType) {
+            case NAME_FACING -> getNameFacingTimestamps(videoId);
+            case NAME_NON_FACING -> getNameNonFacingTimestamps(videoId);
+            case POSE_IMITATION -> getPoseImitationTimestamps(videoId);
+            case SPEECH_IMITATION -> getSpeechImitationTimestamps(videoId);
+            default -> {
+                log.warn("지원하지 않는 VideoType: {}", videoType);
+                yield Collections.emptyList();
+            }
+        };
+    }
+
+    /**
+     * TASK1 (이름 부르기 정면) 타임스탬프 조회
+     */
+    private List<TimestampInfo> getNameFacingTimestamps(UUID videoId) {
+        return nameFacingTrialRepository.findByVideoVideoId(videoId)
+                .map(trial -> {
+                    List<NameFacingEvent> events = nameFacingEventRepository
+                            .findByNameFacingTrialNameFacingTrialIdOrderByTrialIndex(
+                                    trial.getNameFacingTrialId()
+                            );
+
+                    return events.stream()
+                            .map(event -> TimestampInfo.builder()
+                                    .startS(event.getTrialStartS())
+                                    .endS(event.getTrialEndS())
+                                    .trialIndex(event.getTrialIndex())
+                                    .build())
+                            .collect(Collectors.toList());
+                })
+                .orElse(Collections.emptyList());
+    }
+
+    /**
+     * TASK2 (이름 부르기 비정면) 타임스탬프 조회
+     */
+    private List<TimestampInfo> getNameNonFacingTimestamps(UUID videoId) {
+        return nameNonFacingTrialRepository.findByVideoVideoId(videoId)
+                .map(trial -> {
+                    List<NameNonFacingEvent> events = nameNonFacingEventRepository
+                            .findByNameNonFacingTrialNameNonFacingTrialIdOrderByTrialIndex(
+                                    trial.getNameNonFacingTrialId()
+                            );
+
+                    return events.stream()
+                            .map(event -> TimestampInfo.builder()
+                                    .startS(event.getTriggerStartS())  // trigger 시작 시간 사용
+                                    .endS(event.getTriggerEndS())      // trigger 종료 시간 사용
+                                    .trialIndex(event.getTrialIndex())
+                                    .build())
+                            .collect(Collectors.toList());
+                })
+                .orElse(Collections.emptyList());
+    }
+
+    /**
+     * TASK3 (자세 모방) 타임스탬프 조회
+     */
+    private List<TimestampInfo> getPoseImitationTimestamps(UUID videoId) {
+        return poseImitationTrialRepository.findByVideoVideoId(videoId)
+                .map(trial -> {
+                    List<PoseImitationEvent> events = poseImitationEventRepository
+                            .findByPoseImitationTrialPoseImitationTrialIdOrderByTrialIndex(
+                                    trial.getPoseImitationTrialId()
+                            );
+
+                    return events.stream()
+                            .map(event -> TimestampInfo.builder()
+                                    .startS(event.getParentStartTime())  // 부모 동작 시작 시간 사용
+                                    .endS(event.getChildEndTime())        // 아이 동작 종료 시간 사용 (전체 구간)
+                                    .trialIndex(event.getTrialIndex())
+                                    .build())
+                            .collect(Collectors.toList());
+                })
+                .orElse(Collections.emptyList());
+    }
+
+    /**
+     * TASK4 (말 모방) 타임스탬프 조회
+     */
+    private List<TimestampInfo> getSpeechImitationTimestamps(UUID videoId) {
+        return speechImitationTrialRepository.findByVideoVideoId(videoId)
+                .map(trial -> {
+                    List<SpeechImitationEvent> events = speechImitationEventRepository
+                            .findBySpeechImitationTrialSpeechImitationTrialIdOrderByTrialIndex(
+                                    trial.getSpeechImitationTrialId()
+                            );
+
+                    return events.stream()
+                            .map(event -> TimestampInfo.builder()
+                                    .startS(event.getTrialStartS())
+                                    .endS(event.getTrialEndS())
+                                    .trialIndex(event.getTrialIndex())
+                                    .build())
+                            .collect(Collectors.toList());
+                })
+                .orElse(Collections.emptyList());
+    }
     /**
      * Principal 타입에 따라 권한 검증
      * - UserPrincipal: 본인 또는 자녀의 exam인지 확인

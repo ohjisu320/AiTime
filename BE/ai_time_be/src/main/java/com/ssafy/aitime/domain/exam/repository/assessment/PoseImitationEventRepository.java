@@ -11,4 +11,5 @@ import java.util.UUID;
 
 public interface PoseImitationEventRepository extends JpaRepository<PoseImitationEvent, UUID> {
     List<PoseImitationEvent> findByPoseImitationTrial(PoseImitationTrial trial);
+    List<PoseImitationEvent> findByPoseImitationTrialPoseImitationTrialIdOrderByTrialIndex(UUID trialId);
 }
