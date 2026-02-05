@@ -9,27 +9,30 @@ import {
   DialogOverlay,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils"; 
+import { cn } from "@/lib/utils";
 
 interface ConfirmModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-    onConfirm: () => void;
-    title: React.ReactNode;
-    description?: string | React.ReactNode; // 👈 ? 추가 (선택 사항)
-    confirmText?: string; // 👈 ? 추가 (선택 사항)
-    confirmVariant?: 'violet' | 'rose' | 'slate';
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  title: React.ReactNode;
+  description?: string | React.ReactNode; // 👈 ? 추가 (선택 사항)
+  confirmText?: string; // 👈 ? 추가 (선택 사항)
+  confirmVariant?: 'violet' | 'rose' | 'slate';
+  hideCloseButton?: boolean; // 👈 닫기 버튼 숨김 옵션 추가
 }
 
-const ConfirmModal = ({ 
-    isOpen, 
-    onClose, 
-    onConfirm, 
-    title, 
-    description, 
-    confirmText = "확인", 
-    confirmVariant = 'violet' 
-}: ConfirmModalProps) => {
+const ConfirmModal = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  title,
+  description,
+  confirmText = "확인",
+  confirmVariant = 'violet',
+  closeOnConfirm = true, // 👈 추가
+  hideCloseButton = false // 👈 닫기 버튼 숨김
+}: ConfirmModalProps & { closeOnConfirm?: boolean }) => {
 
   const variantStyles = {
     violet: 'bg-[#6366F1] hover:bg-[#4F46E5] shadow-indigo-100',
@@ -45,13 +48,13 @@ const ConfirmModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogOverlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" /> 
-      
+      <DialogOverlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" />
+
       <DialogContent className={cn(
         "fixed left-[50%] top-[50%] z-50 w-full max-w-[420px] translate-x-[-50%] translate-y-[-50%] rounded-3xl p-8 bg-white shadow-2xl border-none outline-none",
         confirmVariant === 'rose' && "border-t-8 border-rose-500"
       )}>
-        
+
         <DialogHeader className="space-y-4 text-center">
           <DialogTitle className={cn("text-2xl font-bold whitespace-pre-wrap", titleStyles[confirmVariant])}>
             {title}
@@ -62,13 +65,15 @@ const ConfirmModal = ({
         </DialogHeader>
 
         <DialogFooter className="flex flex-row gap-3 mt-8">
-          <Button
-            variant="ghost"
-            className="flex-1 h-14 bg-gray-50 hover:bg-gray-100 text-gray-500 font-semibold rounded-2xl transition-all"
-            onClick={onClose}
-          >
-            닫기
-          </Button>
+          {!hideCloseButton && (
+            <Button
+              variant="ghost"
+              className="flex-1 h-14 bg-gray-50 hover:bg-gray-100 text-gray-500 font-semibold rounded-2xl transition-all"
+              onClick={onClose}
+            >
+              닫기
+            </Button>
+          )}
           <Button
             className={cn(
               "flex-1 h-14 text-white text-lg font-bold rounded-2xl shadow-lg transition-all",
@@ -76,7 +81,7 @@ const ConfirmModal = ({
             )}
             onClick={() => {
               onConfirm();
-              onClose();
+              if (closeOnConfirm) onClose(); // 👈 조건부 실행
             }}
           >
             {confirmText}

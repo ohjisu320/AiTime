@@ -27,7 +27,7 @@ const DashboardPage = () => {
     });
 
     // PWA Install Hook
-    const { isInstallable, installPWA } = usePWAInstall();
+    const { isInstallable, installPWA, showIOSInstallGuide, isStandalone } = usePWAInstall();
 
     // 모달 상태 관리
     const [isModifyModalOpen, setIsModifyModalOpen] = useState(false);
@@ -128,18 +128,28 @@ const DashboardPage = () => {
 
                 {/* PWA Install Button (Floating) */}
                 <div className="absolute top-6 right-8 z-50">
-                    <button
-                        onClick={installPWA}
-                        disabled={!isInstallable}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-full shadow-lg transition-all font-bold 
-                            ${isInstallable
-                                ? 'bg-indigo-600 text-white hover:bg-indigo-700 animate-bounce'
-                                : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
-                        title={isInstallable ? "홈 화면에 추가하기" : "현재 브라우저에서는 설치할 수 없습니다"}
-                    >
-                        <Download size={18} />
-                        {isInstallable ? '홈 화면에 추가하기' : '설치 불가'}
-                    </button>
+                    {/* iOS Safari 사용자를 위한 안내 */}
+                    {showIOSInstallGuide ? (
+                        <div className="flex items-center gap-2 px-4 py-2 rounded-full shadow-lg bg-indigo-600 text-white">
+                            <Download size={18} />
+                            <span className="text-sm">
+                                Safari에서 <strong>공유 → 홈 화면에 추가</strong>를 눌러주세요
+                            </span>
+                        </div>
+                    ) : !isStandalone && (
+                        <button
+                            onClick={installPWA}
+                            disabled={!isInstallable}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-full shadow-lg transition-all font-bold 
+                                ${isInstallable
+                                    ? 'bg-indigo-600 text-white hover:bg-indigo-700 animate-bounce'
+                                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
+                            title={isInstallable ? "홈 화면에 추가하기" : "현재 브라우저에서는 설치할 수 없습니다"}
+                        >
+                            <Download size={18} />
+                            {isInstallable ? '홈 화면에 추가하기' : '설치 불가'}
+                        </button>
+                    )}
                 </div>
 
                 {/* HeroBanner */}

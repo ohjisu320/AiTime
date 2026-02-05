@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import {
   fetchChildHomeInfo,
-  type ChildHomeResponse,
+  type ChildHomeData,
   TEST_CHILD_ID,
 } from '../api/dashboardApi';
 
 export const useParentDashboard = () => {
-  const [data, setData] = useState<ChildHomeResponse | null>(null);
+  const [data, setData] = useState<ChildHomeData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
 

@@ -1,10 +1,10 @@
 // src/domains/exam/pages/ExamPage.tsx
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
-import { useParams, useNavigate, useBlocker } from 'react-router-dom';
+import { useParams, useNavigate, useBlocker, useLocation } from 'react-router-dom';
 import { useMediaRecorder } from '@/domains/video/hooks/useMediaRecorder';
 import { useExamUpload } from '@/domains/video/hooks/useExamUpload';
 import type { VideoType } from '@/domains/video/api/videoApi';
-import { getExamInfo } from '@/domains/exam/api/examApi'; // ✅ Import added
+import { getExamInfo } from '@/domains/exam/api/examApi';
 import ExamBaseLayout from '@/domains/exam/components/layout/ExamBaseLayout';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import { FullScreenOverlayText } from '@/components/common/FullScreenOverlayText';
@@ -21,6 +21,7 @@ const getVideoTypeFromMissionId = (missionId: string): VideoType => {
 const ExamPage: React.FC = () => {
   const { missionId = "1" } = useParams<{ missionId: string }>();
   const navigate = useNavigate();
+  const location = useLocation(); // ✅ Location 훅 추가
   const videoRef = useRef<HTMLVideoElement>(null);
 
   // ✅ 월령 정보 상태 추가
@@ -66,21 +67,43 @@ const ExamPage: React.FC = () => {
 
   const content = SCREENING_CONTENT[resolvedMissionId] || SCREENING_CONTENT[missionId] || SCREENING_CONTENT["POSE_IMITATION_12M"]; // Fallback safe
   const instructions = content?.instructions || [];
+  // 🛡️ 비정상 접근 차단 (스크리닝 통과 증표 확인)
+  // 🔧 개발용: localStorage.setItem('bypassScreening', 'true') 로 우회 가능
+  const [isInvalidAccessModalOpen, setIsInvalidAccessModalOpen] = useState(false);
+  const isDev = localStorage.getItem('bypassScreening') === 'true';
+
+  useEffect(() => {
+    if (!isDev && !location.state?.verified) {
+      setIsInvalidAccessModalOpen(true);
+    }
+  }, [location, isDev]);
+
+  const handleInvalidAccessConfirm = () => {
+    navigate('/exam/mission', { replace: true });
+  };
+
+
 
   const { stream, isRecording, startSession, startRecording, stopRecording } = useMediaRecorder();
   const { mutate: uploadVideo, isPending } = useExamUpload();
 
   // ⏰ 타이머 및 상태 관리
-  // phase: 'READY' (권한확인) -> 'GLOBAL_COUNTDOWN' (3초) -> 'RECORDING' (25초) -> 'COMPLETED'
+  // phase: 'READY' (권한확인) -> 'GLOBAL_COUNTDOWN' (3초) -> 'RECORDING' (동적) -> 'COMPLETED'
   const [phase, setPhase] = useState<'READY' | 'GLOBAL_COUNTDOWN' | 'RECORDING' | 'COMPLETED'>('READY');
   const [globalCount, setGlobalCount] = useState(content?.countdown || 3);
-  const [elapsedTime, setElapsedTime] = useState(0);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
 
-  // content가 undefined일 경우 방지
-  const TOTAL_DURATION = content?.duration || 25;
-  const COUNTDOWN_DURATION = content?.countdown || 3;
-  const CYCLE_DURATION = 8; // 3초 카운트 + 5초 지시사항
+  // ✅ 각 사이클에서 확인 버튼이 눌린 시점(타임스탬프) 추적
+  const [confirmedCycles, setConfirmedCycles] = useState<Map<number, number>>(new Map());
+
+  // ✅ 현재 활성 사이클 인덱스
+  const [currentCycleIndex, setCurrentCycleIndex] = useState(0);
+
+  // ✅ 현재 사이클 내 경과 시간 (확인 후 카운트다운용)
+  const [cycleElapsedTime, setCycleElapsedTime] = useState(0);
+
+  // ✅ 각 지시사항당 진행 시간 (미션별로 다름)
+  const INSTRUCTION_DURATION = content?.instructionDuration || 8; // 기본값 8초
 
   // 🚫 뒤로가기/이탈 방지 처리
   const shouldBlock = !!stream && phase !== 'COMPLETED';
@@ -101,25 +124,13 @@ const ExamPage: React.FC = () => {
 
   // React Router 네비게이션 방지
   const blocker = useBlocker(shouldBlock);
+  const [isBlockerModalOpen, setIsBlockerModalOpen] = useState(false);
 
   useEffect(() => {
     if (blocker.state === 'blocked') {
-      Swal.fire({
-        title: '검사를 중단하시겠습니까?',
-        text: '페이지를 이동하면 영상이 저장되지 않습니다.',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#3085d6',
-        cancelButtonColor: '#d33',
-        confirmButtonText: '중단하고 나가기',
-        cancelButtonText: '취소',
-      }).then((result) => {
-        if (result.isConfirmed) {
-          blocker.proceed();
-        } else {
-          blocker.reset();
-        }
-      });
+      setIsBlockerModalOpen(true);
+    } else {
+      setIsBlockerModalOpen(false);
     }
   }, [blocker]);
 
@@ -163,11 +174,14 @@ const ExamPage: React.FC = () => {
 
   // 1. 카메라 권한 및 스트림 연결
   useEffect(() => {
+    // 🛑 스크리닝 미통과 시 카메라 실행하지 않음 (개발 모드 제외)
+    if (!isDev && !location.state?.verified) return;
+
     startSession().catch(() => {
       Swal.fire({ title: '권한 에러', text: '카메라 권한을 확인해주세요.', icon: 'warning' })
         .then(() => navigate('/exam/mission'));
     });
-  }, [startSession, navigate]);
+  }, [startSession, navigate, location.state?.verified, isDev]);
 
   // 2. 스트림 연결 시 비디오 설정
   useEffect(() => {
@@ -187,7 +201,7 @@ const ExamPage: React.FC = () => {
   useEffect(() => {
     if (phase === 'GLOBAL_COUNTDOWN') {
       if (globalCount > 0) {
-        const timer = setTimeout(() => setGlobalCount(c => c - 1), 1000);
+        const timer = setTimeout(() => setGlobalCount((prev: number) => prev - 1), 1000);
         return () => clearTimeout(timer);
       } else {
         // 카운트다운 종료 -> 녹화 시작
@@ -197,41 +211,67 @@ const ExamPage: React.FC = () => {
     }
   }, [phase, globalCount, startRecording]);
 
-  // 5. 녹화 중 타이머 (25초)
+  // 5. 녹화 중 타이머 (동적 - 확인 후 5초 카운트다운)
   useEffect(() => {
-    if (phase === 'RECORDING') {
-      if (elapsedTime < TOTAL_DURATION) {
+    if (phase !== 'RECORDING') return;
+
+    const isCurrentCycleConfirmed = confirmedCycles.has(currentCycleIndex);
+    const isLastCycle = currentCycleIndex >= instructions.length - 1;
+
+    // 확인된 사이클이면 5초 카운트다운 시작
+    if (isCurrentCycleConfirmed) {
+      if (cycleElapsedTime < INSTRUCTION_DURATION) {
         const timer = setInterval(() => {
-          setElapsedTime(prev => prev + 1);
+          setCycleElapsedTime(prev => prev + 1);
         }, 1000);
         return () => clearInterval(timer);
       } else {
-        // 시간 종료 -> 녹화 중지 및 완료 처리
-        handleComplete();
+        // 5초 종료
+        if (isLastCycle) {
+          // 마지막 지시사항 완료 -> 검사 종료
+          handleComplete();
+        } else {
+          // 다음 사이클로 이동
+          setCurrentCycleIndex(prev => prev + 1);
+          setCycleElapsedTime(0);
+        }
       }
     }
-  }, [phase, elapsedTime, handleComplete, TOTAL_DURATION]);
+  }, [phase, currentCycleIndex, cycleElapsedTime, confirmedCycles, instructions.length, handleComplete, INSTRUCTION_DURATION]);
 
-  // 🎯 현재 시간에 따른 지시사항 계산
+  // 🎯 현재 지시사항 상태 계산
   const currentInstructionState = useMemo(() => {
     if (phase !== 'RECORDING') return null;
+    if (currentCycleIndex >= instructions.length) return null;
 
-    // 현재 사이클 인덱스 (0, 1, 2...)
-    const cycleIndex = Math.floor(elapsedTime / CYCLE_DURATION);
-    const timeInCycle = elapsedTime % CYCLE_DURATION;
+    const instruction = instructions[currentCycleIndex];
+    const isConfirmed = confirmedCycles.has(currentCycleIndex);
 
-    // 지시사항이 없으면 (범위 초과) null
-    if (cycleIndex >= instructions.length) return null;
-
-    const instruction = instructions[cycleIndex];
-
-    // 사이클 내에서: 0~3초(카운트다운), 3~8초(지시사항)
-    if (timeInCycle < 3) {
-      return { type: 'COUNTDOWN', count: 3 - timeInCycle, instruction }; // 3, 2, 1
+    if (isConfirmed) {
+      // 확인됨 -> 시작하세요 카드 (남은 시간 표시)
+      return {
+        type: 'INSTRUCTION',
+        instruction,
+        cycleIndex: currentCycleIndex,
+        remainingTime: INSTRUCTION_DURATION - cycleElapsedTime
+      };
     } else {
-      return { type: 'INSTRUCTION', instruction };
+      // 아직 확인 안 함 -> 준비하세요 카드 (확인 버튼 대기)
+      return {
+        type: 'WAITING',
+        instruction,
+        cycleIndex: currentCycleIndex
+      };
     }
-  }, [elapsedTime, phase, instructions]);
+  }, [phase, currentCycleIndex, instructions, confirmedCycles, cycleElapsedTime, INSTRUCTION_DURATION]);
+
+  // ✅ 확인 버튼 클릭 핸들러
+  const handleConfirmInstruction = useCallback(() => {
+    if (!currentInstructionState) return;
+    const { cycleIndex } = currentInstructionState;
+    setConfirmedCycles(prev => new Map(prev).set(cycleIndex, Date.now()));
+    setCycleElapsedTime(0); // 확인 시 5초 카운트다운 시작
+  }, [currentInstructionState]);
 
   const handleModalConfirm = () => {
     setIsSuccessModalOpen(false);
@@ -250,7 +290,7 @@ const ExamPage: React.FC = () => {
       isAligned={true}
       volume={0}
       showVisualGuide={false}
-      onBack={() => navigate(-1)}
+      onBack={() => navigate('/exam/mission')}
     >
       {/* ⚠️ 로딩 중 (업로드 중 포함) */}
       {isPending && (
@@ -290,63 +330,72 @@ const ExamPage: React.FC = () => {
         <>
           {/* 지시사항 카드 (8초 주기 동안 계속 표시) */}
           <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-[90%] max-w-2xl z-40 flex flex-col gap-4">
-            <div
-              key={currentInstructionState.instruction.text} // 텍스트가 바뀔 때만 애니메이션 다시 실행
-              className={`bg-white/90 backdrop-blur-xl rounded-3xl p-8 shadow-2xl flex flex-col items-center text-center border border-white/50 transition-all duration-300 ${currentInstructionState.type === 'COUNTDOWN' ? 'animate-in slide-in-from-bottom-10 fade-in' : 'scale-100'
-                }`}
-            >
-              {/* 배지 (준비 vs 시작) */}
+            {/* 1. 준비 단계 (COUNTDOWN 또는 WAITING) - 노란색 카드 */}
+            {(currentInstructionState.type === 'COUNTDOWN' || currentInstructionState.type === 'WAITING') ? (
               <div
-                key={currentInstructionState.type} // 타입 변경 시 애니메이션 리셋
-                className={`mb-3 px-4 py-1 rounded-full text-sm font-bold transition-colors duration-300 ${currentInstructionState.type === 'COUNTDOWN'
-                  ? "bg-amber-100 text-amber-700"
-                  : "bg-brand-purple text-white animate-pulse"
-                  }`}
+                key={`prep-${currentInstructionState.instruction.id}`}
+                className="bg-yellow-300/95 backdrop-blur-xl rounded-3xl p-8 shadow-2xl flex flex-col items-center text-center border-4 border-white/50 transition-all duration-300 animate-in slide-in-from-bottom-5 fade-in"
               >
-                {currentInstructionState.type === 'COUNTDOWN' ? "준비하세요" : "지금 따라하세요!"}
+                <div className="mb-4 px-6 py-2 rounded-full text-lg font-black bg-white text-yellow-600 shadow-sm flex items-center gap-2">
+                  <span>✋ 준비하세요</span>
+                </div>
+                <div className="bg-white/40 rounded-2xl p-6 w-full backdrop-blur-sm mb-4">
+                  <p className="text-xl font-bold text-yellow-950 leading-snug break-keep opacity-80 mb-2">
+                    다음 지시사항
+                  </p>
+                  <h3 className="text-2xl font-black text-yellow-900 leading-snug break-keep">
+                    {currentInstructionState.instruction.text}
+                    {currentInstructionState.instruction.boldText && <span className="text-yellow-700 mx-1">{currentInstructionState.instruction.boldText}</span>}
+                    {currentInstructionState.instruction.suffix}
+                  </h3>
+                </div>
+                {/* ✅ 확인하기 버튼 */}
+                <button
+                  onClick={handleConfirmInstruction}
+                  className="w-full max-w-xs py-4 px-8 bg-yellow-500 hover:bg-yellow-600 active:bg-yellow-700 text-white text-xl font-bold rounded-2xl shadow-lg transition-all duration-200 transform hover:scale-105 active:scale-95"
+                >
+                  확인하기
+                </button>
               </div>
-
-              <h3 className="text-3xl font-bold text-gray-900 leading-snug break-keep">
-                {currentInstructionState.instruction.id && <span className="text-brand-purple mr-2">{currentInstructionState.instruction.id}.</span>}
-                {currentInstructionState.instruction.text}
-                {currentInstructionState.instruction.boldText && <span className="text-brand-purple mx-1">{currentInstructionState.instruction.boldText}</span>}
-                {currentInstructionState.instruction.suffix}
-              </h3>
-            </div>
-
-            {/* ⏳ 타이머 게이지 */}
-            <div className="w-full h-3 bg-gray-300/50 rounded-full overflow-hidden backdrop-blur-sm">
+            ) : (
+              /* 2. 실행 단계 (INSTRUCTION) - 기존 스타일 (흰색) */
               <div
-                key={`gauge-${Math.floor(elapsedTime / 8)}`} // 사이클(8초)마다 리셋
-                className={`h-full bg-brand-purple ${currentInstructionState.type === 'INSTRUCTION'
-                  ? 'w-full animate-[width_5s_linear_forwards]'
-                  : 'w-full'
-                  }`}
-                style={{
-                  width: '100%',
-                  // Tailwind v4 Arbitrary values not work? use standard style animation if needed.
-                  // But the issue was likely the key resetting every second.
-                  // Let's also add a clear animation style fallback
-                  animation: currentInstructionState.type === 'INSTRUCTION' ? 'shrink 5s linear forwards' : 'none'
-                }}
-              />
-              <style>{`
-                @keyframes shrink {
-                  from { width: 100%; }
-                  to { width: 0%; }
-                }
-              `}</style>
-            </div>
-          </div>
+                key={`action-${currentInstructionState.instruction.id}`}
+                className="bg-white/90 backdrop-blur-xl rounded-3xl p-8 shadow-2xl flex flex-col items-center text-center border border-white/50 transition-all duration-300 scale-100"
+              >
+                <div className="mb-3 px-4 py-1 rounded-full text-sm font-bold bg-brand-purple text-white animate-pulse">
+                  지금 시작하세요!
+                </div>
 
-          {/* 카운트다운 숫자 오버레이 (카운트다운 단계에서만, 카드 위에 표시) */}
-          {currentInstructionState.type === 'COUNTDOWN' && (
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 text-center pointer-events-none">
-              <span className="block text-[120px] font-black text-white/90 drop-shadow-[0_4px_24px_rgba(0,0,0,0.5)] animate-in zoom-in fade-in duration-300">
-                {currentInstructionState.count}
-              </span>
-            </div>
-          )}
+                <h3 className="text-2xl font-bold text-gray-900 leading-snug break-keep">
+                  {currentInstructionState.instruction.id && <span className="text-brand-purple mr-2">{currentInstructionState.instruction.id}.</span>}
+                  {currentInstructionState.instruction.text}
+                  {currentInstructionState.instruction.boldText && <span className="text-brand-purple mx-1">{currentInstructionState.instruction.boldText}</span>}
+                  {currentInstructionState.instruction.suffix}
+                </h3>
+              </div>
+            )}
+
+            {/* ⏳ 타이머 게이지 (INSTRUCTION 상태일 때만 표시) */}
+            {currentInstructionState.type === 'INSTRUCTION' && (
+              <div className="w-full h-3 bg-gray-300/50 rounded-full overflow-hidden backdrop-blur-sm shadow-inner">
+                <div
+                  key={`gauge-${currentCycleIndex}`}
+                  className="h-full shadow-md bg-brand-purple"
+                  style={{
+                    width: '100%',
+                    animation: `shrink ${INSTRUCTION_DURATION}s linear forwards`
+                  }}
+                />
+                <style>{`
+                  @keyframes shrink {
+                    from { width: 100%; }
+                    to { width: 0%; }
+                  }
+                `}</style>
+              </div>
+            )}
+          </div>
         </>
       )}
 
@@ -360,8 +409,32 @@ const ExamPage: React.FC = () => {
         confirmText="목록으로 돌아가기"
       />
 
+      {/* 4. 뒤로가기/이탈 방지 모달 (ConfirmModal로 변경) */}
+      {blocker.state === 'blocked' && (
+        <ConfirmModal
+          isOpen={isBlockerModalOpen}
+          onClose={() => blocker.reset()}
+          onConfirm={() => blocker.proceed()}
+          title="검사를 중단하시겠습니까?"
+          description="페이지를 이동하면 진행 상황이 저장되지 않습니다."
+          confirmText="중단하고 나가기"
+          confirmVariant="rose"
+          closeOnConfirm={false}
+          hideCloseButton={true}
+        />
+      )}
 
-
+      {/* 5. 비정상 접근 차단 모달 */}
+      <ConfirmModal
+        isOpen={isInvalidAccessModalOpen}
+        onClose={handleInvalidAccessConfirm}
+        onConfirm={handleInvalidAccessConfirm}
+        title="잘못된 접근입니다."
+        description="스크리닝 단계를 먼저 완료해주세요."
+        confirmText="확인"
+        confirmVariant="violet"
+        hideCloseButton={true}
+      />
     </ExamBaseLayout>
   );
 };
