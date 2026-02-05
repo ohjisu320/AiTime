@@ -47,23 +47,23 @@ export const SCREENING_CONTENT: Record<string, any> = {
     variant: 'pink',
     duration: 48,
     instructions: [
-      {
-        id: 1,
-        text: "무릎을 굽혔다가",
-        boldText: "양발을 모아",
-        suffix: "쿵 소리가 나게 뛰어주세요 (점프)"
+      { 
+        id: 1, 
+        text: "무릎을 굽혔다가", 
+        boldText: "양발을 모아", 
+        suffix: "쿵 소리가 나게 뛰어주세요 (점프)" 
       },
-      {
-        id: 2,
-        text: "멈춰 있는 공을",
-        boldText: "발로 힘차게",
-        suffix: "뻥 차는 시범을 보여주세요"
+      { 
+        id: 2, 
+        text: "멈춰 있는 공을", 
+        boldText: "발로 힘차게", 
+        suffix: "뻥 차는 시범을 보여주세요" 
       },
-      {
-        id: 3,
-        text: "공을 머리 위로 들어",
-        boldText: "앞으로 멀리",
-        suffix: "던지는 동작을 보여주세요"
+      { 
+        id: 3, 
+        text: "공을 머리 위로 들어", 
+        boldText: "앞으로 멀리", 
+        suffix: "던지는 동작을 보여주세요" 
       },
     ],
     script: { lines: ["토끼처럼 깡충!", "공을 발로 뻥~!", "머리 위로 슝~!"] }
@@ -86,7 +86,6 @@ export const SCREENING_CONTENT: Record<string, any> = {
       { id: 1, text: "[ 아 ] 소리를", boldText: "한 번만 말하고", suffix: "5초간 기다려주세요" },
       { id: 2, text: "[ 아 ] 소리를", boldText: "한 번 더 말하고", suffix: "기다려주세요" },
       { id: 3, text: "[ 아 ] 소리를 마지막으로", boldText: "한 번 더 말하고", suffix: "반응을 관찰해주세요" },
-
       // 2. 마
       { id: 4, text: "[ 마 ] 소리를", boldText: "한 번만 말하고", suffix: "5초간 기다려주세요" },
       { id: 5, text: "[ 마 ] 소리를", boldText: "한 번 더 말하고", suffix: "기다려주세요" },
@@ -150,7 +149,6 @@ export const SCREENING_CONTENT: Record<string, any> = {
     ],
     script: { lines: ["화면에 보이는 단어를", "정확하게 한 번씩", "말해 주세요."] }
   },
-
   // =================================================================
   // TASK 3: 비대면 호명 반응 (NAME_NON_FACING)
   // 1-2(평소) -> 3-4(큰소리) -> 5-6(애칭)
@@ -192,8 +190,7 @@ export const SCREENING_CONTENT: Record<string, any> = {
     ],
     script: { lines: ["아이의 이름을 부르고", "눈을 맞추는지", "잠깐 기다리며 확인해주세요"] }
   }
-};
-
+}
 export const VIDEO_TYPE_MAP: Record<string, string> = {
   'POSE_IMITATION_12M': 'TASK1',
   'POSE_IMITATION_18M': 'TASK1',
