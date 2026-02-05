@@ -1,5 +1,6 @@
 package com.ssafy.aitime.domain.hospital.service;
 
+import com.ssafy.aitime.domain.exam.dto.response.AdosDetailResponse;
 import com.ssafy.aitime.domain.exam.dto.response.ExamWithVideosResponse;
 import com.ssafy.aitime.domain.hospital.dto.request.PatientSearchRequest;
 import com.ssafy.aitime.domain.hospital.dto.response.AdosReportGraphsResponse;
@@ -16,4 +17,6 @@ public interface DoctorService {
     List<ExamWithVideosResponse> getExamsByHospitalChildren(UUID hospitalStaffId, UUID hospitalChildrenId);
 
     AdosReportGraphsResponse getAdosGraphData(UUID hospitalStaffId, UUID hospitalChildrenId);
+
+    AdosDetailResponse getAdosDetail(UUID hospitalStaffId, UUID examId);
 }

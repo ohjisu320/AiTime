@@ -1,6 +1,7 @@
 package com.ssafy.aitime.domain.exam.service;
 
 import com.ssafy.aitime.domain.child.entity.Child;
+import com.ssafy.aitime.domain.exam.dto.response.AdosDetailResponse;
 import com.ssafy.aitime.domain.exam.dto.response.ExamInfoResponse;
 import com.ssafy.aitime.domain.exam.dto.response.ExamStartResponse;
 import com.ssafy.aitime.domain.exam.dto.response.ExamSummaryDTO;
@@ -48,4 +49,8 @@ public interface ExamService {
     List<Exam> getExamsByChildId(UUID childId);
 
     AdosReportGraphsResponse getAdosGraphData(UUID childId);
+
+    AdosDetailResponse getAdosDetail(UUID examId);
+
+    Exam getExamById(UUID examId);
 }
