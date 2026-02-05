@@ -1,13 +1,9 @@
 import api from '@/api/axiosConfig';
 import type {
-    ChildHomeResponse,
-    ChildHospitalListResponse,
     ChildHospitalLinkRequest,
     HospitalResponseDto,
-    ApiResponseChildHome,
     ApiResponseChildHospitalList
 } from '@/api/types/child.types';
-import { ChildDashboardStatus } from '@/api/types';
 
 // =================================================================
 // 테스트용 UUID (localStorage에 selectedChildId가 없을 때 fallback)
@@ -32,22 +28,26 @@ export interface LinkedHospital {
     name: string;
 }
 
+// 실제 아이 정보 데이터 타입 (API 응답의 data 부분)
+export interface ChildHomeData {
+    childId: string;
+    examId: string | null;
+    name: string;
+    gender: 'MALE' | 'FEMALE';
+    examStartedAt: string | null;
+    examStatus: ChildDashboardStatus;
+    examProgress: number;
+    draftExpiresAt: string | null;
+    nextEligibleAt: string | null;
+    linkedHospitals: LinkedHospital[];
+}
+
+// API 응답 전체 구조
 export interface ChildHomeResponse {
     code: number;
     status: string;
     message: string;
-    data: {
-        childId: string;
-        examId: string | null;             // ✅ 추가: 현재 진행 중인 검사 ID
-        name: string;
-        gender: 'MALE' | 'FEMALE';
-        examStartedAt: string | null;      // ✅ 추가
-        examStatus: ChildDashboardStatus;  // ✅ examStatus (API 명세)
-        examProgress: number;
-        draftExpiresAt: string | null;
-        nextEligibleAt: string | null;
-        linkedHospitals: LinkedHospital[];
-    };
+    data: ChildHomeData;
 }
 
 export interface HospitalLinkRequest {
@@ -66,14 +66,15 @@ export interface HospitalLinkResponse {
 
 /**
  * 1. 메인 대시보드 정보 조회 (GET)
+ * @returns ChildHomeData - API 응답의 data 부분만 반환
  */
-export const fetchChildHomeInfo = async (childId: string): Promise<ChildHomeResponse> => {
+export const fetchChildHomeInfo = async (childId: string): Promise<ChildHomeData> => {
     // childId가 없거나 이상하면 테스트 ID로 대체
     const targetId = childId || TEST_CHILD_ID;
     console.log(`🚀 [GET] Dashboard Info for: ${targetId}`);
 
     try {
-        const response = await api.get<ApiResponseChildHome>(`/child/${targetId}`);
+        const response = await api.get<ChildHomeResponse>(`/child/${targetId}`);
         console.log("✅ Fetch Success:", response.data);
         // data.data가 실제 아이 정보
         return response.data.data;
@@ -129,64 +130,4 @@ export const registerInviteCode = async (childId: string, inviteCode: string) =>
         }
         throw error;
     }
-};
-
-// =================================================================
-// 🚨 [Fix] Missing Exports for Build Error
-// useParentDashboard.ts 에서 import 하고 있는 Mock 상수들을 복구합니다.
-// =================================================================
-
-const MOCK_BASE_DATA: ChildHomeResponse = {
-    childId: TEST_CHILD_ID,
-    examId: null,
-    name: "오하나",
-    gender: "FEMALE",
-    examStatus: "AVAILABLE",
-    examProgress: 0,
-    examStartedAt: null,
-    nextEligibleAt: null,
-    draftExpiresAt: null,
-    linkedHospitals: [],
-};
-
-export const MOCK_CASE_AVAILABLE: ApiResponseChildHome = {
-    code: 200,
-    status: "200 OK",
-    message: "Success",
-    data: MOCK_BASE_DATA
-};
-
-export const MOCK_CASE_WAITING: ApiResponseChildHome = {
-    code: 200,
-    status: "200 OK",
-    message: "Success",
-    data: { ...MOCK_BASE_DATA, examStatus: "WAITING", examProgress: 2 }
-};
-
-export const MOCK_CASE_COOLDOWN: ApiResponseChildHome = {
-    code: 200,
-    status: "200 OK",
-    message: "Success",
-    data: { ...MOCK_BASE_DATA, examStatus: "COOLDOWN", examProgress: 4 }
-};
-
-export const MOCK_CASE_NEED_HOSPITAL: ApiResponseChildHome = {
-    code: 200,
-    status: "200 OK",
-    message: "Success",
-    data: { ...MOCK_BASE_DATA, examStatus: "NEED_HOSPITAL", linkedHospitals: [] }
-};
-
-export const MOCK_CASE_COOLDOWN_BEFORE: ApiResponseChildHome = {
-    code: 200,
-    status: "200 OK",
-    message: "Success",
-    data: { ...MOCK_BASE_DATA, examStatus: "COOLDOWN_BEFORE", examProgress: 4 }
-};
-
-export const MOCK_CASE_IN_PROGRESS: ApiResponseChildHome = {
-    code: 200,
-    status: "200 OK",
-    message: "Success",
-    data: { ...MOCK_BASE_DATA, examStatus: "IN_PROGRESS", examProgress: 2 }
 };

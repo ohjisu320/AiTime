@@ -14,6 +14,8 @@ interface AppSidebarProps {
     roleLabel: string; // 예: "소아청소년과 전문의"
     systemLabel: string; // 예: "의사용 시스템"
   };
+  logo?: string; // 로고 이미지 경로 (기본값: /parentLogo.svg)
+  logoSize?: { width?: number; height?: number }; // 로고 크기 (기본값: auto)
 }
 
 export default function AppSidebar({
@@ -22,6 +24,8 @@ export default function AppSidebar({
   markedDates,
   onMonthChange,
   userInfo,
+  logo = "/parentLogo.svg",
+  logoSize,
 }: AppSidebarProps) {
   const navigate = useNavigate();
   const [viewDate, setViewDate] = useState(new Date());
@@ -79,7 +83,14 @@ export default function AppSidebar({
     <aside className="w-[280px] h-screen bg-white border-r border-gray-200 flex flex-col flex-none sticky top-0 z-50">
       {/* 로고 영역 */}
       <div className="h-16 flex items-center px-6 border-b border-gray-100" onClick={() => navigate('/')}>
-        <img src="/parentLogo.svg" alt="parentLogo" />
+        <img
+          src={logo}
+          alt="logo"
+          style={{
+            width: logoSize?.width ? `${logoSize.width}px` : 'auto',
+            height: logoSize?.height ? `${logoSize.height}px` : 'auto'
+          }}
+        />
         <div className="flex flex-col">
           <span className="text-lg font-bold text-[#1A1A1A] leading-none">
             AiTime

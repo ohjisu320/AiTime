@@ -379,6 +379,8 @@ export default function DeskDashboard() {
         markedDates={scheduledDates}
         onMonthChange={handleMonthChange}
         userInfo={userInfo}
+        logo="/doctorLogo.svg"
+        logoSize={{ width: 40, height: 40 }}
       />
 
       <main className="flex-1 flex flex-col min-w-0">
