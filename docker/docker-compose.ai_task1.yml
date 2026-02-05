@@ -1,0 +1,27 @@
+services:
+  ai-face-to-face-worker:
+    build:
+      context: ../AI/services/face-to-face-name-response
+      dockerfile: ../../../docker/dockerfiles/Dockerfile.ai_task1
+    container_name: ai-face-to-face-worker
+    ports:
+      - "8001:8001"
+    volumes:
+      - ../AI/services/face-to-face-name-response/app:/app/app
+    environment:
+      - PYTHONUNBUFFERED=1
+    networks:
+      - cmn-network
+    restart: unless-stopped
+    command: ["python", "-m", "app.worker"]
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'python -m app.worker' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  cmn-network:
+    external: true
+

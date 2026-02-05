@@ -23,3 +23,7 @@ pika>=1.3.2
 EmotiEffLib>=0.1.0
 onnxruntime>=1.15.0
 timm>=0.9.0,<1.0
+
+# HTTP requests
+requests>=2.31.0
+python-dotenv>=1.0.0

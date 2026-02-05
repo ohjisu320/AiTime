@@ -1,0 +1,15 @@
+services:
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: livekit-server
+    ports:
+      - "7880:7880"
+      - "7881:7881"
+      - "60000-60200:60000-60200/udp"
+    volumes:
+      - ./livekit.yaml:/livekit.yaml
+    command: --config /livekit.yaml
+    restart: unless-stopped
+    network_mode: bridge  # 기존 redis와 같은 네트워크
+    external_links:
+      - redis:redis  # 기존 redis 컨테이너 연결
