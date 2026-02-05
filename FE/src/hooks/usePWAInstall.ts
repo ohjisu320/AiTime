@@ -10,6 +10,7 @@ export const usePWAInstall = () => {
     const [isInstallable, setIsInstallable] = useState(false);
     const [isIOS, setIsIOS] = useState(false);
     const [isStandalone, setIsStandalone] = useState(false);
+    const [isCheckingInstallability, setIsCheckingInstallability] = useState(true); // 초기 확인 중 상태
 
     useEffect(() => {
         // iOS 감지
@@ -29,6 +30,7 @@ export const usePWAInstall = () => {
             // Stash the event so it can be triggered later.
             setDeferredPrompt(e as BeforeInstallPromptEvent);
             setIsInstallable(true);
+            setIsCheckingInstallability(false); // 확인 완료
             console.log('👋 PWA Install Prompt captured!');
         };
 
@@ -41,8 +43,14 @@ export const usePWAInstall = () => {
             setDeferredPrompt(null);
         });
 
+        // 2초 후에도 이벤트가 발생하지 않으면 설치 불가능으로 간주
+        const timeout = setTimeout(() => {
+            setIsCheckingInstallability(false);
+        }, 2000);
+
         return () => {
             window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+            clearTimeout(timeout);
         };
     }, []);
 
@@ -65,6 +73,7 @@ export const usePWAInstall = () => {
         installPWA,
         isIOS,
         isStandalone,
+        isCheckingInstallability, // 확인 중 상태 추가
         // iOS에서는 수동 설치 안내가 필요
         showIOSInstallGuide: isIOS && !isStandalone
     };
