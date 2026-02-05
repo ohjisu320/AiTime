@@ -21,7 +21,7 @@ const ExamGuidePage = () => {
       <ConsentHeader
         currentStep={2}
         totalSteps={3}
-        onBack={() => navigate('/exam/consent')}
+        onBack={() => navigate('/parent/dashboard')}
         title="촬영 환경 준비"
         subtitle="정확한 검사를 위해 아래 환경을 준비해주세요"
       />
