@@ -1,13 +1,13 @@
 services:
-  ai-task1:
+  ai-task2:
     build:
-      context: ../AI/services/pose-estimation
-      dockerfile: ../../../docker/dockerfiles/Dockerfile.ai_task1
-    container_name: ai-task1
+      context: ../AI/services/speech-imitation
+      dockerfile: ../../../docker/dockerfiles/Dockerfile.ai_task2
+    container_name: ai-task2
     ports:
-      - "8001:8001"
+      - "8002:8002"
     volumes:
-      - ../AI/services/pose-estimation/app:/app/app
+      - ../AI/services/speech-imitation/app:/app/app
       - huggingface_cache:/root/.cache/huggingface
     environment:
       - PYTHONUNBUFFERED=1
@@ -31,4 +31,3 @@ volumes:
 networks:
   cmn-network:
     external: true
-

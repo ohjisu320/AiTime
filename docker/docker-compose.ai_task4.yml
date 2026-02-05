@@ -1,13 +1,13 @@
 services:
-  ai-task1:
+  ai-task4:
     build:
-      context: ../AI/services/pose-estimation
-      dockerfile: ../../../docker/dockerfiles/Dockerfile.ai_task1
-    container_name: ai-task1
+      context: ../AI/services/name_non_facing
+      dockerfile: ../../../docker/dockerfiles/Dockerfile.ai_task4
+    container_name: ai-task4
     ports:
-      - "8001:8001"
+      - "8004:8004"
     volumes:
-      - ../AI/services/pose-estimation/app:/app/app
+      - ../AI/services/name_non_facing/app:/app/app
       - huggingface_cache:/root/.cache/huggingface
     environment:
       - PYTHONUNBUFFERED=1
