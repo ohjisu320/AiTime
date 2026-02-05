@@ -82,30 +82,11 @@ export const SCREENING_CONTENT: Record<string, any> = {
     variant: 'amber',
     instructionDuration: 5, // 각 지시사항당 5초
     instructions: [
-      // 1. 아
       { id: 1, text: "[ 아 ] 소리를", boldText: "한 번만 말하고", suffix: "5초간 기다려주세요" },
-      { id: 2, text: "[ 아 ] 소리를", boldText: "한 번 더 말하고", suffix: "기다려주세요" },
-      { id: 3, text: "[ 아 ] 소리를 마지막으로", boldText: "한 번 더 말하고", suffix: "반응을 관찰해주세요" },
-
-      // 2. 마
-      { id: 4, text: "[ 마 ] 소리를", boldText: "한 번만 말하고", suffix: "5초간 기다려주세요" },
-      { id: 5, text: "[ 마 ] 소리를", boldText: "한 번 더 말하고", suffix: "기다려주세요" },
-      { id: 6, text: "[ 마 ] 소리를 마지막으로", boldText: "한 번 더 말하고", suffix: "반응을 관찰해주세요" },
-
-      // 3. 바
-      { id: 7, text: "[ 바 ] 소리를", boldText: "한 번만 말하고", suffix: "5초간 기다려주세요" },
-      { id: 8, text: "[ 바 ] 소리를", boldText: "한 번 더 말하고", suffix: "기다려주세요" },
-      { id: 9, text: "[ 바 ] 소리를 마지막으로", boldText: "한 번 더 말하고", suffix: "반응을 관찰해주세요" },
-
-      // 4. 맘마
-      { id: 10, text: "[ 맘마 ] 단어를", boldText: "한 번만 말하고", suffix: "5초간 기다려주세요" },
-      { id: 11, text: "[ 맘마 ] 단어를", boldText: "한 번 더 말하고", suffix: "기다려주세요" },
-      { id: 12, text: "[ 맘마 ] 단어를 마지막으로", boldText: "한 번 더 말하고", suffix: "반응을 관찰해주세요" },
-
-      // 5. 까꿍
-      { id: 13, text: "[ 까꿍 ] 단어를", boldText: "한 번만 말하고", suffix: "5초간 기다려주세요" },
-      { id: 14, text: "[ 까꿍 ] 단어를", boldText: "한 번 더 말하고", suffix: "기다려주세요" },
-      { id: 15, text: "[ 까꿍 ] 단어를 마지막으로", boldText: "한 번 더 말하고", suffix: "반응을 관찰해주세요" },
+      { id: 2, text: "[ 마 ] 소리를", boldText: "한 번만 말하고", suffix: "5초간 기다려주세요" },
+      { id: 3, text: "[ 바 ] 소리를", boldText: "한 번만 말하고", suffix: "5초간 기다려주세요" },
+      { id: 4, text: "[ 맘마 ] 단어를", boldText: "한 번만 말하고", suffix: "5초간 기다려주세요" },
+      { id: 5, text: "[ 까꿍 ] 단어를", boldText: "한 번만 말하고", suffix: "5초간 기다려주세요" },
     ],
     script: { lines: ["화면에 보이는 단어를", "정확하게 한 번만", "말해 주세요."] }
   },
@@ -125,28 +106,10 @@ export const SCREENING_CONTENT: Record<string, any> = {
     instructions: [
       // 1. 엄마
       { id: 1, text: "[ 엄마 ] 단어를", boldText: "한 번만 말하고", suffix: "5초간 기다려주세요" },
-      { id: 2, text: "[ 엄마 ] 단어를", boldText: "한 번 더 말하고", suffix: "기다려주세요" },
-      { id: 3, text: "[ 엄마 ] 단어를 마지막으로", boldText: "한 번 더 말하고", suffix: "반응을 관찰해주세요" },
-
-      // 2. 우유
-      { id: 4, text: "[ 우유 ] 단어를", boldText: "한 번만 말하고", suffix: "5초간 기다려주세요" },
-      { id: 5, text: "[ 우유 ] 단어를", boldText: "한 번 더 말하고", suffix: "기다려주세요" },
-      { id: 6, text: "[ 우유 ] 단어를 마지막으로", boldText: "한 번 더 말하고", suffix: "반응을 관찰해주세요" },
-
-      // 3. 자동차
-      { id: 7, text: "[ 자동차 ] 단어를", boldText: "한 번만 말하고", suffix: "5초간 기다려주세요" },
-      { id: 8, text: "[ 자동차 ] 단어를", boldText: "한 번 더 말하고", suffix: "기다려주세요" },
-      { id: 9, text: "[ 자동차 ] 단어를 마지막으로", boldText: "한 번 더 말하고", suffix: "반응을 관찰해주세요" },
-
-      // 4. 까까 주세요
-      { id: 10, text: "[ 까까 주세요 ] 문장을", boldText: "한 번만 말하고", suffix: "5초간 기다려주세요" },
-      { id: 11, text: "[ 까까 주세요 ] 문장을", boldText: "한 번 더 말하고", suffix: "기다려주세요" },
-      { id: 12, text: "[ 까까 주세요 ] 문장을 마지막으로", boldText: "한 번 더 말하고", suffix: "반응을 관찰해주세요" },
-
-      // 5. 야호
-      { id: 13, text: "[ 야호! ] 감탄사를", boldText: "한 번만 말하고", suffix: "5초간 기다려주세요" },
-      { id: 14, text: "[ 야호! ] 감탄사를", boldText: "한 번 더 말하고", suffix: "기다려주세요" },
-      { id: 15, text: "[ 야호! ] 감탄사를 마지막으로", boldText: "한 번 더 말하고", suffix: "반응을 관찰해주세요" },
+      { id: 2, text: "[ 우유 ] 단어를", boldText: "한 번만 말하고", suffix: "5초간 기다려주세요" },
+      { id: 3, text: "[ 자동차 ] 단어를", boldText: "한 번만 말하고", suffix: "5초간 기다려주세요" },
+      { id: 4, text: "[ 까까 주세요 ] 문장을", boldText: "한 번만 말하고", suffix: "5초간 기다려주세요" },
+      { id: 5, text: "[ 야호! ] 감탄사를", boldText: "한 번만 말하고", suffix: "5초간 기다려주세요" },
     ],
     script: { lines: ["화면에 보이는 단어를", "정확하게 한 번씩", "말해 주세요."] }
   },
