@@ -26,6 +26,7 @@ from app.rtn.pipeline.window_analyzer import WindowAnalyzer
 from app.rtn.types import FrameBGR
 from app.rtn.vision.mp_face_detector import FaceDetectorMP
 from app.rtn.vision.mp_facemesh import FaceMeshMP
+from app.rtn.vision.openvino_face_detector import OpenVINOFaceDetector
 from app.rtn.vision.yolo_face_detector import YOLOFaceDetector
 
 logger = logging.getLogger("RTNAnalyzer.pipeline.video_analyzer")

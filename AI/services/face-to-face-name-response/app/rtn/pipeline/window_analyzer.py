@@ -31,6 +31,7 @@ from app.rtn.types import BBox, FrameBGR, Landmarks
 from app.rtn.utils import crop_face_square
 from app.rtn.vision.mp_face_detector import FaceDetectorMP
 from app.rtn.vision.mp_facemesh import FaceMeshMP
+from app.rtn.vision.openvino_face_detector import OpenVINOFaceDetector
 from app.rtn.vision.yolo_face_detector import YOLOFaceDetector
 
 logger = logging.getLogger("RTNAnalyzer.pipeline.window_analyzer")
@@ -43,7 +44,7 @@ class WindowAnalyzer:
 
     def __init__(
         self,
-        detector: FaceDetectorMP | YOLOFaceDetector,
+        detector: FaceDetectorMP | YOLOFaceDetector | OpenVINOFaceDetector,
         facemesh: FaceMeshMP,
         track_cfg: TrackConfig,
         role_cfg: RoleAssignConfig,
