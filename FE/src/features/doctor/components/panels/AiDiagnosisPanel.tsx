@@ -1,314 +1,77 @@
 import { useMemo } from "react";
-import { WindowsContainer, WindowsButton } from "../layout/WindowsLayout";
+import { SectionHeader, WindowsButton } from "../layout/WindowsLayout";
+import type { AdosDetail } from "@/api/types/examReport.types";
 
 interface Props {
   onExpandAdos: () => void;
   patientAge: number;
+  adosDetail: AdosDetail | null;
 }
 
-// [데이터] 전체 항목 마스터 리스트
-const MASTER_ITEMS = [
-  // --- SA: Communication ---
-  {
-    code: "A-2",
-    label: "목소리를 내는 빈도",
-    score: 1,
-    isAi: false,
-    cat: "SA",
-    groups: ["G1"],
-  },
-  {
-    code: "A-7",
-    label: "가리키기",
-    score: 2,
-    isAi: false,
-    cat: "SA",
-    groups: ["G2"],
-  },
-  {
-    code: "A-8",
-    label: "제스처",
-    score: 0,
-    isAi: true,
-    cat: "SA",
-    groups: ["G1"],
-  },
-  // --- SA: Interaction ---
-  {
-    code: "B-1",
-    label: "유별난 눈 맞춤",
-    score: 1,
-    isAi: true,
-    cat: "SA",
-    groups: ["G1", "G2"],
-  },
-  {
-    code: "B-4",
-    label: "타인을 향한 얼굴 표정",
-    score: 0,
-    isAi: true,
-    cat: "SA",
-    groups: ["G1", "G2"],
-  },
-  {
-    code: "B-5",
-    label: "상호 작용 시도 (통합)",
-    score: 2,
-    isAi: false,
-    cat: "SA",
-    groups: ["G1", "G2"],
-  },
-  {
-    code: "B-6",
-    label: "공유된 즐거움",
-    score: 1,
-    isAi: true,
-    cat: "SA",
-    groups: ["G1"],
-  },
-  {
-    code: "B-7",
-    label: "이름에 대한 반응",
-    score: 2,
-    isAi: true,
-    cat: "SA",
-    groups: ["G2"],
-  },
-  {
-    code: "B-8",
-    label: "무시하기",
-    score: 0,
-    isAi: false,
-    cat: "SA",
-    groups: ["G2"],
-  },
-  {
-    code: "B-9",
-    label: "요청하기",
-    score: 1,
-    isAi: false,
-    cat: "SA",
-    groups: ["G2"],
-  },
-  {
-    code: "B-12",
-    label: "보여주기",
-    score: 2,
-    isAi: false,
-    cat: "SA",
-    groups: ["G1"],
-  },
-  {
-    code: "B-13",
-    label: "합동 주시 시도",
-    score: 1,
-    isAi: false,
-    cat: "SA",
-    groups: ["G1", "G2"],
-  },
-  {
-    code: "B-14",
-    label: "합동 주시 반응",
-    score: 0,
-    isAi: false,
-    cat: "SA",
-    groups: ["G1"],
-  },
-  {
-    code: "B-15",
-    label: "상호 작용 시도 질",
-    score: 2,
-    isAi: false,
-    cat: "SA",
-    groups: ["G1", "G2"],
-  },
-  {
-    code: "B-16b",
-    label: "상호 작용 시도 양",
-    score: 1,
-    isAi: false,
-    cat: "SA",
-    groups: ["G2"],
-  },
-  {
-    code: "B-18",
-    label: "전반적인 라포의 질",
-    score: 1,
-    isAi: true,
-    cat: "SA",
-    groups: ["G2"],
-  },
-  // --- RRB ---
-  {
-    code: "A-3",
-    label: "음성과 언어의 억양",
-    score: 0,
-    isAi: true,
-    cat: "RRB",
-    groups: ["G1"],
-  },
-  {
-    code: "D-1",
-    label: "특이한 감각적 흥미",
-    score: 2,
-    isAi: false,
-    cat: "RRB",
-    groups: ["G1", "G2"],
-  },
-  {
-    code: "D-2",
-    label: "손/손가락 움직임",
-    score: 2,
-    isAi: false,
-    cat: "RRB",
-    groups: ["G1", "G2"],
-  },
-  {
-    code: "D-5",
-    label: "반복적 흥미/상동행동",
-    score: 1,
-    isAi: false,
-    cat: "RRB",
-    groups: ["G1", "G2"],
-  },
-];
+export default function AiDiagnosisPanel({ onExpandAdos, patientAge, adosDetail }: Props) {
+  const isUnder21 = patientAge < 21;
+  // 수정 1: '|| {}' 제거. 데이터가 없으면 undefined 상태로 둡니다.
+  const scores = adosDetail?.scores;
 
-export default function AiDiagnosisPanel({ onExpandAdos, patientAge }: Props) {
-  const currentGroup = patientAge <= 21 ? "G1" : "G2";
-  const groupLabel = currentGroup === "G1" ? "Pre-Verbal" : "Verbal";
-
-  const displayItems = useMemo(() => {
-    return MASTER_ITEMS.filter((item) => item.groups.includes(currentGroup));
-  }, [currentGroup]);
-
-  // [추가] 총점 계산 로직
-  const calculateTotal = (category: string) => {
-    return displayItems
-      .filter((item) => item.cat === category)
-      .reduce((sum, item) => sum + item.score, 0);
-  };
-
-  const saTotal = calculateTotal("SA");
-  const rrbTotal = calculateTotal("RRB");
-  const grandTotal = saTotal + rrbTotal;
+  const displayKeys = useMemo(() => {
+    if (isUnder21) {
+      return ["a2", "a8", "b1", "b4", "b5", "b6", "b12", "b13", "b14", "b15"];
+    } else {
+      return ["a7", "b1", "b4", "b5", "b7", "b8", "b9", "b13", "b15", "b16b", "b18"];
+    }
+  }, [isUnder21]);
 
   return (
-    <div className="flex flex-col h-full gap-[2px] font-['Gulim'] text-[11px]">
-      <WindowsContainer className="flex-1 flex flex-col min-h-0">
-        <div className="flex justify-between items-center mb-1 shrink-0">
-          <span className="font-bold text-black">
-            ADOS-2 결과 ({patientAge}개월 / {groupLabel})
-          </span>
-          <WindowsButton onClick={onExpandAdos} className="text-[9px] px-1 h-4">
-            [□] 수정
-          </WindowsButton>
-        </div>
+    <div className="h-full bg-[#d4d0c8] flex flex-col font-['Gulim']">
+      <SectionHeader title="AI 진단 결과 (ADOS-2)">
+        <WindowsButton onClick={onExpandAdos}>상세/수정</WindowsButton>
+      </SectionHeader>
 
-        <div className="flex-1 overflow-y-auto border border-[#808080] bg-white">
-          <table className="w-full border-collapse text-[10px]">
-            <thead className="sticky top-0 bg-[#e2e2e2] z-10">
-              <tr>
-                <th className="border border-[#999] p-[5px]">항목</th>
-                <th className="border border-[#999] p-[5px] w-[40px]">점수</th>
-              </tr>
-            </thead>
-            <tbody>
-              {/* SA */}
-              <tr className="bg-[#f9f9f9]">
-                <td
-                  colSpan={2}
-                  className="border border-[#ccc] p-[5px] font-bold text-[#000080]"
-                >
-                  사회적 정동 (SA)
-                </td>
-              </tr>
-              {displayItems
-                .filter((i) => i.cat === "SA")
-                .map((item, idx) => (
-                  <Row key={idx} item={item} />
+      <div className="flex-1 p-2 overflow-y-auto bg-white border border-[#808080] m-1">
+        {/* scores가 없으면 데이터 없음 처리 */}
+        {!scores ? (
+          <div className="text-gray-500 text-center mt-10">진단 데이터가 없습니다.</div>
+        ) : (
+          <>
+            <div className="mb-4 text-center">
+              <span className="text-sm font-bold block mb-1">진단 총점</span>
+              {/* 수정 2: scores가 존재함을 확인했으므로 ?. 사용 혹은 접근 가능하나 안전하게 ?. 사용 */}
+              <div className={`text-2xl font-black border-2 py-2 ${scores.total >= 8 ? 'text-red-600 border-red-600 bg-red-50' : 'text-green-600 border-green-600 bg-green-50'}`}>
+                {scores.total ?? '-'}점
+              </div>
+              <div className="text-[11px] mt-1 text-gray-600">
+                {/* 수정 3: 개별 속성 접근 시 옵셔널 체이닝 적용 */}
+                (SA: {scores.socialAffectTotal ?? '-'} + RRB: {scores.rrbTotal ?? '-'})
+              </div>
+            </div>
+
+            <table className="w-full text-[11px] border-collapse border border-[#808080]">
+              <thead className="bg-[#f0f0f0]">
+                <tr>
+                  <th className="border border-[#808080] px-1 py-1">항목</th>
+                  <th className="border border-[#808080] px-1 py-1">점수</th>
+                </tr>
+              </thead>
+              <tbody>
+                {displayKeys.map((key) => (
+                  <tr key={key}>
+                    <td className="border border-[#808080] px-2 py-1 font-bold bg-[#fafafa]">
+                      {key.toUpperCase()}
+                    </td>
+                    <td className="border border-[#808080] px-2 py-1 text-center">
+                      {/* 수정 4: string 타입인 key를 scores의 key로 타입 단언(Type Assertion) */}
+                      {scores[key as keyof typeof scores] ?? '-'}
+                    </td>
+                  </tr>
                 ))}
-              {/* SA 합계 */}
-              <tr className="bg-[#e0e0ff] font-bold">
-                <td className="border border-[#ccc] p-[5px] text-right pr-2">
-                  SA 총점
-                </td>
-                <td className="border border-[#ccc] p-[5px] text-center text-blue-700">
-                  {saTotal}
-                </td>
-              </tr>
-
-              {/* RRB */}
-              <tr className="bg-[#f9f9f9]">
-                <td
-                  colSpan={2}
-                  className="border border-[#ccc] p-[5px] font-bold text-[#000080]"
-                >
-                  제한적/반복적 행동 (RRB)
-                </td>
-              </tr>
-              {displayItems
-                .filter((i) => i.cat === "RRB")
-                .map((item, idx) => (
-                  <Row key={idx} item={item} />
-                ))}
-              {/* RRB 합계 */}
-              <tr className="bg-[#e0e0ff] font-bold">
-                <td className="border border-[#ccc] p-[5px] text-right pr-2">
-                  RRB 총점
-                </td>
-                <td className="border border-[#ccc] p-[5px] text-center text-blue-700">
-                  {rrbTotal}
-                </td>
-              </tr>
-
-              {/* 전체 총점 */}
-              <tr className="bg-[#ffe4e1] font-bold border-t-2 border-[#808080]">
-                <td className="border border-[#ccc] p-[5px] text-right pr-2 text-red-600">
-                  전체 총점 (Total)
-                </td>
-                <td className="border border-[#ccc] p-[5px] text-center text-red-600 text-[13px]">
-                  {grandTotal}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </WindowsContainer>
-
-      {/* 하단 진단 판정 + 저장 버튼 */}
-      <div className="flex flex-col gap-[2px] shrink-0">
-        <div className="bg-white border border-[#808080] p-[5px] text-center">
-          <div className="bg-[#d4d0c8] font-bold p-1 mb-[5px] text-black">
-            AI 진단 판정
-          </div>
-          <div className="bg-[#ffcccc] text-[#ff0000] border border-[#ff0000] py-[15px] font-bold text-[20px]">
-            ASD High Risk
-          </div>
-        </div>
+              </tbody>
+            </table>
+            <div className="mt-2 text-[10px] text-gray-500 text-right">
+              * 환아 연령({patientAge}개월) 기준 적용
+            </div>
+          </>
+        )}
       </div>
     </div>
-  );
-}
-
-function Row({ item }: { item: any }) {
-  return (
-    <tr className="hover:bg-blue-50">
-      <td className="border border-[#ccc] p-[5px] pl-2">
-        <div className="flex items-center gap-1.5">
-          <span className="font-bold text-gray-600 w-[28px] inline-block">
-            {item.code}
-          </span>
-          <span>{item.label}</span>
-          {item.isAi && (
-            <span className="text-[8px] font-bold bg-[#E6F0FF] text-[#0055FF] px-1 rounded-[3px] border border-[#B3D1FF]">
-              AI
-            </span>
-          )}
-        </div>
-      </td>
-      <td className="border border-[#ccc] p-[5px] text-center font-bold">
-        {item.score}
-      </td>
-    </tr>
   );
 }
