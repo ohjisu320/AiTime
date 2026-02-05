@@ -38,6 +38,11 @@ public interface VideoService {
      */
     VideoDeleteResponse deleteVideo(UUID userId, UUID examId, UUID videoId);
 
+
+    String generatePresignedGetUrl(String bucket, String s3Key, int expiresInSec);
+
+    boolean verifyS3FileExists(String bucket, String s3Key);
+
     /**
      * 여러 Exam의 비디오를 일괄 조회 (DELETED 제외)
      */
