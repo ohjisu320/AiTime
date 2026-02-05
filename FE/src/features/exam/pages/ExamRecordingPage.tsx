@@ -176,6 +176,7 @@ const ExamRecordingPage: React.FC<ExamRecordingPageProps> = ({ missionId: propMi
           confirmText="중단하고 나가기"
           confirmVariant="rose"
           closeOnConfirm={false}
+          hideCloseButton={true}
         />
       )}
     </>
