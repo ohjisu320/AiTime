@@ -11,7 +11,7 @@ import type {
 export const TEST_CHILD_ID = "136d8eb8-8264-4953-9c9c-19baf49dc8b4";
 
 // =================================================================
-// 타입 정의 (Re-export for backward compatibility)
+// Re-export types for backward compatibility
 // =================================================================
 
 export type ChildDashboardStatus =
