@@ -12,6 +12,8 @@ services:
     command: >
       --character-set-server=utf8mb4
       --collation-server=utf8mb4_unicode_ci
+      --innodb-buffer-pool-size=256M
+      --max-connections=100
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
@@ -22,6 +24,9 @@ services:
     networks:
       - cmn-network
     restart: unless-stopped
+    mem_limit: 600m
+    mem_reservation: 400m
+    memswap_limit: 600m
 
   # Cache
   redis:
@@ -31,7 +36,7 @@ services:
       - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
-    command: ["redis-server", "--appendonly", "yes"]
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "100mb", "--maxmemory-policy", "allkeys-lru"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -40,6 +45,9 @@ services:
     networks:
       - cmn-network
     restart: unless-stopped
+    mem_limit: 128m
+    mem_reservation: 64m
+    memswap_limit: 128m
 
   # Message Queue
   rabbitmq:
@@ -56,6 +64,9 @@ services:
     networks:
       - cmn-network
     restart: unless-stopped
+    mem_limit: 256m
+    mem_reservation: 150m
+    memswap_limit: 256m
 
   # Object Storage
   minio:
@@ -79,6 +90,9 @@ services:
     networks:
       - cmn-network
     restart: unless-stopped
+    mem_limit: 256m
+    mem_reservation: 100m
+    memswap_limit: 256m
 
   # CI/CD
   jenkins:
@@ -95,10 +109,13 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - /home/ubuntu:/home/ubuntu:rw
     environment:
-      - JENKINS_OPTS=--prefix=/jenkins
+      - JENKINS_OPTS=--prefix=/jenkins -Xms512m -Xmx1024m
     networks:
       - cmn-network
     restart: unless-stopped
+    mem_limit: 1536m
+    mem_reservation: 1g
+    memswap_limit: 1536m
 
 networks:
   cmn-network:
