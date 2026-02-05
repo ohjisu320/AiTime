@@ -386,6 +386,7 @@ const ExamPage: React.FC = () => {
           confirmText="중단하고 나가기"
           confirmVariant="rose"
           closeOnConfirm={false}
+          hideCloseButton={true}
         />
       )}
 
@@ -398,6 +399,7 @@ const ExamPage: React.FC = () => {
         description="스크리닝 단계를 먼저 완료해주세요."
         confirmText="확인"
         confirmVariant="violet"
+        hideCloseButton={true}
       />
     </ExamBaseLayout>
   );

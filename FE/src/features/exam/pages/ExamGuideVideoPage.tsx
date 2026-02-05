@@ -126,13 +126,14 @@ const ExamGuideVideoPage: React.FC = () => {
       {blocker.state === 'blocked' && (
         <ConfirmModal
           isOpen={isBlockerModalOpen}
-          onClose={() => blocker.reset()}
+          onClose={() => blocker.proceed()}
           onConfirm={() => blocker.proceed()}
           title="안내 영상을 중단하시겠습니까?"
           description="지금 나가시면 처음부터 다시 시청해야 합니다."
-          confirmText="중단하고 나가기"
+          confirmText="나가기"
           confirmVariant="rose"
           closeOnConfirm={false}
+          hideCloseButton={true}
         />
       )}
     </>
