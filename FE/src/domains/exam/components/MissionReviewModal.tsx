@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Dialog,
     DialogContent,
@@ -31,6 +31,11 @@ const MissionReviewModal: React.FC<MissionReviewModalProps> = ({
 }) => {
     const [videoUrl, setVideoUrl] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+
+    // 🆕 모달이 열리거나 videoId가 변경될 때 videoUrl 초기화
+    useEffect(() => {
+        setVideoUrl(null);
+    }, [videoId, isOpen]);
 
     // 🎥 영상 보기 핸들러
     const handleViewVideo = async () => {
