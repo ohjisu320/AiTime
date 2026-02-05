@@ -27,18 +27,32 @@ export default defineConfig({
           {
             src: 'web-app-manifest-192x192.png',
             sizes: '192x192',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'any'
+          },
+          {
+            src: 'web-app-manifest-192x192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'maskable'
           },
           {
             src: 'web-app-manifest-512x512.png',
             sizes: '512x512',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'any'
           },
           {
             src: 'web-app-manifest-512x512.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable'
+          },
+          {
+            src: 'apple-touch-icon.png',
+            sizes: '180x180',
+            type: 'image/png',
+            purpose: 'any'
           }
         ]
       }
@@ -71,10 +85,10 @@ export default defineConfig({
           "*": "/"
         },
         configure: (proxy, _options) => {
-          proxy.on('proxyReq', (proxyReq, req, _res) => {
+          proxy.on('proxyReq', (proxyReq, _req, _res) => {
             proxyReq.setHeader('Origin', 'http://70.12.246.92:8080');
           });
-          proxy.on('proxyRes', (proxyRes, req, res) => {
+          proxy.on('proxyRes', (proxyRes, _req, _res) => {
             const cookies = proxyRes.headers['set-cookie'];
             if (cookies) {
               proxyRes.headers['set-cookie'] = cookies.map(cookie =>
