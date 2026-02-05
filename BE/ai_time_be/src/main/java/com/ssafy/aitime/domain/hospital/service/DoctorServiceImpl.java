@@ -3,15 +3,26 @@ package com.ssafy.aitime.domain.hospital.service;
 import com.ssafy.aitime.common.enums.RecordStatus;
 import com.ssafy.aitime.domain.child.entity.Child;
 import com.ssafy.aitime.domain.child.repository.ChildRepository;
+import com.ssafy.aitime.domain.exam.dto.response.ExamWithVideosResponse;
 import com.ssafy.aitime.domain.exam.entity.Exam;
+import com.ssafy.aitime.domain.exam.entity.Video;
+import com.ssafy.aitime.domain.exam.entity.enums.VideoStatus;
 import com.ssafy.aitime.domain.exam.repository.ExamRepository;
+import com.ssafy.aitime.domain.exam.service.ExamService;
+import com.ssafy.aitime.domain.exam.service.VideoService;
+import com.ssafy.aitime.domain.exam.service.dto.VideoSummary;
 import com.ssafy.aitime.domain.hospital.dto.request.PatientSearchRequest;
 import com.ssafy.aitime.domain.hospital.dto.response.ChildResponse;
 import com.ssafy.aitime.domain.hospital.dto.response.PatientSearchResponse;
+import com.ssafy.aitime.domain.hospital.entity.HospitalChildren;
+import com.ssafy.aitime.domain.hospital.entity.HospitalStaff;
 import com.ssafy.aitime.domain.hospital.entity.enums.LinkStatus;
 import com.ssafy.aitime.domain.hospital.entity.enums.ReservationStatus;
 import com.ssafy.aitime.domain.hospital.entity.enums.StaffRole;
 import com.ssafy.aitime.domain.hospital.exception.DoctorNotFoundException;
+import com.ssafy.aitime.domain.hospital.exception.HospitalChildrenNotFoundException;
+import com.ssafy.aitime.domain.hospital.exception.HospitalStaffAccessDeniedException;
+import com.ssafy.aitime.domain.hospital.exception.HospitalStaffNotFoundException;
 import com.ssafy.aitime.domain.hospital.repository.HospitalChildrenRepository;
 import com.ssafy.aitime.domain.hospital.repository.HospitalStaffRepository;
 import com.ssafy.aitime.domain.hospital.repository.ReservationRepository;
@@ -24,6 +35,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -34,7 +46,9 @@ public class DoctorServiceImpl implements DoctorService{
     private final HospitalChildrenRepository hospitalChildrenRepository;
     private final HospitalStaffRepository hospitalStaffRepository;
     private final ChildRepository childRepository;
-    private final ExamRepository examRepository;
+
+    private final ExamService examService;
+    private final VideoService videoService;
 
     private void validateDoctorId(UUID doctorId) {
         log.debug("의사 ID 유효성 검증 시작: {}", doctorId);
@@ -114,7 +128,7 @@ public class DoctorServiceImpl implements DoctorService{
         List<Child> children = childRepository.findByChildIdInAndRecordStatus(childIds, RecordStatus.ACTIVE);
 
         // TODO 4: childIds로 exam 다 가져오기
-        List<Exam> exams = examRepository.findByChild_ChildIdInOrderByCompletedAtDesc(childIds);
+        List<Exam> exams = examService.getExamsByChildIds(childIds);
 
         // TODO 5: childId별 최신 ExamStatus 매핑
         Map<UUID, String> latestExamStatusByChildId = new HashMap<>();
@@ -181,5 +195,94 @@ public class DoctorServiceImpl implements DoctorService{
 
         // TODO 10: 최종 결과 반환
         return new PatientSearchResponse(pagedResponses, totalCount);
+    }
+
+    /**
+     * 특정 환아의 검사 목록 조회 (비디오 목록 포함)
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<ExamWithVideosResponse> getExamsByHospitalChildren(UUID hospitalStaffId, UUID hospitalChildrenId) {
+        log.info("환아별 검사 목록 조회 시작 - staffId: {}, hospitalChildrenId: {}",
+                hospitalStaffId, hospitalChildrenId);
+
+        // 1. HospitalStaff 조회
+        HospitalStaff staff = hospitalStaffRepository.findById(hospitalStaffId)
+                .orElseThrow(() -> new HospitalStaffNotFoundException());
+
+        // 2. HospitalChildren 조회
+        HospitalChildren hospitalChildren = hospitalChildrenRepository.findById(hospitalChildrenId)
+                .orElseThrow(() -> new HospitalChildrenNotFoundException());
+
+        // 3. 권한 검증
+        if (!hospitalChildren.getHospital().getHospitalId().equals(staff.getHospital().getHospitalId())) {
+            log.warn("권한 없는 접근 시도 - staffId: {}, staffHospitalId: {}, targetHospitalId: {}",
+                    hospitalStaffId,
+                    staff.getHospital().getHospitalId(),
+                    hospitalChildren.getHospital().getHospitalId());
+            throw new HospitalStaffAccessDeniedException();
+        }
+
+        // 4. LinkStatus 확인
+        if (hospitalChildren.getLinkStatus() != LinkStatus.ACTIVE) {
+            log.warn("비활성화된 환아 접근 시도 - hospitalChildrenId: {}, status: {}",
+                    hospitalChildrenId, hospitalChildren.getLinkStatus());
+            return Collections.emptyList();
+        }
+
+        // 5. Child의 모든 Exam 조회 (✅ ExamService 사용)
+        UUID childId = hospitalChildren.getChild().getChildId();
+        List<Exam> exams = examService.getExamsByChildId(childId);
+
+        if (exams.isEmpty()) {
+            log.info("검사 내역 없음 - childId: {}", childId);
+            return Collections.emptyList();
+        }
+
+        // 6. 각 Exam의 Video 목록 조회 (✅ VideoService 사용)
+        List<UUID> examIds = exams.stream()
+                .map(Exam::getExamId)
+                .collect(Collectors.toList());
+
+        List<Video> videos = videoService.getVideosByExamIds(examIds);
+
+        // ExamId별로 Video 그룹화
+        Map<UUID, List<Video>> videosByExamId = videos.stream()
+                .collect(Collectors.groupingBy(v -> v.getExam().getExamId()));
+
+        // 7. DTO 변환
+        List<ExamWithVideosResponse> responses = new ArrayList<>();
+        for (Exam exam : exams) {
+            List<Video> examVideos = videosByExamId.getOrDefault(exam.getExamId(), Collections.emptyList());
+
+            List<VideoSummary> videoSummaries = examVideos.stream()
+                    .map(v -> VideoSummary.builder()
+                            .videoId(v.getVideoId().toString())
+                            .videoType(v.getVideoType().name())
+                            .build())
+                    .collect(Collectors.toList());
+
+            LocalDate examDate = getExamDate(exam);
+
+            responses.add(ExamWithVideosResponse.builder()
+                    .examId(exam.getExamId().toString())
+                    .examDate(examDate)
+                    .examStatus(exam.getExamStatus().name())
+                    .videos(videoSummaries)
+                    .build());
+        }
+
+        log.info("환아별 검사 목록 조회 완료 - childId: {}, examCount: {}", childId, responses.size());
+        return responses;
+    }
+
+    private LocalDate getExamDate(Exam exam) {
+        if (exam.getCompletedAt() != null) {
+            return exam.getCompletedAt().toLocalDate();
+        }
+        if (exam.getExamStartedAt() != null) {
+            return exam.getExamStartedAt().toLocalDate();
+        }
+        return exam.getCreatedAt().toLocalDate();
     }
 }

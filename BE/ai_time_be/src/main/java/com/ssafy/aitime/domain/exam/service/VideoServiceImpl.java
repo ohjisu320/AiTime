@@ -608,6 +608,12 @@ public class VideoServiceImpl implements VideoService {
                 .build();
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<Video> getVideosByExamIds(List<UUID> examIds) {
+        return videoRepository.findByExam_ExamIdInAndVideoStatusNot(examIds, VideoStatus.DELETED);
+    }
+
     /**
      * S3에서 파일 삭제 (공통 로직)
      */

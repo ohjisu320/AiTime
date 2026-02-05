@@ -220,6 +220,18 @@ public class ExamServiceImpl implements ExamService {
                 .build();
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<Exam> getExamsByChildIds(List<UUID> childIds) {
+        return examRepository.findByChild_ChildIdInOrderByCompletedAtDesc(childIds);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Exam> getExamsByChildId(UUID childId) {
+        return examRepository.findByChild_ChildIdOrderByCompletedAtDesc(childId);
+    }
+
     private void addVideoTaskInfo(List<ExamInfoResponse.VideoTaskInfo> videoTasks,
                                   VideoType videoType,
                                   List<Video> videos) {

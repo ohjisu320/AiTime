@@ -3,6 +3,7 @@ package com.ssafy.aitime.domain.exam.repository;
 import com.ssafy.aitime.domain.exam.entity.Exam;
 import com.ssafy.aitime.domain.exam.entity.Video;
 import com.ssafy.aitime.domain.exam.entity.enums.AnalysisStatus;
+import com.ssafy.aitime.domain.exam.entity.enums.VideoStatus;
 import com.ssafy.aitime.domain.exam.entity.enums.VideoType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -38,4 +39,6 @@ public interface VideoRepository extends JpaRepository<Video, UUID> {
             @Param("examId") UUID examId,
             @Param("status") AnalysisStatus status
     );
+
+    List<Video> findByExam_ExamIdInAndVideoStatusNot(List<UUID> examIds, VideoStatus videoStatus);
 }

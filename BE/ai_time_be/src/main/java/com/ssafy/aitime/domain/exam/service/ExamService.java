@@ -35,4 +35,14 @@ public interface ExamService {
      * Child 도메인에서 권한 확인 및 개월 수 검증 후 호출됨
      */
     ExamInfoResponse getExamInfo(UUID childId, boolean underEighteen);
+
+    /**
+     * 여러 Child의 모든 Exam을 최신순으로 조회
+     */
+    List<Exam> getExamsByChildIds(List<UUID> childIds);
+
+    /**
+     * 특정 Child의 모든 Exam을 최신순으로 조회
+     */
+    List<Exam> getExamsByChildId(UUID childId);
 }

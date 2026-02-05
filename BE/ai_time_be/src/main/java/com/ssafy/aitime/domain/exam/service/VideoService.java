@@ -3,7 +3,9 @@ package com.ssafy.aitime.domain.exam.service;
 import com.ssafy.aitime.domain.exam.dto.request.PresignedKeyRequest;
 import com.ssafy.aitime.domain.exam.dto.request.VideoUploadCompleteRequest;
 import com.ssafy.aitime.domain.exam.dto.response.*;
+import com.ssafy.aitime.domain.exam.entity.Video;
 
+import java.util.List;
 import java.util.UUID;
 
 public interface VideoService {
@@ -34,4 +36,9 @@ public interface VideoService {
      * DB는 soft delete로 처리 (status를 DELETED로 변경)
      */
     VideoDeleteResponse deleteVideo(UUID userId, UUID examId, UUID videoId);
+
+    /**
+     * 여러 Exam의 비디오를 일괄 조회 (DELETED 제외)
+     */
+    List<Video> getVideosByExamIds(List<UUID> examIds);
 }
