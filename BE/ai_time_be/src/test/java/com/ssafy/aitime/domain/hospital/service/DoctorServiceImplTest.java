@@ -4,6 +4,7 @@ import com.ssafy.aitime.common.enums.RecordStatus;
 import com.ssafy.aitime.domain.child.entity.Child;
 import com.ssafy.aitime.domain.child.entity.enums.Gender;
 import com.ssafy.aitime.domain.child.repository.ChildRepository;
+import com.ssafy.aitime.domain.child.service.ChildService;
 import com.ssafy.aitime.domain.exam.dto.response.AdosDetailResponse;
 import com.ssafy.aitime.domain.exam.dto.response.ExamWithVideosResponse;
 import com.ssafy.aitime.domain.exam.entity.Exam;
@@ -55,7 +56,7 @@ class DoctorServiceImplTest {
     @Mock private ReservationRepository reservationRepository;
     @Mock private HospitalChildrenRepository hospitalChildrenRepository;
     @Mock private HospitalStaffRepository hospitalStaffRepository;
-    @Mock private ChildRepository childRepository;
+    @Mock private ChildService childService;
     @Mock private ExamService examService;
     @Mock private VideoService videoService;
 
@@ -80,27 +81,58 @@ class DoctorServiceImplTest {
             given(req.page()).willReturn(0);
             given(req.size()).willReturn(10);
 
-            given(hospitalStaffRepository.existsByHospitalStaffIdAndStaffRoleAndRecordStatus(any(), any(), any())).willReturn(true);
+            given(hospitalStaffRepository.existsByHospitalStaffIdAndStaffRoleAndRecordStatus(any(), any(), any()))
+                    .willReturn(true);
 
+            // UUID 설정
             UUID hcId = UUID.randomUUID();
+            UUID childId = UUID.randomUUID();
+
+            // Reservation mock 설정
             Reservation res = mock(Reservation.class);
-            HospitalChildren hc = mockHospitalChildren(hcId, UUID.randomUUID(), UUID.randomUUID());
+            LocalDateTime scheduledAt = LocalDateTime.of(2026, 1, 26, 14, 0);
+            given(res.getScheduledAt()).willReturn(scheduledAt);
+
+            // HospitalChildren mock 설정
+            HospitalChildren hc = mockHospitalChildren(hcId, childId, UUID.randomUUID());
             given(res.getHospitalChildren()).willReturn(hc);
+            given(hc.getHospitalChildrenId()).willReturn(hcId);
+
             given(reservationRepository.findByDoctorIdAndReservationStatusNotAndScheduledAtBetween(any(), any(), any(), any()))
                     .willReturn(List.of(res));
 
-            Child child = mockChild(UUID.randomUUID(), "홍길동");
+            // Child mock 설정
+            Child child = mockChild(childId, "홍길동");
+            given(child.getChildId()).willReturn(childId);
+            given(child.getName()).willReturn("홍길동");
+            given(child.getGender()).willReturn(Gender.MALE);
+            given(child.getBirthdate()).willReturn(LocalDate.of(2024, 1, 26)); // 24개월
+
             given(hc.getChild()).willReturn(child);
-            given(hospitalChildrenRepository.findByHospitalChildrenIdInAndLinkStatus(anyList(), any())).willReturn(List.of(hc));
-            given(childRepository.findByChildIdInAndRecordStatus(anyList(), any())).willReturn(List.of(child));
+
+            given(hospitalChildrenRepository.findByHospitalChildrenIdInAndLinkStatus(anyList(), any()))
+                    .willReturn(List.of(hc));
+
+            // childService로 변경
+            given(childService.getChildrenByIds(anyList())).willReturn(List.of(child));
+
             given(examService.getExamsByChildIds(anyList())).willReturn(Collections.emptyList());
 
             // when
             PatientSearchResponse resp = doctorService.getSearchPatientList(doctorId, req);
 
             // then
-            assertThat(extractTotal(resp)).isEqualTo(1);
-            assertThat(extractList(resp)).hasSize(1);
+            assertThat(resp.total()).isEqualTo(1);
+            assertThat(resp.data()).hasSize(1);
+
+            ChildResponse childResponse = resp.data().get(0);
+            assertThat(childResponse.hospitalChildrenId()).isEqualTo(hcId);
+            assertThat(childResponse.childName()).isEqualTo("홍길동");
+            assertThat(childResponse.gender()).isEqualTo("MALE");
+            assertThat(childResponse.months()).isEqualTo(24);
+            assertThat(childResponse.scheduledAt()).isEqualTo(scheduledAt);
+            assertThat(childResponse.examStatus()).isEqualTo("NONE");
+            assertThat(childResponse.isSubmitted()).isFalse();
         }
 
         @Test
