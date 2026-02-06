@@ -83,9 +83,9 @@ export default defineConfig({
           // node_modules는 vendor 청크로 분리
           if (id.includes('node_modules')) {
             // 큰 라이브러리들은 별도 청크로 분리
-            if (id.includes('livekit')) return 'livekit-vendor';
-            if (id.includes('react-router')) return 'router-vendor';
-            if (id.includes('react') || id.includes('react-dom')) return 'react-vendor';
+            //if (id.includes('livekit')) return 'livekit-vendor';
+            //if (id.includes('react-router')) return 'router-vendor';
+            //if (id.includes('react') || id.includes('react-dom')) return 'react-vendor';
             return 'vendor';
           }
           // 페이지별 청크 분할
