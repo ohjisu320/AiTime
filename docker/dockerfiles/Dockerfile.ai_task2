@@ -28,12 +28,9 @@ ENV PYTHONUNBUFFERED=1
 ENV DEVICE=cpu
 
 # RabbitMQ 환경 변수 (docker-compose에서 오버라이드 가능)
-ENV RABBITMQ_HOST=rabbitmq
-ENV RABBITMQ_PORT=5672
-ENV RABBITMQ_USER=guest
-ENV RABBITMQ_PASSWORD=guest
-ENV TASK_QUEUE=analysis.req.task2
-ENV RESULT_QUEUE=analysis.resp
+ENV RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+ENV INPUT_QUEUE=analysis.req.task2
+ENV OUTPUT_QUEUE=analysis.resp
 
 # Health check용 포트
 EXPOSE 8002

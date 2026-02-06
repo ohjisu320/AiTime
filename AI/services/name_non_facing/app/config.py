@@ -87,12 +87,28 @@ class Settings(BaseSettings):
         default="/",
         description="RabbitMQ Virtual Host"
     )
+    RABBITMQ_HEARTBEAT: int = Field(
+        default=600,
+        description="RabbitMQ heartbeat interval (seconds)"
+    )
+    RABBITMQ_BLOCKED_CONNECTION_TIMEOUT: int = Field(
+        default=300,
+        description="RabbitMQ blocked connection timeout (seconds)"
+    )
+    RABBITMQ_INITIAL_RETRY_DELAY: int = Field(
+        default=5,
+        description="RabbitMQ 초기 재시도 지연 시간 (seconds)"
+    )
+    RABBITMQ_MAX_RETRIES: int = Field(
+        default=5,
+        description="RabbitMQ 최대 재시도 횟수"
+    )
     INPUT_QUEUE: str = Field(
-        default="analysis.name_non_facing.request",
+        default="analysis.req.task4",
         description="작업 요청 큐 (TODO: 백엔드 협의 후 확정)"
     )
     OUTPUT_QUEUE: str = Field(
-        default="analysis.name_non_facing.result",
+        default="analysis.resp",
         description="결과 응답 큐 (TODO: 백엔드 협의 후 확정)"
     )
     

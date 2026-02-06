@@ -57,6 +57,7 @@ class Settings(BaseSettings):
     )
     INPUT_QUEUE: str = "analysis.req.task2"
     OUTPUT_QUEUE: str = "analysis.resp"
+    MAX_RETRIES: int = 3
 
     # ===== 오디오 전처리 =====
     SAMPLE_RATE: int = 16000
