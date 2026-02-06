@@ -71,6 +71,9 @@ export default function LoginPage() {
                 type="text"
                 {...register("loginId", { required: true })}
                 placeholder="아이디"
+                autoCapitalize="off"
+                autoComplete="username"
+                autoCorrect="off"
                 className="w-full h-12 pl-12 pr-4 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-[#9593D9] focus:ring-2 focus:ring-[#9593D9]/20 transition-all"
               />
             </div>
