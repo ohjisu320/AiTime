@@ -20,9 +20,7 @@ export default function CentralAnalysisPanel({
 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [currentTime, setCurrentTime] = useState(0);
-
-  // [수정] 체크리스트 제거로 인해 topHeight 삭제, bottomHeight만 유지
-  const [bottomHeight, setBottomHeight] = useState(160);
+  const [bottomHeight, setBottomHeight] = useState(280);
   const containerRef = useRef<HTMLDivElement>(null);
   const isDraggingBottom = useRef(false);
 
@@ -43,13 +41,11 @@ export default function CentralAnalysisPanel({
       if (!containerRef.current) return;
       const containerRect = containerRef.current.getBoundingClientRect();
 
-      // [수정] 상단 드래그 로직 삭제, 하단 드래그만 유지
       if (isDraggingBottom.current) {
         let newHeight = containerRect.bottom - e.clientY;
-        if (newHeight < 100) newHeight = 100;
-        // 최대 높이 제한 (비디오 영역 최소 확보)
-        if (newHeight > containerRect.height - 200)
-          newHeight = containerRect.height - 200;
+        if (newHeight < 200) newHeight = 200;
+        if (newHeight > containerRect.height - 150)
+          newHeight = containerRect.height - 150;
         setBottomHeight(newHeight);
       }
     },
@@ -75,17 +71,15 @@ export default function CentralAnalysisPanel({
       ref={containerRef}
       className="grid h-full gap-[2px] min-h-[680px] overflow-hidden"
       style={{
-        // [수정] 체크리스트 영역 제거 -> Video(1fr) | Handle | Timeline(bottomHeight)
         gridTemplateRows: `1fr 6px ${bottomHeight}px`,
       }}
     >
-      {/* 1. 비디오 플레이어 (이제 가장 위로 올라옴) */}
       <WindowsContainer className="bg-black !border-[#808080] !border-2 flex flex-col p-0 relative min-h-0">
-        <div className="bg-[#d4d0c8] flex justify-between items-center px-2 py-0.5 border-b border-white shrink-0">
-          <span className="font-bold text-[11px]">AI 분석 실시간 피드</span>
+        <div className="bg-[#d4d0c8] flex justify-between items-center px-2 py-1 border-b border-white shrink-0">
+          <span className="font-bold text-[13px]">AI 분석 실시간 피드</span>
           <WindowsButton
             onClick={handleExpandClick}
-            className="text-[9px] px-1 py-0 h-4"
+            className="text-[11px] px-2 py-0.5"
           >
             [□] 확대
           </WindowsButton>
@@ -102,7 +96,6 @@ export default function CentralAnalysisPanel({
         </div>
       </WindowsContainer>
 
-      {/* 리사이즈 핸들 (비디오 <-> 타임라인 사이) */}
       <div
         className="cursor-row-resize bg-[#d4d0c8] flex items-center justify-center hover:bg-gray-300 border-y border-white active:bg-blue-200 transition-colors z-10"
         onMouseDown={(e) => {
@@ -111,32 +104,21 @@ export default function CentralAnalysisPanel({
           document.body.style.cursor = "row-resize";
         }}
       >
-        <div className="w-8 h-[3px] bg-gray-400 rounded-full border border-gray-100" />
+        <div className="w-10 h-[4px] bg-gray-400 rounded-full border border-gray-100" />
       </div>
 
-      {/* 2. 하단 메모 & 타임라인 */}
-      <div className="flex gap-[2px] min-h-0">
-        <WindowsContainer className="flex-1 flex flex-col h-full">
-          <div className="text-[11px] font-bold mb-1">
-            임상의 종합 소견 메모
-          </div>
-          <textarea
-            className="flex-1 w-full resize-none border border-[#808080] p-1 text-[11px] outline-none font-['Gulim']"
-            placeholder="소견 입력..."
-          />
-        </WindowsContainer>
-
-        <WindowsContainer className="flex-1 flex flex-col h-full">
-          <div className="text-[11px] font-bold bg-[#000080] text-white px-1 flex justify-between shrink-0">
-            <span>영상 타임라인 분석 ({analysisData.totalDuration}s)</span>
+      <div className="flex flex-col gap-[2px] min-h-0 h-full">
+        <WindowsContainer className="flex flex-col shrink-0">
+          <div className="text-[13px] font-bold bg-[#000080] text-white px-2 py-0.5 flex justify-between shrink-0 mb-1">
+            <span>영상 타임라인 분석 ({analysisData.totalDuration.toFixed(1)}s)</span>
             <span>{Math.floor(currentTime)}s</span>
           </div>
 
-          <div className="flex-1 flex flex-col justify-center gap-1 bg-[#f0f0f0] border-t border-l border-white border-r-gray-500 border-b-gray-500 p-1">
+          <div className="flex flex-col justify-center gap-1.5 bg-[#f0f0f0] border border-gray-400 p-2">
             {TIMELINE_ROWS.map((row) => (
-              <div key={row.key} className="flex items-center text-[10px] h-5">
-                <span className="w-[60px] font-bold shrink-0">{row.label}</span>
-                <div className="flex-1 h-4 bg-white border border-[#999] relative mx-1">
+              <div key={row.key} className="flex items-center text-[12px] h-6">
+                <span className="w-[70px] font-bold shrink-0 text-right pr-2">{row.label}</span>
+                <div className="flex-1 h-5 bg-white border border-[#999] relative">
                   {analysisData.timestamps
                     .filter((t) => t.type === row.key)
                     .map((t) => {
@@ -161,22 +143,31 @@ export default function CentralAnalysisPanel({
                       );
                     })}
                   <div
-                    className="absolute top-0 h-full w-[1px] bg-red-600 z-10 pointer-events-none"
+                    className="absolute top-0 h-full w-[2px] bg-red-600 z-10 pointer-events-none shadow-[0_0_2px_red]"
                     style={{
-                      left: `${
-                        (currentTime / analysisData.totalDuration) * 100
-                      }%`,
+                      left: `${(currentTime / analysisData.totalDuration) * 100
+                        }%`,
                     }}
                   />
                 </div>
               </div>
             ))}
-            <div className="flex justify-between pl-[60px] text-[9px] text-gray-500 px-1 mt-1">
+            <div className="flex justify-between pl-[70px] text-[11px] text-gray-500 px-1 mt-0.5 select-none">
               <span>0s</span>
               <span>{Math.floor(analysisData.totalDuration / 2)}s</span>
-              <span>{analysisData.totalDuration}s</span>
+              <span>{Math.floor(analysisData.totalDuration)}s</span>
             </div>
           </div>
+        </WindowsContainer>
+
+        <WindowsContainer className="flex-1 flex flex-col min-h-0">
+          <div className="text-[13px] font-bold mb-1 bg-[#d4d0c8] px-1 py-0.5">
+            임상의 종합 소견 메모
+          </div>
+          <textarea
+            className="flex-1 w-full resize-none border border-[#808080] p-2 text-[13px] outline-none font-['Gulim'] leading-relaxed"
+            placeholder="환자의 행동 특성 및 진단 소견을 입력하세요..."
+          />
         </WindowsContainer>
       </div>
     </div>
