@@ -10,7 +10,6 @@ import type {
     VideoPresignView,
     AdosGraphs,
     AdosDetail,
-    AdosUpdateRequest,
 } from '@/api/types/examReport.types';
 
 export const examReportApi = {
@@ -51,15 +50,31 @@ export const examReportApi = {
     },
 
     /**
-     * 3) 비디오 상세 + 타임스탬프 조회
-     * GET /api/v1/doctor/videos/{videoId}/presign-view
+     * 3) 비디오 상세 (타임스탬프 X, 일반 조회용)
+     * GET /api/v1/exam/{examId}/videos/{videoId}
      */
-    getVideoPresignView: async (videoId: string): Promise<VideoPresignView> => {
-        console.log(`📡 [API] 비디오 상세 조회: ${videoId}`);
+    getVideoPresignView: async (examId: string, videoId: string): Promise<VideoPresignView> => {
+        console.log(`📡 [API] 비디오 상세 조회: ${videoId} (examId: ${examId})`);
         const { data } = await api.get<{ code: number; message: string; data: VideoPresignView }>(
-            `/doctor/videos/${videoId}/presign-view`
+            `/exam/${examId}/videos/${videoId}`
         );
         console.log('✅ [API] 비디오 상세 조회 완료');
+        return data.data;
+    },
+
+    /**
+     * 3-1) 비디오 상세 + 타임스탬프 (의료진용)
+     * GET /api/v1/exam/{examId}/videos/{videoId}/with-timestamps
+     */
+    getVideoPresignViewWithTimestamps: async (
+        examId: string,
+        videoId: string
+    ): Promise<VideoPresignView> => {
+        console.log(`📡 [API] 비디오(타임스탬프) 조회: ${videoId} (examId: ${examId})`);
+        const { data } = await api.get<{ code: number; message: string; data: VideoPresignView }>(
+            `/exam/${examId}/videos/${videoId}/with-timestamps`
+        );
+        console.log('✅ [API] 비디오(타임스탬프) 조회 완료');
         return data.data;
     },
 
@@ -89,17 +104,6 @@ export const examReportApi = {
         return data.data;
     },
 
-    /**
-     * 6) 검사(Exam) 기준 ADOS 수정
-     * PUT /api/v1/doctor/exams/{examId}/ados
-     */
-    updateAdos: async (examId: string, scores: AdosUpdateRequest): Promise<AdosDetail> => {
-        console.log(`📡 [API] ADOS 수정: ${examId}`);
-        const { data } = await api.put<{ code: number; message: string; data: AdosDetail }>(
-            `/doctor/exams/${examId}/ados`,
-            scores
-        );
-        console.log('✅ [API] ADOS 수정 완료');
-        return data.data;
-    },
+    // TODO: ADOS 수정 API (PUT)는 명세서에 없음. 필요 시 백엔드 확인.
+    // updateAdos: ...
 };

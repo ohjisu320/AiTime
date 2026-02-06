@@ -91,7 +91,7 @@ export default defineConfig({
         },
         configure: (proxy, _options) => {
           proxy.on('proxyReq', (proxyReq, _req, _res) => {
-            proxyReq.setHeader('Origin', 'http://70.12.246.92:8080');
+            proxyReq.setHeader('Origin', 'http://70.12.246.95:8080');
           });
           proxy.on('proxyRes', (proxyRes, _req, _res) => {
             const cookies = proxyRes.headers['set-cookie'];

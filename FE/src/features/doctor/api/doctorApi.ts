@@ -73,7 +73,6 @@ export const doctorApi = {
     }>('/doctor/reservations/calendar', {
       params: { year, month },
     });
-    // data.data.data 형태로 날짜 배열 반환
     return data.data?.data || [];
   },
 
@@ -98,7 +97,17 @@ export const doctorApi = {
   // API 데이터 + 랜덤 더미 데이터 믹싱하여 상세 정보 생성
   getPatientDetailFromDto: (patient: PatientDto): PatientDetailFull => {
     return {
+      // 1. DTO 필드 복사 (hospitalChildrenId, gender 등)
       ...patient,
+
+      // 2. [수정] DTO 필드 -> UI 필드 명시적 매핑 (에러 해결)
+      name: patient.childName,       // childName -> name
+      monthlyAge: patient.months,    // months -> monthlyAge
+
+      // 3. 필수 필드 보완 (API에 없는 경우 기본값)
+      birthdate: patient.birthdate || "2023-01-01",
+
+      // 4. 더미 데이터 추가
       height: pickRandom(DUMMY_DATA.heights),
       weight: pickRandom(DUMMY_DATA.weights),
       caregiver: pickRandom(DUMMY_DATA.caregivers),
@@ -109,18 +118,23 @@ export const doctorApi = {
     };
   },
 
-  // [Mock API] 특정 환자의 상세 진단 정보 가져오기 (하드코딩 버전 - 기존 호환용)
+  // [Mock API] 특정 환자의 상세 진단 정보 가져오기 (하드코딩 버전)
   getPatientDetail: async (childId: string): Promise<PatientDetailFull> => {
     return new Promise((resolve) => {
       setTimeout(() => {
         resolve({
+          // [수정] PatientDetailFull 타입 준수 (userId 제거, hospitalChildrenId 추가)
+          hospitalChildrenId: 'mock-hospital-child-id',
           childId,
-          userId: 'user-uuid',
-          name: '박지민',
-          monthlyAge: 72,
+          // userId: 'user-uuid', // [삭제] 타입 정의에 없으므로 제거
+
+          name: '박지민',        // UI용 필드
+          monthlyAge: 72,       // UI용 필드
           birthdate: '2020-05-12',
           gender: 'MALE',
-          latestExamStatus: 'COMPLETED',
+          // latestExamStatus: 'COMPLETED', // PatientDto에 없으면 제거하거나 타입에 추가 필요 (현재 DTO엔 없음)
+
+          // 더미 데이터
           height: pickRandom(DUMMY_DATA.heights),
           weight: pickRandom(DUMMY_DATA.weights),
           caregiver: pickRandom(DUMMY_DATA.caregivers),
