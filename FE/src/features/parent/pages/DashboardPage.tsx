@@ -15,6 +15,8 @@ import ConfirmModal from '../components/ConfirmModal';
 // 데이터 및 훅 임포트
 import { useDashboardLogic } from '../hooks/useDashboardLogic';
 import { registerInviteCode } from '@/features/parent/api/dashboardApi';
+import { usePWAInstall } from '@/hooks/usePWAInstall';
+import { Download } from 'lucide-react';
 
 const DashboardPage = () => {
     const navigate = useNavigate();
@@ -23,12 +25,17 @@ const DashboardPage = () => {
     const { heroProps, isLoading, isError, data, refetch } = useDashboardLogic({
         onNeedHospital: () => setIsCodeModalOpen(true)
     });
+
+    // PWA Install Hook
+    const { isInstallable, installPWA, showIOSInstallGuide, isStandalone } = usePWAInstall();
+
     // 모달 상태 관리
     const [isModifyModalOpen, setIsModifyModalOpen] = useState(false);
     const [isViewModalOpen, setIsViewModalOpen] = useState(false);
     const [isCodeModalOpen, setIsCodeModalOpen] = useState(false);
     const [isResultLinkModalOpen, setIsResultLinkModalOpen] = useState(false); // 결과 연동 모달
     const [isRegistering, setIsRegistering] = useState(false); // 초대코드 등록 로딩 상태
+    const [modalError, setModalError] = useState<string | null>(null); // 모달 에러 메시지 상태
 
     // 로딩 중일 때 스켈레톤 UI 표시
     if (isLoading) {
@@ -61,6 +68,7 @@ const DashboardPage = () => {
     // 초대 코드 등록 핸들러
     const handleCodeRegister = async (code: string) => {
         setIsRegistering(true);
+        setModalError(null); // 에러 초기화
         try {
             // [DEBUG] Check data structure for childId
             console.log("Dashboard Data Debug:", data);
@@ -97,9 +105,31 @@ const DashboardPage = () => {
             }
         } catch (error: any) {
             console.error("Error registering invite code", error);
-            // 백엔드 에러 메시지 표시
-            const errorMessage = error?.response?.data?.message || "병원 연동 중 오류가 발생했습니다.";
-            toast.error(errorMessage);
+
+            // 디버깅: 에러 응답 데이터 로그
+            if (error.response) {
+                console.log("Error Response Data:", error.response.data);
+            }
+
+            // 에러 메시지 추출
+            let errorMessage = "병원 연동 중 오류가 발생했습니다.";
+
+            if (error?.response?.data) {
+                if (typeof error.response.data === 'string') {
+                    errorMessage = error.response.data;
+                } else if (error.response.data.message) {
+                    errorMessage = error.response.data.message;
+                }
+            }
+
+            // 400 에러인데 메시지가 명확하지 않은 경우 Fallback
+            if (error?.response?.status === 400 && errorMessage === "병원 연동 중 오류가 발생했습니다.") {
+                errorMessage = "잘못된 초대코드거나 이미 연동된 병원입니다.";
+            }
+
+            // 모달에 에러 표시
+            setModalError(errorMessage);
+            // toast.error(errorMessage); // 모달 내부에 표시하므로 토스트는 제거 (원하면 다시 추가 가능)
         } finally {
             setIsRegistering(false);
         }
@@ -112,26 +142,53 @@ const DashboardPage = () => {
     };
 
     return (
-        <div className="flex w-full h-screen bg-white overflow-hidden">
+        <div className="flex w-full h-screen min-h-[820px] bg-white overflow-hidden">
             <Sidebar
                 childName={data?.name || "어린이"}
                 onCodeInputClick={() => setIsCodeModalOpen(true)}
             />
 
-            <main className="flex-1 overflow-y-auto p-8 flex flex-col gap-8 justify-center">
-                {/* HeroBanner - 더 큰 크기 */}
+            <main className="flex-1 h-full overflow-hidden p-3 sm:p-4 md:p-5 lg:p-6 flex flex-col gap-2 sm:gap-3 md:gap-3.5 lg:gap-4 relative">
+
+                {/* PWA Install Button (Floating) */}
+                <div className="absolute top-2 right-3 sm:top-3 sm:right-4 md:top-3.5 md:right-5 lg:top-4 lg:right-6 z-50">
+                    {/* iOS Safari 사용자를 위한 안내 */}
+                    {showIOSInstallGuide ? (
+                        <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-full shadow-lg bg-indigo-600 text-white">
+                            <Download size={14} className="sm:w-4 sm:h-4" />
+                            <span className="text-[10px] sm:text-xs">
+                                Safari에서 <strong>공유 → 홈 화면에 추가</strong>를 눌러주세요
+                            </span>
+                        </div>
+                    ) : !isStandalone && (
+                        <button
+                            onClick={installPWA}
+                            disabled={!isInstallable}
+                            className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-full shadow-lg transition-all font-bold text-xs sm:text-sm
+                                ${isInstallable
+                                    ? 'bg-indigo-600 text-white hover:bg-indigo-700 animate-bounce'
+                                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
+                            title={isInstallable ? "홈 화면에 추가하기" : "현재 브라우저에서는 설치할 수 없습니다"}
+                        >
+                            <Download size={14} className="sm:w-4 sm:h-4" />
+                            {isInstallable ? '홈 화면에 추가하기' : '설치 불가'}
+                        </button>
+                    )}
+                </div>
+
+                {/* HeroBanner */}
                 <div className="w-full flex-shrink-0">
                     <HeroBanner {...heroProps} />
                 </div>
 
-                <section className="flex flex-col xl:flex-row gap-6 w-full max-w-[1350px]">
+                <section className="flex flex-col lg:flex-row gap-2 sm:gap-3 md:gap-3.5 lg:gap-4 w-full flex-1 overflow-hidden">
                     {/* GuideVideo */}
-                    <div className="flex-1 min-h-[450px]">
+                    <div className="flex-1 h-full overflow-hidden">
                         <GuideVideo />
                     </div>
 
                     {/* HospitalTimeline - 오른쪽 고정 */}
-                    <aside className="w-full xl:w-96 flex-none">
+                    <aside className="w-full sm:w-full md:w-full lg:w-80 flex-none h-full overflow-y-auto">
                         {data && <HospitalTimeline hospitals={data.linkedHospitals} childName={data.name} onAddClick={() => setIsCodeModalOpen(true)} />}
                     </aside>
                 </section>
@@ -177,13 +234,19 @@ const DashboardPage = () => {
             {/* 초대 코드 등록 모달 */}
             <CodeRegisterModal
                 isOpen={isCodeModalOpen}
-                onClose={() => !isRegistering && setIsCodeModalOpen(false)}
+                onClose={() => {
+                    if (!isRegistering) {
+                        setIsCodeModalOpen(false);
+                        setModalError(null); // 모달 닫을 때 에러 초기화
+                    }
+                }}
                 onConfirm={handleCodeRegister}
                 title="병원 초대 코드 등록"
                 childName={data?.name || "어린이"}
                 description="어린이의 검사 결과를 공유받을 병원 초대 코드를 입력해 주세요."
                 confirmText="병원 연결하기"
                 isLoading={isRegistering}
+                errorMessage={modalError}
             />
         </div>
     );

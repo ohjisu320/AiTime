@@ -1,3 +1,5 @@
+import { useNavigate } from "react-router-dom";
+import { logoutHospitalStaff } from "@/features/desk/api/hospitalStaffApi";
 import type { PatientDetailFull } from "../../types/doctor";
 
 interface Props {
@@ -6,12 +8,54 @@ interface Props {
 }
 
 export default function PatientDetailPanel({ patient, toggleSidebar }: Props) {
-  if (!patient)
+  const navigate = useNavigate();
+
+  // 로그아웃 핸들러 (알림창 없이)
+  const handleLogout = async () => {
+    try {
+      await logoutHospitalStaff();
+    } catch (error) {
+      console.error("로그아웃 API 실패:", error);
+    } finally {
+      // API 성공 여부와 관계없이 로컬 스토리지 클리어 후 로그인 페이지로 이동
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("refreshToken");
+      localStorage.removeItem("user");
+      navigate("/login");
+    }
+  };
+
+  // 환자 정보가 없을 때도 열기/로그아웃 버튼은 표시
+  if (!patient) {
     return (
-      <div className="h-full bg-[#f7f7f7] p-4 text-[11px]">
-        데이터 로딩중...
+      <div className="flex flex-col h-full bg-[#f7f7f7] border-r border-[#808080] font-['Gulim'] text-[11px]">
+        {/* 상단 열기 바 */}
+        <div className="bg-[#000080] p-[3px] flex justify-start shrink-0">
+          <button
+            onClick={toggleSidebar}
+            className="bg-[#d4d0c8] text-black px-3 py-0.5 border-2 border-white border-r-[#404040] border-b-[#404040] active:border-t-[#404040] active:border-l-[#404040] text-[10px] font-bold cursor-pointer"
+          >
+            ▶ 열기
+          </button>
+        </div>
+
+        {/* 빈 환자 정보 메시지 */}
+        <div className="flex-1 p-4 flex items-center justify-center text-gray-500">
+          환자를 선택해주세요
+        </div>
+
+        {/* 하단 로그아웃 버튼 */}
+        <div className="p-3 border-t border-[#808080] shrink-0 mt-auto bg-[#f0f0f0]">
+          <button
+            onClick={handleLogout}
+            className="w-full bg-[#d4d0c8] border-2 border-white border-r-[#404040] border-b-[#404040] active:border-t-[#404040] active:border-l-[#404040] text-[#ff0000] font-bold py-2.5 cursor-pointer text-center hover:bg-[#e0e0e0] transition-colors"
+          >
+            로그아웃 (LOGOUT)
+          </button>
+        </div>
       </div>
     );
+  }
 
   return (
     <div className="flex flex-col h-full bg-[#f7f7f7] border-r border-[#808080] font-['Gulim'] text-[11px]">
@@ -142,7 +186,7 @@ export default function PatientDetailPanel({ patient, toggleSidebar }: Props) {
       {/* 3. 하단 로그아웃 버튼 (고정) */}
       <div className="p-3 border-t border-[#808080] shrink-0 mt-auto bg-[#f0f0f0]">
         <button
-          onClick={() => alert("로그아웃 되었습니다.")}
+          onClick={handleLogout}
           className="w-full bg-[#d4d0c8] border-2 border-white border-r-[#404040] border-b-[#404040] active:border-t-[#404040] active:border-l-[#404040] text-[#ff0000] font-bold py-2.5 cursor-pointer text-center hover:bg-[#e0e0e0] transition-colors"
         >
           로그아웃 (LOGOUT)

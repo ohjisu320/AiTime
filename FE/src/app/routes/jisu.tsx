@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import type { RouteObject } from 'react-router';
 import MobileLayout from '@/components/layout/MobileLayout';
+import GlobalErrorPage from '@/components/common/GlobalErrorPage';
 
 // Lazy Loading을 사용하여 성능을 최적화
 const ConsentPage = lazy(() => import('@/features/exam/pages/ConsentPage'));
@@ -9,6 +10,7 @@ const MissionListPage = lazy(() => import('@/features/exam/pages/MissionListPage
 const ExamRecordingPage = lazy(() => import('@/features/exam/pages/ExamRecordingPage'));
 const ExamGuideVideoPage = lazy(() => import('@/features/exam/pages/ExamGuideVideoPage'));
 const ExamPage = lazy(() => import('@/features/exam/pages/ExamPage'));
+const ExamGuard = lazy(() => import('@/features/exam/components/ExamGuard'));
 
 
 
@@ -24,41 +26,56 @@ export const jisuRoutes: RouteObject[] = [
   {
     path: "/exam",
     element: <ExamLayout />, // 최상위에서 MobileLayout 적용
+    errorElement: <GlobalErrorPage />, // ✅ 전역 에러 페이지 추가
     children: [
+      // 1. Consent Page (examId가 있으면 리다이렉트)
       {
-        index: true,
-        element: <ConsentPage /> // /exam 접속 시 바로 동의 페이지 노출
+        element: <ExamGuard requireExamId={false} redirectIfExamIdExists={true} />,
+        children: [
+          {
+            index: true,
+            element: <ConsentPage />
+          },
+          {
+            path: "consent",
+            element: <ConsentPage />
+          },
+        ]
       },
-      {
-        path: "consent",
-        element: <ConsentPage /> // /exam/consent
-      },
+
+      // 2. Guide and Mission pages (no examId guard - navigation controlled by examStatus)
       {
         path: "guide",
         children: [
           {
             index: true,
-            element: <ExamGuidePage /> // 👈 /exam/guide (전체 가이드 목록 등) 
+            element: <ExamGuidePage />
           },
           {
             path: ":missionId",
-            element: <ExamGuideVideoPage /> // 👈 /exam/guide/1, /exam/guide/2 등 
+            element: <ExamGuideVideoPage />
           }
         ]
       },
       {
         path: "mission",
-        element: <MissionListPage />  // 태스크리스트 페이지
-      },
-      {
-        path: "screening/:missionId",
-        element: <ExamRecordingPage />
+        element: <MissionListPage />
       },
 
+      // 3. Protected Routes (examId required for actual exam execution)
       {
-        path: "task/:missionId",
-        element: <ExamPage /> // /exam/recorder (실제 검사 진행)
-      },
+        element: <ExamGuard requireExamId={true} />,
+        children: [
+          {
+            path: "screening/:missionId",
+            element: <ExamRecordingPage />
+          },
+          {
+            path: "task/:missionId",
+            element: <ExamPage />
+          },
+        ]
+      }
     ],
   }
 ];

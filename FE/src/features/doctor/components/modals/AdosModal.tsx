@@ -1,12 +1,31 @@
-import { useState, useMemo, useCallback, type MouseEvent } from "react";
+import { useState, useMemo, useCallback, useEffect, type MouseEvent } from "react";
 import { WindowsButton } from "../layout/WindowsLayout";
 import { cn } from "@/lib/utils";
 import type { AdosItemDefinition, AdosAiResult } from "../../types/ados";
+import type { AdosDetail, AdosScores, AdosUpdateRequest } from "@/api/types/examReport.types";
 
 interface Props {
   onClose: () => void;
   patientAge: number;
+  adosDetail?: AdosDetail | null;
+  examId?: string;
+  onSave?: (examId: string, scores: AdosUpdateRequest) => Promise<void>;
 }
+
+// API 키(소문자) ↔ 코드 키(대문자+하이픈) 변환 유틸리티
+const apiKeyToCodeKey = (apiKey: string): string => {
+  // a2 → A-2, b16b → B-16b, d1 → D-1
+  const match = apiKey.match(/^([a-z])(\d+)([a-z]?)$/i);
+  if (match) {
+    return `${match[1].toUpperCase()}-${match[2]}${match[3]}`;
+  }
+  return apiKey.toUpperCase();
+};
+
+const codeKeyToApiKey = (codeKey: string): string => {
+  // A-2 → a2, B-16b → b16b, D-1 → d1
+  return codeKey.replace("-", "").toLowerCase();
+};
 
 // [Master List]
 const MASTER_ADOS_ITEMS: AdosItemDefinition[] = [
@@ -195,6 +214,7 @@ const CODES_VERBAL = [
   "D-5",
 ];
 
+// Mock AI 결과 (API 연결 전 폴백)
 const MOCK_AI_RESULTS: AdosAiResult = {
   "A-8": 0,
   "B-1": 1,
@@ -205,15 +225,53 @@ const MOCK_AI_RESULTS: AdosAiResult = {
   "A-3": 0,
 };
 
-export default function AdosModal({ onClose, patientAge }: Props) {
+export default function AdosModal({ onClose, patientAge, adosDetail, examId, onSave }: Props) {
   const [doctorScores, setDoctorScores] = useState<Record<string, string>>({});
-
+  const [isSaving, setIsSaving] = useState(false);
   const [isVerbal, setIsVerbal] = useState<boolean>(patientAge > 21);
 
   // 드래그 상태
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
+  // API 데이터 사용 여부
+  const useApiData = useMemo(() => {
+    return adosDetail && adosDetail.scores;
+  }, [adosDetail]);
+
+  // API 데이터로부터 점수 변환 (소문자 API 키 → 코드 키)
+  const apiScores = useMemo((): Record<string, number> => {
+    if (!adosDetail?.scores) return {};
+
+    const result: Record<string, number> = {};
+    const scores = adosDetail.scores;
+
+    Object.keys(scores).forEach((apiKey) => {
+      const value = scores[apiKey as keyof AdosScores];
+      if (typeof value === "number") {
+        const codeKey = apiKeyToCodeKey(apiKey);
+        result[codeKey] = value;
+      }
+    });
+
+    return result;
+  }, [adosDetail]);
+
+  // API 데이터로 초기 점수 설정
+  useEffect(() => {
+    if (useApiData && apiScores) {
+      const initialScores: Record<string, string> = {};
+      Object.keys(apiScores).forEach((codeKey) => {
+        const item = MASTER_ADOS_ITEMS.find((i) => i.code === codeKey);
+        // AI 분석 항목이 아닌 경우에만 의사 입력 점수로 설정
+        if (item && !item.isAiAnalyzed) {
+          initialScores[codeKey] = String(apiScores[codeKey]);
+        }
+      });
+      setDoctorScores(initialScores);
+    }
+  }, [useApiData, apiScores]);
 
   // 드래그 핸들러
   const handleMouseDown = useCallback((e: MouseEvent<HTMLDivElement>) => {
@@ -253,13 +311,23 @@ export default function AdosModal({ onClose, patientAge }: Props) {
     setDoctorScores((prev) => ({ ...prev, [code]: value }));
   };
 
+  // 점수 가져오기 (API 데이터 또는 Mock 데이터)
+  const getScore = (codeKey: string): number | undefined => {
+    if (useApiData) {
+      return apiScores[codeKey];
+    }
+    return MOCK_AI_RESULTS[codeKey] as number | undefined;
+  };
+
   const calculateTotal = (category: "SA" | "RRB") => {
     return currentItems
       .filter((item) => item.category === category)
       .reduce((sum, item) => {
         let score = 0;
-        if (typeof MOCK_AI_RESULTS[item.code] === "number") {
-          score = MOCK_AI_RESULTS[item.code] as number;
+        const apiScore = getScore(item.code);
+
+        if (item.isAiAnalyzed && typeof apiScore === "number") {
+          score = apiScore;
         } else if (
           doctorScores[item.code] !== undefined &&
           doctorScores[item.code] !== ""
@@ -268,6 +336,40 @@ export default function AdosModal({ onClose, patientAge }: Props) {
         }
         return sum + (isNaN(score) ? 0 : score);
       }, 0);
+  };
+
+  // 저장 핸들러
+  const handleSave = async () => {
+    if (!onSave || !examId) {
+      console.warn("onSave 또는 examId가 없습니다.");
+      onClose();
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      // 의사 입력 점수를 API 형식으로 변환
+      const updateScores: AdosUpdateRequest = {};
+
+      currentItems.forEach((item) => {
+        if (!item.isAiAnalyzed && doctorScores[item.code]) {
+          const apiKey = codeKeyToApiKey(item.code);
+          const score = parseInt(doctorScores[item.code], 10);
+          if (!isNaN(score)) {
+            (updateScores as Record<string, number>)[apiKey] = score;
+          }
+        }
+      });
+
+      console.log("📤 ADOS 저장 요청:", updateScores);
+      await onSave(examId, updateScores);
+      onClose();
+    } catch (error) {
+      console.error("❌ ADOS 저장 실패:", error);
+      alert("저장에 실패했습니다. 다시 시도해주세요.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -296,6 +398,13 @@ export default function AdosModal({ onClose, patientAge }: Props) {
             X 닫기
           </WindowsButton>
         </div>
+
+        {/* API 데이터 상태 표시 */}
+        {!useApiData && (
+          <div className="text-[10px] text-orange-600 bg-orange-50 px-2 py-1 border border-orange-200 shrink-0">
+            ⚠️ Mock 데이터 사용 중 (API 연결 대기)
+          </div>
+        )}
 
         <div className="bg-[#f0f0f0] border border-[#808080] p-2 mb-1 flex items-center gap-4 text-[12px] shrink-0">
           <span className="font-bold">검사 기준:</span>
@@ -338,7 +447,7 @@ export default function AdosModal({ onClose, patientAge }: Props) {
                   <AdosRow
                     key={item.code}
                     item={item}
-                    aiValue={MOCK_AI_RESULTS[item.code]}
+                    aiValue={getScore(item.code)}
                     docValue={doctorScores[item.code] || ""}
                     onChange={handleScoreChange}
                   />
@@ -367,7 +476,7 @@ export default function AdosModal({ onClose, patientAge }: Props) {
                   <AdosRow
                     key={item.code}
                     item={item}
-                    aiValue={MOCK_AI_RESULTS[item.code]}
+                    aiValue={getScore(item.code)}
                     docValue={doctorScores[item.code] || ""}
                     onChange={handleScoreChange}
                   />
@@ -398,16 +507,24 @@ export default function AdosModal({ onClose, patientAge }: Props) {
               </tr>
             </tbody>
           </table>
-          {/* [수정] 알림 문구 크기 조정 (20px -> 11px) */}
-          <div className="px-1 pb-1 text-[20px] text-blue-800 font-bold shrink-0">
+          <div className="px-1 pb-1 text-[11px] text-blue-800 font-bold shrink-0 mt-2">
             ※ 'AI' 뱃지가 있는 항목은 AI 분석 점수가 자동 반영되며 수정할 수
             없습니다.
           </div>
         </div>
 
         <div className="mt-1 flex justify-end gap-1 shrink-0">
+          {onSave && examId && (
+            <WindowsButton
+              className="w-[100px] h-[30px]"
+              onClick={handleSave}
+              disabled={isSaving}
+            >
+              {isSaving ? "저장 중..." : "저장"}
+            </WindowsButton>
+          )}
           <WindowsButton className="w-[100px] h-[30px]" onClick={onClose}>
-            확인
+            {onSave ? "취소" : "확인"}
           </WindowsButton>
         </div>
       </div>
@@ -423,11 +540,11 @@ function AdosRow({
   onChange,
 }: {
   item: AdosItemDefinition;
-  aiValue: any;
+  aiValue: number | undefined;
   docValue: string;
   onChange: (code: string, val: string) => void;
 }) {
-  const hasAiResult = aiValue !== undefined && typeof aiValue === "number";
+  const hasAiResult = item.isAiAnalyzed && aiValue !== undefined && typeof aiValue === "number";
 
   return (
     <tr className="hover:bg-blue-50 transition-colors h-[32px]">
@@ -455,7 +572,6 @@ function AdosRow({
         </div>
       </td>
 
-      {/* [수정됨] 점수 열의 배경색(td)을 조건부로 변경하여 셀 전체가 회색이 되도록 함 */}
       <td
         className={cn(
           "border border-black p-0",
@@ -467,7 +583,7 @@ function AdosRow({
           min="0"
           max="3"
           className={cn(
-            "w-full h-full text-center outline-none font-bold bg-transparent", // input 배경은 투명으로 설정
+            "w-full h-full text-center outline-none font-bold bg-transparent",
             hasAiResult
               ? "text-blue-700 cursor-not-allowed"
               : "focus:bg-white focus:ring-2 focus:ring-blue-500",

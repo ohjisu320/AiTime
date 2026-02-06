@@ -32,6 +32,7 @@ export interface UserInfoDTO {
  */
 export interface UserLoginResponse {
     accessToken: string;
+    refreshToken: string; // [추가] Refresh Token 포함
     userInfoDTO: UserInfoDTO;
 }
 
@@ -171,6 +172,7 @@ export interface HospitalStaffInfoDTO {
  */
 export interface HospitalStaffLoginResponse {
     accessToken: string;
+    refreshToken: string; // [추가] Refresh Token 포함
     hospitalStaffInfoDTO: HospitalStaffInfoDTO;
 }
 

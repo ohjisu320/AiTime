@@ -1,58 +1,43 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MissionCard from '@/domains/exam/components/MissionCard';
-import ConsentHeader from '@/domains/exam/components/Consent/ConsentHeader'; // ✅ 경로 원복
+import ConsentHeader from '@/domains/exam/components/Consent/ConsentHeader';
 import InfoNoticeBox from '@/components/common/InfoNoticeBox';
 import BigActionButton from '@/components/common/BigActionButton';
 import ConfirmModal from '@/components/common/ConfirmModal';
-import { startAnalysis, getExamInfo, type VideoTask } from '@/domains/exam/api/examApi';
+import { startAnalysis } from '@/domains/exam/api/examApi';
 import { SCREENING_CONTENT } from '@/domains/exam/constants/missionData';
+import { useMissions } from '@/domains/exam/hooks/useMissions';
 
 import Swal from 'sweetalert2';
 import MissionReviewModal from '@/domains/exam/components/MissionReviewModal';
 
 const MissionListPage: React.FC = () => {
   const navigate = useNavigate();
-  const [missions, setMissions] = useState<VideoTask[]>([]);
-  const [examStatus, setExamStatus] = useState<string | null>(null); // ✅ 검사 상태 추가
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  // 데이터 로드
-  useEffect(() => {
-    const fetchMissions = async () => {
-      try {
-        setIsLoading(true);
-        const childId = localStorage.getItem('selectedChildId') || localStorage.getItem('childId');
+  // 로컬 스토리지에서 examId 가져오기 (새로고침/이어하기 대응)
+  const examId = localStorage.getItem('currentExamId') || undefined;
 
-        if (!childId) {
-          setError("아동 정보가 없습니다.");
-          return;
-        }
+  // ✅ useMissions 훅 사용 (중복 선언 제거 및 isUnder18 구조 분해 할당)
+  const { missions, isLoading, error, isUnder18 } = useMissions(examId);
 
-        const { videoTasks, status } = await getExamInfo(childId);
-        setMissions(sortedMissions(videoTasks));
-        setExamStatus(status); // ✅ 상태 저장
-      } catch (err) {
-        console.error(err);
-        setError("데이터 로드 실패");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchMissions();
-  }, []);
+  // ✅ 컨텐츠 리졸버 헬퍼
+  const getResolvedContent = (videoType: string, isChildUnder18: boolean | null) => {
+    if (isChildUnder18 === null) return SCREENING_CONTENT[videoType];
 
-  // 정렬 헬퍼
-  const sortedMissions = (tasks: VideoTask[]) => {
-    const order = ['POSE_IMITATION', 'SPEECH_IMITATION', 'NAME_FACING', 'NAME_NON_FACING'];
-    return [...tasks].sort((a, b) => order.indexOf(a.videoType) - order.indexOf(b.videoType));
+    let resolvedKey = videoType;
+    if (videoType === 'POSE_IMITATION' || videoType === 'SPEECH_IMITATION') {
+      const suffix = isChildUnder18 ? "_12M" : "_18M";
+      resolvedKey = `${videoType}${suffix}`;
+    }
+
+    // Fallback if specific key doesn't exist but base key does (though unlikely based on data structure)
+    return SCREENING_CONTENT[resolvedKey] || SCREENING_CONTENT[videoType];
   };
 
-  // const [recheckModal, setRecheckModal] = useState({ isOpen: false, title: '', type: '' });
-  const [recheckModal, setRecheckModal] = useState({ isOpen: false, title: '', type: '', videoId: '' }); // ✅ videoId 추가
+  const [recheckModal, setRecheckModal] = useState({ isOpen: false, title: '', type: '', videoId: '' });
   const [submitModalOpen, setSubmitModalOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false); // ✅ 제출 상태 관리
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // 진행도 계산: 모든 미션이 UPLOADED 상태인지 확인 
   const completedCount = missions.filter(t => t.status === 'UPLOADED').length;
@@ -60,27 +45,23 @@ const MissionListPage: React.FC = () => {
 
   // 카드 클릭 핸들러 (업로드 상태면 재촬영 모달, 아니면 가이드로 이동) 
   const handleCardClick = (task: any) => {
-    // const missionNumber = task.videoType.replace('TASK', ''); // 숫자만 추출하던 로직 제거
     if (task.status === 'UPLOADED') {
-      // ✅ task.videoId 저장
       setRecheckModal({ isOpen: true, title: task.title, type: task.videoType, videoId: task.videoId });
     } else {
-      navigate(`/exam/guide/${task.videoType}`); // SPEECH_IMITATION, NAME 등으로 이동
+      navigate(`/exam/guide/${task.videoType}`);
     }
   };
 
   // 재촬영 확정 핸들러 
   const handleRecheckConfirm = () => {
-    // const missionNumber = recheckModal.type.replace('TASK', '');
     setRecheckModal({ ...recheckModal, isOpen: false });
-    // 재촬영 시에도 가이드(또는 스크리닝)부터 시작하도록 설정
     navigate(`/exam/guide/${recheckModal.type}`);
   };
 
   // 로딩 상태 UI 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen h-screen min-h-[820px] flex items-center justify-center">
         <p className="text-xl font-bold text-gray-400 animate-pulse">검사 진행도를 불러오고 있습니다...</p>
       </div>
     );
@@ -89,7 +70,7 @@ const MissionListPage: React.FC = () => {
   // 에러 상태 UI
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen h-screen min-h-[820px] flex items-center justify-center">
         <div className="text-center">
           <p className="text-xl font-bold text-red-500 mb-4">데이터를 불러오는 중 오류가 발생했습니다.</p>
           <p className="text-gray-600">{error}</p>
@@ -99,59 +80,56 @@ const MissionListPage: React.FC = () => {
   }
 
   return (
-    <div className="w-full flex flex-col items-center pb-20">
+    <div className="w-full h-screen min-h-[820px] flex flex-col overflow-hidden">
       {/* 🚦 공통 헤더 컴포넌트 사용 */}
       <ConsentHeader
         currentStep={3}
         totalSteps={3}
-        onBack={() => navigate('/exam/guide')}
+        onBack={() => navigate('/parent/dashboard')}
+        title="검사 미션 선택"
+        subtitle={`촬영할 미션을 선택해주세요 (총 ${missions.length}개 미션을 완료해야 합니다)`}
       />
 
-      {/* 헤더 높이만큼 여백 확보 (mt-24) */}
-      <main className="w-full max-w-[1240px] mt-24 px-6">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl font-extrabold text-gray-900 mb-4 tracking-tight">검사 미션 선택</h2>
-          <p className="text-xl text-gray-500 font-medium">촬영할 미션을 선택해주세요 (총 {missions.length}개 미션을 완료해야 합니다)</p>
-        </div>
+      <main className="flex-1 w-full overflow-y-auto">
+        <div className="w-full max-w-[1240px] mx-auto pt-[100px] pb-10 px-6">
+          <div className="flex gap-5 items-start">
+            <div className="flex flex-col gap-3 flex-1">
+              {missions.map((task) => {
+                const content = getResolvedContent(task.videoType, isUnder18);
+                const cardStatus = task.status === 'UPLOADED' ? 'UPLOADED' : 'PENDING';
 
-        <div className="flex gap-10 items-start">
-          <div className="flex flex-col gap-6 flex-1">
-            {missions.map((task) => {
-              const content = SCREENING_CONTENT[task.videoType];
-              // MissionCard status mapping: EMPTY/FAIL/PASS -> PENDING, UPLOADED -> UPLOADED
-              const cardStatus = task.status === 'UPLOADED' ? 'UPLOADED' : 'PENDING';
+                return (
+                  <MissionCard
+                    key={task.videoType}
+                    {...task}
+                    title={content?.korTitle || '미션'}
+                    subTitle={content?.engTitle}
+                    description={content?.description || ''}
+                    variant={content?.variant || 'indigo'}
+                    status={cardStatus}
+                    onClick={() => handleCardClick(task)}
+                  />
+                );
+              })}
+            </div>
 
-              return (
-                <MissionCard
-                  key={task.videoType}
-                  {...task}
-                  title={content?.korTitle || '미션'}
-                  subTitle={content?.engTitle}
-                  description={content?.description || ''}
-                  variant={content?.variant || 'indigo'}
-                  status={cardStatus}
-                  onClick={() => handleCardClick(task)}
-                />
-              );
-            })}
-          </div>
-
-          <div className="w-[480px] flex flex-col gap-6 sticky top-32">
-            <InfoNoticeBox
-              title="검사 진행 안내"
-              items={[
-                "한 번에 모든 검사를 완료하지 않아도 됩니다.",
-                "촬영 중 문제가 발생하면 언제든 다시 촬영할 수 있습니다.",
-                "모든 검사를 완료하면 AI 분석 리포트를 확인할 수 있습니다."
-              ]}
-            />
-            <BigActionButton
-              disabled={!isAllDone || examStatus === 'COMPLETED'}
-              onClick={() => setSubmitModalOpen(true)}
-              variant="violet"
-            >
-              {examStatus === 'COMPLETED' ? '리포트 전송 완료' : '리포트 전송하기'}
-            </BigActionButton>
+            <div className="w-[400px] flex flex-col gap-3 sticky top-20">
+              <InfoNoticeBox
+                title="검사 진행 안내"
+                items={[
+                  "한 번에 모든 검사를 완료하지 않아도 됩니다.",
+                  "촬영 중 문제가 발생하면 언제든 다시 촬영할 수 있습니다.",
+                  "모든 검사를 완료하면 AI 분석 리포트를 확인할 수 있습니다."
+                ]}
+              />
+              <BigActionButton
+                disabled={!isAllDone}
+                onClick={() => setSubmitModalOpen(true)}
+                variant="violet"
+              >
+                리포트 전송하기
+              </BigActionButton>
+            </div>
           </div>
         </div>
       </main>
@@ -161,14 +139,12 @@ const MissionListPage: React.FC = () => {
         isOpen={recheckModal.isOpen}
         title={recheckModal.title}
         examId={localStorage.getItem('examId')}
-        // videoType 제거됨
-        videoId={recheckModal.videoId} // ✅ 전달
-        isCompleted={examStatus === 'COMPLETED'} // ✅ 완료 여부 전달
+        videoId={recheckModal.videoId}
+        isCompleted={false}
         onClose={() => setRecheckModal({ ...recheckModal, isOpen: false })}
         onRetake={handleRecheckConfirm}
         onDelete={() => {
           setRecheckModal({ ...recheckModal, isOpen: false });
-          // 삭제 후 페이지 새로고침 (리스트 상태 업데이트)
           window.location.reload();
         }}
       />

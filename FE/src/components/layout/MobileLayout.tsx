@@ -7,8 +7,8 @@ interface MobileLayoutProps {
 
 const MobileLayout = ({ className }: MobileLayoutProps) => {
   return (
-    // 1600px 최적화, 반응형 너비, 중앙 정렬, 유연한 배경색
-    <div className={cn("w-full max-w-[1600px] mx-auto px-4 bg-background/0 font-wanted", className)}>
+    // 1180px 너비 최적화, 반응형, 중앙 정렬
+    <div className={cn("w-full max-w-[1180px] mx-auto px-4 bg-background/0 font-wanted", className)}>
       <Outlet />
     </div>
   );

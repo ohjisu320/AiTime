@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import parentLogo from '@/assets/parentLogo.svg';
 
 export default function ProfileHeader() {
   const navigate = useNavigate();
@@ -14,11 +15,10 @@ export default function ProfileHeader() {
 
   return (
     <header className="w-full px-8 py-8 flex justify-between items-center">
-      <div className="flex items-center gap-3">
-        {/* 로고 아이콘 */}
-        <div className="w-12 h-12 bg-gradient-to-b from-[#9D8AD6] to-violet-500 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-sm">
-          Ai
-        </div>
+      <div className="flex items-center gap-3" onClick={() => navigate('/parent/select-profile')}>
+        {/* 홈 버튼 */}
+        <img src={parentLogo} alt="parentLogo" className="w-[45px] h-[45px]" />
+
         {/* 로고 텍스트 */}
         <span className="text-3xl font-bold text-gray-800 tracking-tight">
           AiTime

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useBlocker } from 'react-router-dom';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import ExamBaseLayout from '@/domains/exam/components/layout/ExamBaseLayout';
 // import ScreeningGuide from '@/domains/exam/components/Screening/ScreeningGuide';
@@ -24,8 +24,17 @@ const ExamRecordingPage: React.FC<ExamRecordingPageProps> = ({ missionId: propMi
   // TODO: 실제 childId는 Context나 props에서 가져와야 함
   const childId = localStorage.getItem('selectedChildId') || 'mock-child-id';
 
+  // ✅ 정상 진행 상태 관리
+  const [isProceeding, setIsProceeding] = useState(false);
+
   const handleGoToNextTask = useCallback(() => {
-    navigate(`/exam/task/${currentMissionId}`);
+    setIsProceeding(true); // ✅ 차단 해제
+    // 상태 업데이트 반영을 위해 setTimeout 사용 (선택사항, React state batching 고려)
+    setTimeout(() => {
+      navigate(`/exam/task/${currentMissionId}`, {
+        state: { verified: true } // ✅ 검증 통과 증표 전달
+      });
+    }, 0);
   }, [navigate, currentMissionId]);
 
   // LiveKit 스크리닝 훅
@@ -39,6 +48,32 @@ const ExamRecordingPage: React.FC<ExamRecordingPageProps> = ({ missionId: propMi
     startScreening,
     stopScreening
   } = useLiveKitScreening();
+
+  // 🚫 뒤로가기/이탈 방지 처리 (정상 진행 시에는 차단하지 않음)
+  const shouldBlock = !isProceeding;
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (shouldBlock) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [shouldBlock]);
+
+  // React Router 네비게이션 방지
+  const blocker = useBlocker(shouldBlock);
+  const [isBlockerModalOpen, setIsBlockerModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (blocker.state === 'blocked') {
+      setIsBlockerModalOpen(true);
+    } else {
+      setIsBlockerModalOpen(false);
+    }
+  }, [blocker]);
 
   // 컴포넌트 마운트 시 스크리닝 시작
   useEffect(() => {
@@ -129,6 +164,21 @@ const ExamRecordingPage: React.FC<ExamRecordingPageProps> = ({ missionId: propMi
         description="위치와 소음도 측정이 완료되었습니다. 이제 검사가 가능합니다."
         confirmText="검사 시작하기"
       />
+
+      {/* 뒤로가기/이탈 방지 모달 */}
+      {blocker.state === 'blocked' && (
+        <ConfirmModal
+          isOpen={isBlockerModalOpen}
+          onClose={() => blocker.reset()}
+          onConfirm={() => blocker.proceed()}
+          title="검사를 중단하시겠습니까?"
+          description="페이지를 이동하면 진행 상황이 저장되지 않습니다."
+          confirmText="중단하고 나가기"
+          confirmVariant="rose"
+          closeOnConfirm={false}
+          hideCloseButton={true}
+        />
+      )}
     </>
   );
 };
