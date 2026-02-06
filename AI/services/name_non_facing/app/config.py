@@ -87,6 +87,22 @@ class Settings(BaseSettings):
         default="/",
         description="RabbitMQ Virtual Host"
     )
+    RABBITMQ_HEARTBEAT: int = Field(
+        default=600,
+        description="RabbitMQ heartbeat interval (seconds)"
+    )
+    RABBITMQ_BLOCKED_CONNECTION_TIMEOUT: int = Field(
+        default=300,
+        description="RabbitMQ blocked connection timeout (seconds)"
+    )
+    RABBITMQ_INITIAL_RETRY_DELAY: int = Field(
+        default=5,
+        description="RabbitMQ 초기 재시도 지연 시간 (seconds)"
+    )
+    RABBITMQ_MAX_RETRIES: int = Field(
+        default=5,
+        description="RabbitMQ 최대 재시도 횟수"
+    )
     INPUT_QUEUE: str = Field(
         default="analysis.name_non_facing.request",
         description="작업 요청 큐 (TODO: 백엔드 협의 후 확정)"
@@ -161,8 +177,8 @@ class Settings(BaseSettings):
         description="음성 인식 언어"
     )
     WHISPER_DEVICE: str = Field(
-        default="cuda",
-        description="Whisper 실행 디바이스 (cuda/cpu)"
+        default="cpu",
+        description="Whisper 실행 디바이스 (cuda/cpu). CUDA 12 cuBLAS 없으면 cpu 권장"
     )
     WHISPER_COMPUTE_TYPE: str = Field(
         default="float16",
@@ -200,18 +216,19 @@ class Settings(BaseSettings):
         )
     )
     YOLO_HEAD_CONFIDENCE: float = Field(
-        default=0.25,
+        default=0.15,
         ge=0.0,
         le=1.0,
-        description="YOLO 탐지 최소 신뢰도 (Head-specific 모델용)"
+        description="YOLO 탐지 최소 신뢰도 (Head-specific 모델용, 낮을수록 더 많이 탐지)"
     )
     ENABLE_VISUALIZATION_DEBUG: bool = Field(
         default=False,
         description="시각화 디버그 모드 활성화 (바운딩 박스, 시선 벡터 등 표시)"
     )
-    ENABLE_VISUALIZATION_DEBUG: bool = Field(
-        default=False,
-        description="시각화 디버그 모드 활성화 (바운딩 박스, 시선 벡터 등 표시)"
+    VISUALIZATION_WARMUP_FRAMES: int = Field(
+        default=45,
+        ge=0,
+        description="시각화 시작 전 워밍업 프레임 수 (tracking 안정화 대기)"
     )
     
     # 6DRepNet360 Head Pose
@@ -240,8 +257,8 @@ class Settings(BaseSettings):
     
     # 부모/아이 구분
     FIRST_PERSON_FALLBACK: bool = Field(
-        default=True,
-        description="부모 미탐지 시 1인칭 모드 활성화"
+        default=False,
+        description="부모 미탐지 시 1인칭 모드 자동 활성화 (CLI --selfie 등으로 명시적 활성화 권장)"
     )
     
     # 시선 분석
@@ -259,6 +276,30 @@ class Settings(BaseSettings):
     MIN_GAZE_DURATION_SEC: float = Field(
         default=0.5,
         description="최소 시선 유지 시간 (초)"
+    )
+    
+    # Smoothing (떨림 방지)
+    ENABLE_SMOOTHING: bool = Field(
+        default=True,
+        description="Head pose 및 Gaze 방향 smoothing 활성화"
+    )
+    SMOOTHING_ALPHA_POSE: float = Field(
+        default=0.3,
+        ge=0.0,
+        le=1.0,
+        description="Head pose smoothing 계수 (0: 부드럽게, 1: 원본 유지). EMA: new = alpha*curr + (1-alpha)*prev"
+    )
+    SMOOTHING_ALPHA_GAZE: float = Field(
+        default=0.4,
+        ge=0.0,
+        le=1.0,
+        description="Gaze direction smoothing 계수 (0: 부드럽게, 1: 원본 유지)"
+    )
+    SMOOTHING_ALPHA_BBOX: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        description="Bounding box smoothing 계수 (0: 부드럽게, 1: 원본 유지)"
     )
     
     # ===== Audio 파라미터 =====

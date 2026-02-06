@@ -165,7 +165,7 @@ def compute_gaze_vector_from_ears_nose(
     nose_tip: np.ndarray
 ) -> np.ndarray:
     """
-    귀와 코 좌표로부터 시선 벡터 계산
+    귀와 코 좌표로부터 시선 벡터 계산 (레거시 - MediaPipe FaceMesh용)
     
     정의:
         양쪽 귀를 잇는 축에 직교하고, 코를 통과하는 단위 벡터
@@ -183,6 +183,16 @@ def compute_gaze_vector_from_ears_nose(
         2. up_vector = [0, -1, 0] (이미지 좌표계 상향)
         3. gaze_raw = ear_axis × up_vector (외적)
         4. gaze_vector = normalize(gaze_raw)
+    
+    Note (2025-01-23 결정사항):
+        현재 파이프라인에서 사용하지 않음. 6DRepNet360의 Euler angles 기반
+        to_gaze_vector()가 더 정확하고 360° 지원.
+        
+        ViTPose COCO 키포인트(귀 idx 3,4)는 2D 전용 + 몸 레벨 정밀도라
+        이 함수에 적합하지 않음. 기하학적 법선 벡터가 필요시
+        MediaPipe FaceMesh(478점, 3D)가 더 적합.
+        
+        상세: docs/ViTPose_시선벡터_도입검토.md 참조
     """
     # 귀 축 벡터
     ear_axis = right_ear - left_ear
