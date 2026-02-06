@@ -14,6 +14,8 @@ pika>=1.3.0
 # AI/ML - Vision (YOLO Head + 6DRepNet360)
 ultralytics>=8.0.0
 opencv-python>=4.9.0
+lap>=0.5.12  # YOLO BoT-SORT tracker
+openvino>=2024.0.0  # Intel OpenVINO 추론 최적화
 
 # PyTorch CPU 버전
 --extra-index-url https://download.pytorch.org/whl/cpu
@@ -23,6 +25,9 @@ torchaudio==2.5.1+cpu
 
 # 6DRepNet: 360° Head Pose Estimation
 sixdrepnet
+
+# MediaPipe: 얼굴 검출로 머리 검출 필터링 (머리카락만 잡힌 경우 제거)
+mediapipe>=0.10.9
 
 # AI/ML - Audio
 # faster-whisper: OpenAI Whisper의 CTranslate2 최적화 버전 (4배 빠름)
