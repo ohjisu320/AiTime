@@ -20,7 +20,7 @@ const getVideoTypeFromMissionId = (missionId: string): VideoType => {
 const ExamPage: React.FC = () => {
   const { missionId = "1" } = useParams<{ missionId: string }>();
   const navigate = useNavigate();
-  const location = useLocation(); // ✅ Location 훅 추가
+  const location = useLocation();
   const videoRef = useRef<HTMLVideoElement>(null);
 
   // ✅ 월령 정보 상태 추가
@@ -49,7 +49,6 @@ const ExamPage: React.FC = () => {
     fetchExamInfo();
   }, [childId]);
 
-
   // ✅ 현재 미션 ID에 월령 접미사 붙이기 (데이터가 있는 경우에만)
   const resolvedMissionId = useMemo(() => {
     if (isUnder18 === null) return missionId; // 로딩 중이거나 에러 시 기본값
@@ -64,14 +63,21 @@ const ExamPage: React.FC = () => {
     return missionId;
   }, [missionId, isUnder18]);
 
-  const content = SCREENING_CONTENT[resolvedMissionId] || SCREENING_CONTENT[missionId] || SCREENING_CONTENT["POSE_IMITATION_12M"]; // Fallback safe
+  // ✅ 부모 행동 미션인지 판별 (문구 표시용)
+  const isParentActionMission = useMemo(() => {
+    return resolvedMissionId.startsWith('POSE_IMITATION') ||
+      resolvedMissionId.startsWith('SPEECH_IMITATION') ||
+      resolvedMissionId === 'NAME_NON_FACING' ||
+      resolvedMissionId === 'NAME_FACING';
+  }, [resolvedMissionId]);
+
+  const content = SCREENING_CONTENT[resolvedMissionId] || SCREENING_CONTENT[missionId] || SCREENING_CONTENT["POSE_IMITATION_12M"];
   const instructions = content?.instructions || [];
 
   const { stream, isRecording, startSession, startRecording, stopRecording } = useMediaRecorder();
   const { mutate: uploadVideo, isPending } = useExamUpload();
 
   // ⏰ 타이머 및 상태 관리
-  // phase: 'READY' (권한확인) -> 'GLOBAL_COUNTDOWN' (3초) -> 'RECORDING' (동적) -> 'COMPLETED'
   const [phase, setPhase] = useState<'READY' | 'GLOBAL_COUNTDOWN' | 'RECORDING' | 'COMPLETED'>('READY');
   const [globalCount, setGlobalCount] = useState(content?.countdown || 3);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
@@ -110,7 +116,7 @@ const ExamPage: React.FC = () => {
     }
   }, [blocker]);
 
-  // ✅ 완료 처리 핸들러 (useCallback으로 메모이제이션하고 useEffect보다 위에 정의)
+  // ✅ 완료 처리 핸들러 (useCallback으로 메모이제이션)
   const handleComplete = useCallback(async () => {
     setPhase('COMPLETED');
     const { blob: videoBlob } = await stopRecording();
@@ -187,67 +193,164 @@ const ExamPage: React.FC = () => {
     }
   }, [phase, globalCount, startRecording]);
 
-  // 5. 녹화 중 타이머 (동적 - 확인 후 5초 카운트다운)
+  // 🚫 중복 처리 방지 Ref
+  const lastProcessedCycleRef = useRef(-1);
+
+  // 5. 녹화 중 글로벌 타이머 (1초마다 증가)
   useEffect(() => {
     if (phase !== 'RECORDING') return;
 
-    const isCurrentCycleConfirmed = confirmedCycles.has(currentCycleIndex);
-    const isLastCycle = currentCycleIndex >= instructions.length - 1;
+    const timer = setTimeout(() => {
+      setTotalElapsedTime(prev => prev + 1);
+    }, 1000);
 
-    // 확인된 사이클이면 5초 카운트다운 시작
-    if (isCurrentCycleConfirmed) {
-      if (cycleElapsedTime < INSTRUCTION_DURATION) {
-        const timer = setInterval(() => {
-          setCycleElapsedTime(prev => prev + 1);
-        }, 1000);
-        return () => clearInterval(timer);
+    return () => clearTimeout(timer);
+  }, [phase, totalElapsedTime]);
+
+  // 6. 글로벌 타이머 기반 사이클 전환 로직
+  useEffect(() => {
+    if (phase !== 'RECORDING') return;
+
+    const currentIdx = currentCycleIndexRef.current;
+    const elapsed = totalElapsedTimeRef.current;
+    const isSpecialMission = resolvedMissionId.startsWith('POSE_IMITATION') || resolvedMissionId === 'NAME_NON_FACING';
+
+    let cycleEndTime;
+
+    if (isSpecialMission) {
+      // 특별 미션: 모든 사이클 동일
+      cycleEndTime = (currentIdx + 1) * INSTRUCTION_DURATION;
+    } else {
+      // 기본 로직: 모든 사이클 동일
+      cycleEndTime = (currentIdx + 1) * INSTRUCTION_DURATION;
+    }
+
+    console.log(`⏱️ [Timer] Cycle: ${currentIdx}/${instructions.length}, Elapsed: ${elapsed}s, EndTime: ${cycleEndTime}s`);
+
+    // 현재 사이클 종료 시점 도달
+    if (elapsed >= cycleEndTime) {
+      // 🛡️ 중복 실행 방지
+      if (lastProcessedCycleRef.current === currentIdx) {
+        console.log(`🛡️ [Guard] Already processed cycle ${currentIdx}. Ignoring.`);
+        return;
+      }
+
+      lastProcessedCycleRef.current = currentIdx;
+
+      // 마지막 사이클인지 확인
+      const isLastCycle = currentIdx >= instructions.length - 1;
+
+      if (isLastCycle) {
+        console.log('✅ [Complete] Last cycle finished.');
+        handleComplete();
       } else {
-        // 5초 종료
-        if (isLastCycle) {
-          // 마지막 지시사항 완료 -> 검사 종료
-          handleComplete();
+        console.log('⏭️ [Next] Moving to next cycle.');
+        setCurrentCycleIndex(idx => idx + 1);
+      }
+    }
+  }, [phase, totalElapsedTime, instructions.length, handleComplete, INSTRUCTION_DURATION, resolvedMissionId]);
+
+  // 🎯 현재 상태 계산 (글로벌 타이머 기반)
+  const currentInstructionState = useMemo(() => {
+    if (phase !== 'RECORDING') return null;
+    if (currentCycleIndex >= instructions.length) {
+      console.log('⚠️ [State] Invalid Cycle Index:', currentCycleIndex, 'Length:', instructions.length);
+      return null;
+    }
+
+    const currentInstruction = instructions[currentCycleIndex];
+    const isSpecialMission = resolvedMissionId.startsWith('POSE_IMITATION') || resolvedMissionId === 'NAME_NON_FACING';
+
+    // 🎯 특별 미션 로직 (POSE_IMITATION, NAME_NON_FACING)
+    if (isSpecialMission) {
+      if (currentCycleIndex === 0) {
+        // 첫 번째 사이클
+        const isShowingNextPreview = totalElapsedTime >= (INSTRUCTION_DURATION - PREP_DURATION) && currentCycleIndex < instructions.length - 1;
+
+        if (totalElapsedTime < PREP_DURATION) {
+          // 0~3초: 노란 카드 (WAITING)
+          console.log(`🎨 [Special First] WAITING at ${totalElapsedTime}s`);
+          return {
+            type: 'WAITING',
+            instruction: currentInstruction,
+            cycleIndex: currentCycleIndex,
+            remainingTime: INSTRUCTION_DURATION - totalElapsedTime
+          };
+        } else if (isShowingNextPreview) {
+          // 마지막 3초: 다음 지시사항 노란 카드 미리보기
+          const nextInstruction = instructions[currentCycleIndex + 1];
+          console.log(`🔮 [Special First Preview] Next instruction at ${totalElapsedTime}s`);
+          return {
+            type: 'PREVIEW',
+            instruction: nextInstruction,
+            cycleIndex: currentCycleIndex,
+            remainingTime: INSTRUCTION_DURATION - totalElapsedTime
+          };
         } else {
-          // 다음 사이클로 이동
-          setCurrentCycleIndex(prev => prev + 1);
-          setCycleElapsedTime(0);
+          // 3초 ~ (N-3)초: 흰 카드 (INSTRUCTION)
+          console.log(`🎨 [Special First] INSTRUCTION at ${totalElapsedTime}s`);
+          return {
+            type: 'INSTRUCTION',
+            instruction: currentInstruction,
+            cycleIndex: currentCycleIndex,
+            remainingTime: INSTRUCTION_DURATION - totalElapsedTime
+          };
+        }
+      } else {
+        // 두 번째 사이클부터: 전체 시간 동안 흰 카드, 마지막 3초만 다음 지시사항 미리보기
+        const cycleStartTime = INSTRUCTION_DURATION + (currentCycleIndex - 1) * INSTRUCTION_DURATION;
+        const cycleElapsed = totalElapsedTime - cycleStartTime;
+        const isShowingNextPreview = cycleElapsed >= (INSTRUCTION_DURATION - PREP_DURATION) && currentCycleIndex < instructions.length - 1;
+
+        if (isShowingNextPreview) {
+          // 마지막 3초: 다음 지시사항 노란 카드 미리보기
+          const nextInstruction = instructions[currentCycleIndex + 1];
+          console.log(`🔮 [Special Preview] Next instruction at ${totalElapsedTime}s`);
+          return {
+            type: 'PREVIEW',
+            instruction: nextInstruction,
+            cycleIndex: currentCycleIndex,
+            remainingTime: INSTRUCTION_DURATION - cycleElapsed
+          };
+        } else {
+          // 흰 카드
+          console.log(`🎨 [Special] INSTRUCTION at ${totalElapsedTime}s`);
+          return {
+            type: 'INSTRUCTION',
+            instruction: currentInstruction,
+            cycleIndex: currentCycleIndex,
+            remainingTime: INSTRUCTION_DURATION - cycleElapsed
+          };
         }
       }
     }
-  }, [phase, currentCycleIndex, cycleElapsedTime, confirmedCycles, instructions.length, handleComplete, INSTRUCTION_DURATION]);
 
-  // 🎯 현재 지시사항 상태 계산
-  const currentInstructionState = useMemo(() => {
-    if (phase !== 'RECORDING') return null;
-    if (currentCycleIndex >= instructions.length) return null;
+    // 🎯 기본 로직 (SPEECH_IMITATION, NAME_FACING)
+    const cycleStartTime = currentCycleIndex * INSTRUCTION_DURATION;
+    const cycleElapsed = totalElapsedTime - cycleStartTime;
 
-    const instruction = instructions[currentCycleIndex];
-    const isConfirmed = confirmedCycles.has(currentCycleIndex);
+    // 노란 카드 (준비 단계) - 첫 3초
+    const isWaitingPhase = cycleElapsed < PREP_DURATION;
 
-    if (isConfirmed) {
-      // 확인됨 -> 시작하세요 카드 (남은 시간 표시)
-      return {
-        type: 'INSTRUCTION',
-        instruction,
-        cycleIndex: currentCycleIndex,
-        remainingTime: INSTRUCTION_DURATION - cycleElapsedTime
-      };
-    } else {
-      // 아직 확인 안 함 -> 준비하세요 카드 (확인 버튼 대기)
+    if (isWaitingPhase) {
+      console.log(`🎨 [Default] WAITING at ${totalElapsedTime}s`);
       return {
         type: 'WAITING',
-        instruction,
-        cycleIndex: currentCycleIndex
+        instruction: currentInstruction,
+        cycleIndex: currentCycleIndex,
+        remainingTime: INSTRUCTION_DURATION - cycleElapsed
+      };
+    } else {
+      // 흰 카드 (실행 단계)
+      console.log(`🎨 [Default] INSTRUCTION at ${totalElapsedTime}s`);
+      return {
+        type: 'INSTRUCTION',
+        instruction: currentInstruction,
+        cycleIndex: currentCycleIndex,
+        remainingTime: INSTRUCTION_DURATION - cycleElapsed
       };
     }
-  }, [phase, currentCycleIndex, instructions, confirmedCycles, cycleElapsedTime, INSTRUCTION_DURATION]);
-
-  // ✅ 확인 버튼 클릭 핸들러
-  const handleConfirmInstruction = useCallback(() => {
-    if (!currentInstructionState) return;
-    const { cycleIndex } = currentInstructionState;
-    setConfirmedCycles(prev => new Map(prev).set(cycleIndex, Date.now()));
-    setCycleElapsedTime(0); // 확인 시 5초 카운트다운 시작
-  }, [currentInstructionState]);
+  }, [phase, currentCycleIndex, instructions, totalElapsedTime, PREP_DURATION, INSTRUCTION_DURATION, resolvedMissionId]);
 
   const handleModalConfirm = () => {
     setIsSuccessModalOpen(false);
@@ -304,20 +407,20 @@ const ExamPage: React.FC = () => {
       {/* 2. 녹화 중 지시사항 & 카운트다운 */}
       {phase === 'RECORDING' && currentInstructionState && (
         <>
-          {/* 지시사항 카드 (8초 주기 동안 계속 표시) */}
+          {/* 지시사항 카드 */}
           <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-[90%] max-w-2xl z-40 flex flex-col gap-4">
-            {/* 1. 준비 단계 (COUNTDOWN 또는 WAITING) - 노란색 카드 */}
-            {(currentInstructionState.type === 'COUNTDOWN' || currentInstructionState.type === 'WAITING') ? (
+            {/* 🟡 노란 카드: WAITING (준비) 또는 PREVIEW (다음 지시사항 미리보기) */}
+            {(currentInstructionState.type === 'WAITING' || currentInstructionState.type === 'PREVIEW') ? (
               <div
                 key={`prep-${currentInstructionState.instruction.id}`}
                 className="bg-yellow-300/95 backdrop-blur-xl rounded-3xl p-8 shadow-2xl flex flex-col items-center text-center border-4 border-white/50 transition-all duration-300 animate-in slide-in-from-bottom-5 fade-in"
               >
                 <div className="mb-4 px-6 py-2 rounded-full text-lg font-black bg-white text-yellow-600 shadow-sm flex items-center gap-2">
-                  <span>✋ 준비하세요</span>
+                  <span>✋ {currentInstructionState.type === 'PREVIEW' ? '다음 준비하세요' : '보호자가 먼저 행동 하세요'}</span>
                 </div>
                 <div className="bg-white/40 rounded-2xl p-6 w-full backdrop-blur-sm mb-4">
                   <p className="text-xl font-bold text-yellow-950 leading-snug break-keep opacity-80 mb-2">
-                    다음 지시사항
+                    {currentInstructionState.type === 'PREVIEW' ? '다음 지시사항' : '다음 지시사항을 따라하세요'}
                   </p>
                   <h3 className="text-2xl font-black text-yellow-900 leading-snug break-keep">
                     {currentInstructionState.instruction.text}
@@ -325,52 +428,109 @@ const ExamPage: React.FC = () => {
                     {currentInstructionState.instruction.suffix}
                   </h3>
                 </div>
-                {/* ✅ 확인하기 버튼 */}
-                <button
-                  onClick={handleConfirmInstruction}
-                  className="w-full max-w-xs py-4 px-8 bg-yellow-500 hover:bg-yellow-600 active:bg-yellow-700 text-white text-xl font-bold rounded-2xl shadow-lg transition-all duration-200 transform hover:scale-105 active:scale-95"
-                >
-                  확인하기
-                </button>
               </div>
             ) : (
-              /* 2. 실행 단계 (INSTRUCTION) - 기존 스타일 (흰색) */
+              /* ⚪ 흰 카드: INSTRUCTION (실행 단계) */
               <div
                 key={`action-${currentInstructionState.instruction.id}`}
                 className="bg-white/90 backdrop-blur-xl rounded-3xl p-8 shadow-2xl flex flex-col items-center text-center border border-white/50 transition-all duration-300 scale-100"
               >
-                <div className="mb-3 px-4 py-1 rounded-full text-sm font-bold bg-brand-purple text-white animate-pulse">
-                  지금 시작하세요!
-                </div>
+                {/* 상단 태그 */}
+                {(resolvedMissionId.startsWith('POSE_IMITATION') || resolvedMissionId === 'NAME_NON_FACING') ? (
+                  /* 특별 미션: "지금 시작하세요!" 태그 - 2번 깜빡이고 텍스트 변경 */
+                  <div
+                    className="mb-3 px-4 py-1 rounded-full text-sm font-bold bg-brand-purple text-white relative"
+                    style={{ minWidth: '150px', height: '28px' }}
+                  >
+                    <span
+                      className="absolute inset-0 flex items-center justify-center"
+                      style={{
+                        animation: 'blink-2-times 4s ease-in-out forwards'
+                      }}
+                    >
+                      지금 시작하세요!
+                    </span>
+                    <span
+                      className="absolute inset-0 flex items-center justify-center"
+                      style={{
+                        animation: 'appear-after-blink 4s ease-in-out forwards',
+                        opacity: 0
+                      }}
+                    >
+                      지켜봐 주세요
+                    </span>
+                  </div>
+                ) : (
+                  /* 일반 미션: 부모 행동 미션이 아닐 때만 태그 표시 */
+                  !isParentActionMission && (
+                    <div className="mb-3 px-4 py-1 rounded-full text-sm font-bold bg-brand-purple text-white animate-pulse">
+                      지금 시작하세요!
+                    </div>
+                  )
+                )}
 
-                <h3 className="text-2xl font-bold text-gray-900 leading-snug break-keep">
-                  {currentInstructionState.instruction.id && <span className="text-brand-purple mr-2">{currentInstructionState.instruction.id}.</span>}
-                  {currentInstructionState.instruction.text}
-                  {currentInstructionState.instruction.boldText && <span className="text-brand-purple mx-1">{currentInstructionState.instruction.boldText}</span>}
-                  {currentInstructionState.instruction.suffix}
+                <h3 className={`text-2xl font-bold leading-snug break-keep ${(resolvedMissionId.startsWith('POSE_IMITATION') || resolvedMissionId === 'NAME_NON_FACING') ? 'text-brand-purple' : 'text-gray-900'
+                  }`}>
+                  {isParentActionMission ? (
+                    /* 부모 행동 미션: 관찰 메시지만 표시 */
+                    <span className={(resolvedMissionId.startsWith('POSE_IMITATION') || resolvedMissionId === 'NAME_NON_FACING') ? '' : 'text-brand-purple'}>
+                      아이의 반응을 지켜봐 주세요
+                    </span>
+                  ) : (
+                    /* 기존 미션: 지시사항 표시 */
+                    <>
+                      {currentInstructionState.instruction.id && <span className="text-brand-purple mr-2">{currentInstructionState.instruction.id}.</span>}
+                      {currentInstructionState.instruction.text}
+                      {currentInstructionState.instruction.boldText && <span className={`mx-1 ${(resolvedMissionId.startsWith('POSE_IMITATION') || resolvedMissionId === 'NAME_NON_FACING') ? 'font-black' : 'text-brand-purple'}`}>{currentInstructionState.instruction.boldText}</span>}
+                      {currentInstructionState.instruction.suffix}
+                    </>
+                  )}
                 </h3>
-              </div>
-            )}
 
-            {/* ⏳ 타이머 게이지 (INSTRUCTION 상태일 때만 표시) */}
-            {currentInstructionState.type === 'INSTRUCTION' && (
-              <div className="w-full h-3 bg-gray-300/50 rounded-full overflow-hidden backdrop-blur-sm shadow-inner">
-                <div
-                  key={`gauge-${currentCycleIndex}`}
-                  className="h-full shadow-md bg-brand-purple"
-                  style={{
-                    width: '100%',
-                    animation: `shrink ${INSTRUCTION_DURATION}s linear forwards`
-                  }}
-                />
+                {/* 애니메이션 정의 */}
                 <style>{`
-                  @keyframes shrink {
-                    from { width: 100%; }
-                    to { width: 0%; }
+                  @keyframes blink-2-times {
+                    0% { opacity: 1; }
+                    25% { opacity: 0; }
+                    50% { opacity: 1; }
+                    75% { opacity: 0; }
+                    100% { opacity: 0; }
+                  }
+                  @keyframes appear-after-blink {
+                    0%, 75% {
+                      opacity: 0;
+                    }
+                    100% {
+                      opacity: 1;
+                    }
                   }
                 `}</style>
               </div>
             )}
+
+            {/* ⏳ 타이머 게이지 */}
+            <div className="w-full h-3 bg-gray-300/50 rounded-full overflow-hidden backdrop-blur-sm shadow-inner mt-4">
+              <div
+                key={`gauge-${currentCycleIndex}`}
+                className={`h-full shadow-md ${
+                  // 특별 미션: 첫 사이클 WAITING만 노란색, 나머지는 모두 보라색
+                  (resolvedMissionId.startsWith('POSE_IMITATION') || resolvedMissionId === 'NAME_NON_FACING')
+                    ? (currentCycleIndex === 0 && currentInstructionState.type === 'WAITING' ? 'bg-yellow-500' : 'bg-brand-purple')
+                    // 일반 미션: WAITING/PREVIEW는 노란색, INSTRUCTION은 보라색
+                    : (currentInstructionState.type === 'WAITING' || currentInstructionState.type === 'PREVIEW' ? 'bg-yellow-500' : 'bg-brand-purple')
+                  }`}
+                style={{
+                  width: '0%',
+                  animation: `grow ${INSTRUCTION_DURATION}s linear forwards`
+                }}
+              />
+              <style>{`
+                  @keyframes grow {
+                    from { width: 0%; }
+                    to { width: 100%; }
+                  }
+                `}</style>
+            </div>
           </div>
         </>
       )}
@@ -383,9 +543,10 @@ const ExamPage: React.FC = () => {
         title="검사 완료!"
         description="검사가 성공적으로 저장되었습니다."
         confirmText="목록으로 돌아가기"
+        disableKeyboardOffset={true}
       />
 
-      {/* 4. 뒤로가기/이탈 방지 모달 (ConfirmModal로 변경) */}
+      {/* 4. 뒤로가기/이탈 방지 모달 */}
       {blocker.state === 'blocked' && (
         <ConfirmModal
           isOpen={isBlockerModalOpen}
@@ -397,6 +558,7 @@ const ExamPage: React.FC = () => {
           confirmVariant="rose"
           closeOnConfirm={false}
           hideCloseButton={true}
+          disableKeyboardOffset={true}
         />
       )}
 
@@ -410,6 +572,7 @@ const ExamPage: React.FC = () => {
         confirmText="확인"
         confirmVariant="violet"
         hideCloseButton={true}
+        disableKeyboardOffset={true}
       />
     </ExamBaseLayout>
   );

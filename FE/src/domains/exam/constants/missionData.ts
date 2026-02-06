@@ -163,7 +163,7 @@ export const SCREENING_CONTENT: Record<string, any> = {
     korTitle: "대면 호명 반응",
     description: "마주 본 상태에서 이름을 불렀을 때 눈을 맞추는지 확인합니다.",
     variant: 'emerald',
-    instructionDuration: 8, // 각 지시사항당 8초
+    instructionDuration: 8, // 전체 사이클 시간: 준비 3초 + 실행 5초
     instructions: [
       { id: 1, text: "아이와 마주 본 상태에서", boldText: "이름을 부르고", suffix: "눈맞춤을 확인하세요" },
       { id: 2, text: "아이와 마주 본 상태에서", boldText: "이름을", suffix: "한 번 더 불러주세요" },
