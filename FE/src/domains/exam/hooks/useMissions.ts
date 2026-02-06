@@ -257,6 +257,27 @@ export const useMissions = (examId?: string) => {
         });
         setMissions(mergedMissions);
 
+        // 에러 메시지 안전하게 추출
+        let errorMessage = "데이터를 불러오는 중 오류가 발생했습니다.";
+
+        if (err && typeof err === 'object') {
+          // AxiosError의 경우
+          if ('response' in err && err.response && typeof err.response === 'object') {
+            const response = err.response as any;
+            errorMessage = response.data?.message || response.statusText || errorMessage;
+          }
+          // 일반 Error 객체의 경우
+          else if ('message' in err && typeof err.message === 'string') {
+            errorMessage = err.message;
+          }
+        }
+        // 문자열 에러인 경우
+        else if (typeof err === 'string') {
+          errorMessage = err;
+        }
+
+        setError(errorMessage);
+        setMissions([]);
       } finally {
         setIsLoading(false);
       }

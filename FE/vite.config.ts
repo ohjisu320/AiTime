@@ -32,6 +32,25 @@ export default defineConfig({
         target: 'https://i14a501.p.ssafy.io',
         changeOrigin: true,
         secure: false,
+        cookieDomainRewrite: {
+          "*": ""
+        },
+        cookiePathRewrite: {
+          "*": "/"
+        },
+        configure: (proxy, _options) => {
+          proxy.on('proxyReq', (proxyReq, _req, _res) => {
+            proxyReq.setHeader('Origin', 'http://70.12.246.95:8080');
+          });
+          proxy.on('proxyRes', (proxyRes, _req, _res) => {
+            const cookies = proxyRes.headers['set-cookie'];
+            if (cookies) {
+              proxyRes.headers['set-cookie'] = cookies.map(cookie =>
+                cookie.replace(/SameSite=Strict/gi, 'SameSite=Lax')
+              );
+            }
+          });
+        },
       },
     },
   },
