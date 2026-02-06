@@ -296,7 +296,7 @@ public class VideoServiceImpl implements VideoService {
         LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(expiresInSec);
 
         // 2. 이벤트 타임스탬프 조회
-        List<TimestampInfo> timestamps = getTimestampsForVideo(video);
+        List<?> timestamps = getTimestampsForVideo(video);
 
         log.info("Presigned View URL + Timestamps 생성 완료 - videoId: {}, expiresAt: {}, timestamps count: {}",
                 video.getVideoId(), expiresAt, timestamps.size());
@@ -351,7 +351,7 @@ public class VideoServiceImpl implements VideoService {
     /**
      * VideoType에 따라 해당 비디오의 이벤트 타임스탬프를 조회
      */
-    private List<TimestampInfo> getTimestampsForVideo(Video video) {
+    private List<?> getTimestampsForVideo(Video video) {
         VideoType videoType = video.getVideoType();
         UUID videoId = video.getVideoId();
 
@@ -370,7 +370,7 @@ public class VideoServiceImpl implements VideoService {
     /**
      * TASK1 (이름 부르기 정면) 타임스탬프 조회
      */
-    private List<TimestampInfo> getNameFacingTimestamps(UUID videoId) {
+    private List<NameFacingTimestampInfo> getNameFacingTimestamps(UUID videoId) {
         return nameFacingTrialRepository.findByVideoVideoId(videoId)
                 .map(trial -> {
                     List<NameFacingEvent> events = nameFacingEventRepository
@@ -379,9 +379,9 @@ public class VideoServiceImpl implements VideoService {
                             );
 
                     return events.stream()
-                            .map(event -> TimestampInfo.builder()
-                                    .startS(event.getTrialStartS())
-                                    .endS(event.getTrialEndS())
+                            .map(event -> NameFacingTimestampInfo.builder()
+                                    .trialStartS(event.getTrialStartS())
+                                    .trialEndS(event.getTrialEndS())
                                     .trialIndex(event.getTrialIndex())
                                     .build())
                             .collect(Collectors.toList());
@@ -392,7 +392,7 @@ public class VideoServiceImpl implements VideoService {
     /**
      * TASK2 (이름 부르기 비정면) 타임스탬프 조회
      */
-    private List<TimestampInfo> getNameNonFacingTimestamps(UUID videoId) {
+    private List<NameNonFacingTimestampInfo> getNameNonFacingTimestamps(UUID videoId) {
         return nameNonFacingTrialRepository.findByVideoVideoId(videoId)
                 .map(trial -> {
                     List<NameNonFacingEvent> events = nameNonFacingEventRepository
@@ -401,9 +401,11 @@ public class VideoServiceImpl implements VideoService {
                             );
 
                     return events.stream()
-                            .map(event -> TimestampInfo.builder()
-                                    .startS(event.getTriggerStartS())  // trigger 시작 시간 사용
-                                    .endS(event.getTriggerEndS())      // trigger 종료 시간 사용
+                            .map(event -> NameNonFacingTimestampInfo.builder()
+                                    .triggerStartS(event.getTriggerStartS())
+                                    .triggerEndS(event.getTriggerEndS())
+                                    .voiceStartS(event.getVoiceStartS())
+                                    .voiceEndS(event.getVoiceEndS())
                                     .trialIndex(event.getTrialIndex())
                                     .build())
                             .collect(Collectors.toList());
@@ -414,7 +416,7 @@ public class VideoServiceImpl implements VideoService {
     /**
      * TASK3 (자세 모방) 타임스탬프 조회
      */
-    private List<TimestampInfo> getPoseImitationTimestamps(UUID videoId) {
+    private List<PoseImitationTimestampInfo> getPoseImitationTimestamps(UUID videoId) {
         return poseImitationTrialRepository.findByVideoVideoId(videoId)
                 .map(trial -> {
                     List<PoseImitationEvent> events = poseImitationEventRepository
@@ -423,9 +425,11 @@ public class VideoServiceImpl implements VideoService {
                             );
 
                     return events.stream()
-                            .map(event -> TimestampInfo.builder()
-                                    .startS(event.getParentStartTime())  // 부모 동작 시작 시간 사용
-                                    .endS(event.getChildEndTime())        // 아이 동작 종료 시간 사용 (전체 구간)
+                            .map(event -> PoseImitationTimestampInfo.builder()
+                                    .parentStartTime(event.getParentStartTime())
+                                    .parentEndTime(event.getParentEndTime())
+                                    .childStartTime(event.getChildStartTime())
+                                    .childEndTime(event.getChildEndTime())
                                     .trialIndex(event.getTrialIndex())
                                     .build())
                             .collect(Collectors.toList());
@@ -436,7 +440,7 @@ public class VideoServiceImpl implements VideoService {
     /**
      * TASK4 (말 모방) 타임스탬프 조회
      */
-    private List<TimestampInfo> getSpeechImitationTimestamps(UUID videoId) {
+    private List<SpeechImitationTimestampInfo> getSpeechImitationTimestamps(UUID videoId) {
         return speechImitationTrialRepository.findByVideoVideoId(videoId)
                 .map(trial -> {
                     List<SpeechImitationEvent> events = speechImitationEventRepository
@@ -445,9 +449,9 @@ public class VideoServiceImpl implements VideoService {
                             );
 
                     return events.stream()
-                            .map(event -> TimestampInfo.builder()
-                                    .startS(event.getTrialStartS())
-                                    .endS(event.getTrialEndS())
+                            .map(event -> SpeechImitationTimestampInfo.builder()
+                                    .trialStartS(event.getTrialStartS())
+                                    .trialEndS(event.getTrialEndS())
                                     .trialIndex(event.getTrialIndex())
                                     .build())
                             .collect(Collectors.toList());
@@ -614,11 +618,17 @@ public class VideoServiceImpl implements VideoService {
         LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(expiresInSec);
 
         // 3. 타임스탬프 조회 (기존 getPoseImitationTimestamps 로직 결과 매핑)
-        List<TimestampInfo> timestamps = getTimestampsForVideo(video);
+        List<PoseImitationTimestampInfo> timestamps = getPoseImitationTimestamps(video.getVideoId());
 
         // 4. DTO 변환 (TimestampInfo -> LatestPoseVideoResponse.TimestampDTO)
         List<LatestPoseVideoResponse.TimestampDTO> timestampDTOs = timestamps.stream()
-                .map(t -> new LatestPoseVideoResponse.TimestampDTO(t.startS(), t.endS(), t.trialIndex()))
+                .map(t -> new LatestPoseVideoResponse.TimestampDTO(
+                        t.parentStartTime(),
+                        t.parentEndTime(),
+                        t.childStartTime(),
+                        t.childEndTime(),
+                        t.trialIndex()
+                ))
                 .toList();
 
         return new LatestPoseVideoResponse(
