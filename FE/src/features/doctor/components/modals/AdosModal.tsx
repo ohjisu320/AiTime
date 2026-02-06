@@ -2,8 +2,14 @@ import { useState, useMemo, useCallback, useEffect, type MouseEvent } from "reac
 import { WindowsButton } from "../layout/WindowsLayout";
 import { cn } from "@/lib/utils";
 // [수정] MASTER_ADOS_ITEMS를 types/ados에서 가져오도록 변경
-import { MASTER_ADOS_ITEMS, type AdosItemDefinition, type AdosAiResult } from "../../types/ados";
 import type { AdosDetail, AdosScores, AdosUpdateRequest } from "@/api/types/examReport.types";
+import {
+  MASTER_ADOS_ITEMS,
+  CODES_PRE_VERBAL,
+  CODES_VERBAL,
+  type AdosItemDefinition,
+  type AdosAiResult
+} from "../../types/ados";
 
 interface Props {
   onClose: () => void;
@@ -28,38 +34,7 @@ const codeKeyToApiKey = (codeKey: string): string => {
   return codeKey.replace("-", "").toLowerCase();
 };
 
-const CODES_PRE_VERBAL = [
-  "A-2",
-  "A-8",
-  "B-1",
-  "B-4",
-  "B-5",
-  "B-6",
-  "B-12",
-  "B-13",
-  "B-14",
-  "B-15",
-  "A-3",
-  "D-1",
-  "D-2",
-  "D-5",
-];
-const CODES_VERBAL = [
-  "A-7",
-  "B-1",
-  "B-4",
-  "B-5",
-  "B-7",
-  "B-8",
-  "B-9",
-  "B-13",
-  "B-15",
-  "B-16b",
-  "B-18",
-  "D-1",
-  "D-2",
-  "D-5",
-];
+
 
 // Mock AI 결과 (API 연결 전 폴백)
 const MOCK_AI_RESULTS: AdosAiResult = {
