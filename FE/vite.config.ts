@@ -26,4 +26,43 @@ export default defineConfig({
       },
     },
   },
+  // 1. 개발 서버 설정 (npm run dev)
+  server: {
+    proxy: {
+      '/api/v1': {
+        target: 'http://70.12.246.95:8080',
+        changeOrigin: true,
+        secure: false,
+        cookieDomainRewrite: {
+          "*": ""
+        },
+        cookiePathRewrite: {
+          "*": "/"
+        },
+        configure: (proxy, _options) => {
+          proxy.on('proxyReq', (proxyReq, _req, _res) => {
+            proxyReq.setHeader('Origin', 'http://70.12.246.95:8080');
+          });
+          proxy.on('proxyRes', (proxyRes, _req, _res) => {
+            const cookies = proxyRes.headers['set-cookie'];
+            if (cookies) {
+              proxyRes.headers['set-cookie'] = cookies.map(cookie =>
+                cookie.replace(/SameSite=Strict/gi, 'SameSite=Lax')
+              );
+            }
+          });
+        },
+      },
+    },
+  },
+  // 2. 프리뷰 서버 설정 (npm run preview)
+  preview: {
+    proxy: {
+      '/api': {
+        target: 'https://i14a501.p.ssafy.io',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
+  },
 })
