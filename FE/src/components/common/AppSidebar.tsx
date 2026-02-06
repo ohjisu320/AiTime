@@ -3,39 +3,62 @@ import { useNavigate } from "react-router-dom";
 import { LogOut, ChevronLeft, ChevronRight, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+
 interface AppSidebarProps {
   selectedDate: Date;
   onDateSelect: (date: Date) => void;
   markedDates: string[]; // 달력에 점을 표시할 날짜 배열
+  onMonthChange?: (year: number, month: number) => void;
   userInfo: {
     name: string;
     roleLabel: string; // 예: "소아청소년과 전문의"
     systemLabel: string; // 예: "의사용 시스템"
   };
+  logo?: string; // 로고 이미지 경로 (기본값: /parentLogo.svg)
+  logoSize?: { width?: number; height?: number }; // 로고 크기 (기본값: auto)
 }
 
 export default function AppSidebar({
   selectedDate,
   onDateSelect,
   markedDates,
+  onMonthChange,
   userInfo,
+  logo = "/parentLogo.svg",
+  logoSize,
 }: AppSidebarProps) {
   const navigate = useNavigate();
   const [viewDate, setViewDate] = useState(new Date());
 
   useEffect(() => {
     setViewDate(selectedDate);
+    // 초기 마운트 시에도 캘린더 데이터가 필요할 수 있으므로, 초기값으로 onMonthChange 호출 고려?
+    // 하지만 Dashboard에서 초기 호출 하는 게 나음.
   }, [selectedDate]);
 
+  useEffect(() => {
+    onMonthChange?.(viewDate.getFullYear(), viewDate.getMonth() + 1);
+  }, [viewDate, onMonthChange]);
+
   const handleLogout = () => {
-    // 로그아웃 로직 (토큰 삭제 등) 수행 후 이동
+    // 로그아웃 로직: 토큰 및 유저 정보 삭제
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+    localStorage.removeItem("user");
+    // 필요한 경우 다른 키도 삭제 (예: selectedChildId)
+    localStorage.removeItem("selectedChildId");
+
     navigate("/login");
   };
 
-  const handlePrevMonth = () =>
-    setViewDate((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
-  const handleNextMonth = () =>
-    setViewDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+  const handleMonthChange = (direction: -1 | 1) => {
+    const newDate = new Date(viewDate.getFullYear(), viewDate.getMonth() + direction, 1);
+    setViewDate(newDate);
+    onMonthChange?.(newDate.getFullYear(), newDate.getMonth() + 1);
+  };
+
+  const handlePrevMonth = () => handleMonthChange(-1);
+  const handleNextMonth = () => handleMonthChange(1);
 
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
@@ -59,10 +82,15 @@ export default function AppSidebar({
   return (
     <aside className="w-[280px] h-screen bg-white border-r border-gray-200 flex flex-col flex-none sticky top-0 z-50">
       {/* 로고 영역 */}
-      <div className="h-16 flex items-center px-6 border-b border-gray-100">
-        <div className="w-8 h-8 bg-[#5A55D6] rounded-lg flex items-center justify-center text-white font-bold text-xs mr-2">
-          Ai
-        </div>
+      <div className="h-16 flex items-center px-6 border-b border-gray-100" onClick={() => navigate('/')}>
+        <img
+          src={logo}
+          alt="logo"
+          style={{
+            width: logoSize?.width ? `${logoSize.width}px` : 'auto',
+            height: logoSize?.height ? `${logoSize.height}px` : 'auto'
+          }}
+        />
         <div className="flex flex-col">
           <span className="text-lg font-bold text-[#1A1A1A] leading-none">
             AiTime

@@ -27,6 +27,13 @@ build/Release/
 .svelte-kit/
 .webpack/
 
+# PWA Auto-generated Files
+sw.js
+sw.js.map
+workbox-*.js
+workbox-*.js.map
+dev-dist/
+
 # Runtime and Cache
 pids
 *.pid
@@ -115,4 +122,4 @@ sketch
 
 # src/lib 폴더는 무시하지 않도록 강제 제외
 !src/lib/
-!src/lib/**
+!src/lib/**dev-dist/

@@ -78,27 +78,3 @@ export const getScreeningStatus = async (): Promise<ScreeningStatusResponse> => 
   return data.data;
 };
 
-// Legacy: 기존 WebRTC 시그널링용 (필요 시 유지)
-export const sendSdpOffer = async (sdp: string, type: string) => {
-  const response = await fetch('/api/offer', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sdp, type }),
-  });
-
-  if (!response.ok) throw new Error('WebRTC 시그널링 실패');
-  return response.json();
-};
-
-/**
- * 스크리닝 완료 요청
- * POST /api/v1/screening/complete
- */
-export const completeScreening = async (
-  sessionId: string,
-  status: 'success' | 'failed' = 'success'
-): Promise<void> => {
-  console.log('📤 [스크리닝 완료 요청] sessionId:', sessionId, 'status:', status);
-  await api.post('/screening/complete', { sessionId, status });
-  console.log('✅ 스크리닝 완료 처리됨');
-};

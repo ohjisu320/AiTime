@@ -2,11 +2,6 @@ import { useState, useEffect } from 'react';
 import { getExamInfo, type VideoTask as ServerVideoTask } from '../api/examApi';
 import type { Mission } from '../types/mission';
 
-import { getMockExamProgress } from '../mocks/missionMock';
-
-// 💡 서버 연동 시 false로 변경하세요!
-const USE_MOCK = false;
-
 // ----------------------------------------------------------------------
 // 1. UI 전용 메타 데이터 (고정 정보 - 타이틀, 색상 등)
 // ----------------------------------------------------------------------
@@ -146,54 +141,20 @@ export const useMissions = (examId?: string) => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const accessToken = localStorage.getItem('accessToken');
+
     // ✅ childId 또는 selectedChildId 확인 (프로필 선택 시 selectedChildId로 저장됨)
-    const childId = localStorage.getItem('selectedChildId') || localStorage.getItem('childId');
-    const hasAuth = !!accessToken && !!childId;
+    const childId = localStorage.getItem('selectedChildId');
 
-    // 모의 데이터 사용 조건
-    if (!hasAuth || USE_MOCK) {
-      console.log("Using Mock Data (Reason: No Auth or Forced Mock)");
-      const responseData = getMockExamProgress();
 
-      const { under18, videoTasks } = responseData.data;
-      const ageGroupKey = under18 ? '12-17' : '18-23';
-      setIsUnder18(under18);
-
-      const mergedMissions: Mission[] = videoTasks.map((task: any) => {
-        // Mock 데이터는 이미 POSE_IMITATION 등의 키를 사용할 수 있지만, 
-        // 혹시 모르니 그대로 사용하거나 필요한 경우 여기서 매핑 (지금은 서버 타입을 그대로 쓰는 방향)
-        const uiVideoType = task.videoType;
-        const uiMeta = MISSION_UI_META[uiVideoType] || {};
-        const detailMeta = MISSION_DETAIL_BY_AGE[uiVideoType] || {};
-
-        let ageSpecificDetail = detailMeta[ageGroupKey] || {};
-        if (detailMeta.common) {
-          ageSpecificDetail = { ...ageSpecificDetail, ...detailMeta.common };
-        }
-
-        return {
-          ...task,
-          ...uiMeta,
-          detail: ageSpecificDetail,
-          type: uiVideoType,
-          videoType: uiVideoType,
-          originalVideoType: task.videoType
-        } as Mission;
-      });
-
-      setMissions(mergedMissions);
-      setIsLoading(false);
-      return;
-    }
 
     const fetchAllData = async () => {
       try {
+        setIsLoading(true); // 로딩 시작 명시
         setError(null);
         if (!childId) throw new Error("Child Check Failed");
 
         // ✅ 실제 API 호출 (getExamInfo 사용)
-        const examInfo = await getExamInfo(childId);
+        const examInfo = await getExamInfo(childId as string);
 
         const { under18, videoTasks } = examInfo;
 
@@ -204,7 +165,6 @@ export const useMissions = (examId?: string) => {
         // 2. 서버 데이터 매핑
         const mergedMissions: Mission[] = videoTasks.map((task: ServerVideoTask) => {
           // 서버 타입(POSE_IMITATION 등)을 그대로 UI 타입으로 사용
-          // 이제 VIDEO_TYPE_MAP 매핑 과정이 불필요함
           const uiVideoType = task.videoType;
 
           const uiMeta = MISSION_UI_META[uiVideoType] || {};
@@ -215,47 +175,33 @@ export const useMissions = (examId?: string) => {
             ageSpecificDetail = { ...ageSpecificDetail, ...detailMeta.common };
           }
 
+
+          // ✅ 월령별 분기 처리 (SCREENING_CONTENT 매핑용)
+          let resolvedVideoType: string = uiVideoType;
+          if (['POSE_IMITATION', 'SPEECH_IMITATION'].includes(uiVideoType)) {
+            resolvedVideoType = `${uiVideoType}${under18 ? '_12M' : '_18M'}`;
+          }
+
           return {
             ...task,
             ...uiMeta,
             detail: ageSpecificDetail,
-            type: uiVideoType,
-            videoType: uiVideoType,
+            type: resolvedVideoType,
+            videoType: resolvedVideoType,
             originalVideoType: task.videoType
           } as Mission;
         });
 
         // 정렬 순서 정의
         const order = ['POSE_IMITATION', 'SPEECH_IMITATION', 'NAME_FACING', 'NAME_NON_FACING'];
-        mergedMissions.sort((a, b) => order.indexOf(a.type) - order.indexOf(b.type));
+        mergedMissions.sort((a, b) => order.indexOf(a.originalVideoType || '') - order.indexOf(b.originalVideoType || ''));
 
         setMissions(mergedMissions);
 
       } catch (err) {
-        console.error("데이터 조회 중 오류 발생 (Switching to Mock):", err);
-        const responseData = getMockExamProgress();
-        const { under18, videoTasks } = responseData.data;
-
-        setIsUnder18(under18);
-        const ageGroupKey = under18 ? '12-17' : '18-23';
-
-        const mergedMissions: Mission[] = videoTasks.map((task: any) => {
-          const uiVideoType = task.videoType;
-          const uiMeta = MISSION_UI_META[uiVideoType] || {};
-          const detailMeta = MISSION_DETAIL_BY_AGE[uiVideoType] || {};
-          let ageSpecificDetail = detailMeta[ageGroupKey] || {};
-          if (detailMeta.common) ageSpecificDetail = { ...ageSpecificDetail, ...detailMeta.common };
-
-          return {
-            ...task,
-            ...uiMeta,
-            detail: ageSpecificDetail,
-            type: uiVideoType,
-            videoType: uiVideoType,
-            originalVideoType: task.videoType
-          } as Mission;
-        });
-        setMissions(mergedMissions);
+        console.error("데이터 조회 중 오류 발생:", err);
+        setError("데이터를 불러오는 중 오류가 발생했습니다.");
+        setMissions([]);
 
         // 에러 메시지 안전하게 추출
         let errorMessage = "데이터를 불러오는 중 오류가 발생했습니다.";

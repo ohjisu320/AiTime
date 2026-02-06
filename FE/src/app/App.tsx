@@ -14,12 +14,14 @@ const queryClient = new QueryClient({
   },
 });
 
+import { Toaster } from "@/components/ui/sonner";
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
+      <Toaster />
     </QueryClientProvider>
   );
 }
-
-export default App; 
+export default App;

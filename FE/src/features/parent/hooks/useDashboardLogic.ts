@@ -23,7 +23,7 @@ export const useDashboardLogic = (callbacks?: DashboardCallbacks) => {
     const { data, isLoading, isError, refetch } = useParentDashboard();
 
     // Helper: Calculate D-Day
-    const calculateDDay = (targetDate: string | null) => {
+    const calculateDDay = (targetDate?: string | null) => {
         if (!targetDate) return "만료됨";
         const now = new Date();
         const target = new Date(targetDate);

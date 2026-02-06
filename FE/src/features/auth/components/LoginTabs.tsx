@@ -1,10 +1,9 @@
 // src/features/auth/components/LoginTabs.tsx
 import { cn } from "@/lib/utils";
-import type { AuthTabType } from "../types"; // [수정] type 추가
 
 interface LoginTabsProps {
-  activeTab: AuthTabType;
-  onTabChange: (tab: AuthTabType) => void;
+  activeTab: "PARENT";
+  onTabChange: (tab: "PARENT") => void;
 }
 
 export default function LoginTabs({ activeTab, onTabChange }: LoginTabsProps) {
@@ -15,16 +14,6 @@ export default function LoginTabs({ activeTab, onTabChange }: LoginTabsProps) {
           label="부모"
           isActive={activeTab === "PARENT"}
           onClick={() => onTabChange("PARENT")}
-        />
-        <TabButton
-          label="의료진"
-          isActive={activeTab === "DOCTOR"}
-          onClick={() => onTabChange("DOCTOR")}
-        />
-        <TabButton
-          label="접수처"
-          isActive={activeTab === "DESK"}
-          onClick={() => onTabChange("DESK")}
         />
       </div>
     </div>

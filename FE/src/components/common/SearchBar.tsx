@@ -2,6 +2,7 @@ import React from "react";
 import { Search, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { formatBirthdate, formatPhone } from "@/utils/inputFormatter";
 
 interface FilterState {
   name: string;
@@ -37,7 +38,7 @@ export default function SearchBar({
         <span className="text-sm font-bold text-gray-600 shrink-0">환자명</span>
         <Input
           placeholder="김누구"
-          className="w-32 h-10 bg-gray-50 border-gray-200 focus-visible:ring-[#5A55D6]"
+          className="w-32 h-10 bg-gray-50 border-gray-200 focus-visible:ring-brand-deep-blue"
           value={filters.name}
           onChange={(e) => onFilterChange("name", e.target.value)}
           onKeyDown={handleKeyDown}
@@ -51,9 +52,10 @@ export default function SearchBar({
         </span>
         <Input
           placeholder="2026.01.01"
-          className="w-36 h-10 bg-gray-50 border-gray-200 focus-visible:ring-[#5A55D6]"
+          className="w-36 h-10 bg-gray-50 border-gray-200 focus-visible:ring-brand-deep-blue"
           value={filters.birthDate}
-          onChange={(e) => onFilterChange("birthDate", e.target.value)}
+          maxLength={10}
+          onChange={(e) => onFilterChange("birthDate", formatBirthdate(e.target.value))}
           onKeyDown={handleKeyDown}
         />
       </div>
@@ -65,9 +67,10 @@ export default function SearchBar({
         </span>
         <Input
           placeholder="010-1234-5678"
-          className="w-40 h-10 bg-gray-50 border-gray-200 focus-visible:ring-[#5A55D6]"
+          className="w-40 h-10 bg-gray-50 border-gray-200 focus-visible:ring-brand-deep-blue"
           value={filters.phone}
-          onChange={(e) => onFilterChange("phone", e.target.value)}
+          maxLength={13}
+          onChange={(e) => onFilterChange("phone", formatPhone(e.target.value))}
           onKeyDown={handleKeyDown}
         />
       </div>
@@ -87,7 +90,7 @@ export default function SearchBar({
         </Button>
         <Button
           onClick={onSearch}
-          className="bg-gray-200 hover:bg-gray-300 text-gray-800 h-10 px-6 text-sm font-bold shadow-sm transition-colors"
+          className="bg-brand-deep-blue hover:bg-brand-deep-blue/90 text-white h-10 px-6 text-sm font-bold shadow-sm transition-colors"
         >
           <Search className="w-4 h-4 mr-2" />
           검색하기

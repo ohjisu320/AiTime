@@ -1,6 +1,6 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { Room, RoomEvent, RemoteParticipant, setLogLevel, LogLevel, type RoomConnectOptions, createLocalVideoTrack, createLocalAudioTrack, LocalVideoTrack, LocalAudioTrack } from 'livekit-client';
-import { startScreeningSession, completeScreening, type ScreeningDataMessage } from '../api/screeningApi';
+import { startScreeningSession, type ScreeningDataMessage } from '../api/screeningApi';
 
 if (import.meta.env.DEV) {
     setLogLevel(LogLevel.debug);
@@ -198,7 +198,6 @@ export const useLiveKitScreening = (): UseLiveKitScreeningReturn => {
                         updateStatus('ready');
                         if (isMountedRef.current) setIsAligned(true);
                         updateGuide('스크리닝 완료! 검사를 시작할 수 있습니다.');
-                        if (newSessionId) completeScreening(newSessionId, 'success').catch(console.error);
                     } else if (msg.type === 'error') {
                         updateGuide(`오류: ${msg.message}`);
                     }
