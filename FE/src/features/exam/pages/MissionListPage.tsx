@@ -133,11 +133,11 @@ const MissionListPage: React.FC = () => {
                 ]}
               />
               <BigActionButton
-                disabled={!isAllDone}
+                disabled={!isAllDone || examStatus === 'COMPLETED'}
                 onClick={() => setSubmitModalOpen(true)}
                 variant="violet"
               >
-                리포트 전송하기
+                {examStatus === 'COMPLETED' ? '리포트 전송 완료' : '리포트 전송하기'}
               </BigActionButton>
             </div>
           </div>
