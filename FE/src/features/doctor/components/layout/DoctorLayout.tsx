@@ -36,7 +36,7 @@ export default function DoctorLayout({ panels }: DoctorLayoutProps) {
                     type: "tabset",
                     weight: 15,
                     children: [
-                        { type: "tab", name: "세션 목록", component: "session-list" }
+                        { type: "tab", name: "영상 목록", component: "session-list" }
                     ]
                 },
                 // 3. 중앙 분석 (비디오) - 비중을 좀 더 높임
@@ -44,7 +44,7 @@ export default function DoctorLayout({ panels }: DoctorLayoutProps) {
                     type: "tabset",
                     weight: 40,
                     children: [
-                        { type: "tab", name: "중앙 분석", component: "central-analysis" }
+                        { type: "tab", name: "영상 분석", component: "central-analysis" }
                     ]
                 },
                 // 4. 우측 컬럼 (상: 트렌드 / 하: AI 진단) - 세로 배치
@@ -56,7 +56,7 @@ export default function DoctorLayout({ panels }: DoctorLayoutProps) {
                             type: "tabset",
                             weight: 50, // 높이 비율 50%
                             children: [
-                                { type: "tab", name: "트렌드 차트", component: "trend-chart" }
+                                { type: "tab", name: "지표 변화", component: "trend-chart" }
                             ]
                         },
                         {
