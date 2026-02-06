@@ -24,7 +24,7 @@ export const WindowsButton = ({ children, onClick, className }: any) => (
   <button
     onClick={onClick}
     className={cn(
-      "bg-[#d4d0c8] border-2 border-white border-r-[#404040] border-b-[#404040] active:border-t-[#404040] active:border-l-[#404040] px-2 py-0.5 text-[11px] font-bold cursor-pointer font-['Gulim']",
+      "bg-[#d4d0c8] border-2 border-white border-r-[#404040] border-b-[#404040] active:border-t-[#404040] active:border-l-[#404040] px-3 py-1 text-[12px] font-bold cursor-pointer font-['Gulim']",
       className,
     )}
   >
@@ -32,7 +32,7 @@ export const WindowsButton = ({ children, onClick, className }: any) => (
   </button>
 );
 
-// 섹션 헤더
+// 섹션 헤더 (제목 크기 증가)
 export const SectionHeader = ({
   title,
   children,
@@ -40,8 +40,8 @@ export const SectionHeader = ({
   title: string;
   children?: React.ReactNode;
 }) => (
-  <div className="flex justify-between items-center bg-[#d4d0c8] border border-[#808080] px-2 py-1 mb-1">
-    <span className="font-bold text-[#000080] text-[11px]">{title}</span>
+  <div className="flex justify-between items-center bg-[#d4d0c8] border border-[#808080] px-2 py-1.5 mb-1">
+    <span className="font-bold text-[#000080] text-[13px]">{title}</span>
     {children}
   </div>
 );

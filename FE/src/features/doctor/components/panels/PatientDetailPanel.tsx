@@ -1,4 +1,3 @@
-// src/features/doctor/components/panels/PatientDetailPanel.tsx
 import { useNavigate } from "react-router-dom";
 import { logoutHospitalStaff } from "@/features/desk/api/hospitalStaffApi";
 import type { PatientDetailFull } from "../../types/doctor";
@@ -14,109 +13,129 @@ export default function PatientDetailPanel({ patient, toggleSidebar }: Props) {
   const handleLogout = async () => {
     try {
       await logoutHospitalStaff();
-    } catch (e) { console.error(e); }
-    localStorage.clear();
-    navigate("/login");
+    } catch (error) {
+      console.error("로그아웃 API 실패:", error);
+    } finally {
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("refreshToken");
+      localStorage.removeItem("user");
+      navigate("/login");
+    }
   };
 
   if (!patient) {
     return (
-      <div className="flex flex-col h-full bg-[#f7f7f7] font-['Gulim'] text-[11px]">
-        <div className="bg-[#000080] p-[2px]">
-          <button onClick={toggleSidebar} className="windows-btn">▶ 목록 열기</button>
+      <div className="flex flex-col h-full bg-[#f7f7f7] border-r border-[#808080] font-['Gulim'] text-[13px]">
+        <div className="bg-[#000080] p-[3px] flex justify-start shrink-0">
+          <button
+            onClick={toggleSidebar}
+            className="bg-[#d4d0c8] text-black px-4 py-1 border-2 border-white border-r-[#404040] border-b-[#404040] active:border-t-[#404040] active:border-l-[#404040] text-[12px] font-bold cursor-pointer"
+          >
+            ▶ 열기
+          </button>
         </div>
-        <div className="flex-1 flex items-center justify-center text-gray-400">
-          좌측 상단 [▶ 목록 열기]를 눌러<br />환자를 선택해주세요.
+        <div className="flex-1 p-4 flex items-center justify-center text-gray-500 text-[14px]">
+          환자를 선택해주세요
         </div>
-        <div className="p-2 bg-[#d4d0c8]">
-          <button onClick={handleLogout} className="w-full font-bold text-red-600 windows-btn">로그아웃</button>
+        <div className="p-3 border-t border-[#808080] shrink-0 mt-auto bg-[#f0f0f0]">
+          <button
+            onClick={handleLogout}
+            className="w-full bg-[#d4d0c8] border-2 border-white border-r-[#404040] border-b-[#404040] active:border-t-[#404040] active:border-l-[#404040] text-[#ff0000] font-bold py-2.5 cursor-pointer text-center hover:bg-[#e0e0e0] transition-colors text-[13px]"
+          >
+            로그아웃 (LOGOUT)
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full bg-[#f7f7f7] font-['Gulim'] text-[11px]">
-      <div className="bg-[#000080] p-[2px] shrink-0">
-        <button onClick={toggleSidebar} className="windows-btn">▶ 다른 환자 선택</button>
+    <div className="flex flex-col h-full bg-[#f7f7f7] border-r border-[#808080] font-['Gulim'] text-[13px]">
+      <div className="bg-[#000080] p-[3px] flex justify-start shrink-0">
+        <button
+          onClick={toggleSidebar}
+          className="bg-[#d4d0c8] text-black px-4 py-1 border-2 border-white border-r-[#404040] border-b-[#404040] active:border-t-[#404040] active:border-l-[#404040] text-[12px] font-bold cursor-pointer"
+        >
+          ▶ 열기
+        </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3 space-y-4">
-        {/* 기본 정보 */}
-        <div>
-          <div className="windows-header mb-1">환자 기본 정보</div>
-          <div className="bg-white border inset-border p-2 space-y-1">
-            <div className="font-bold text-[12px] border-b pb-1 mb-1">
-              {patient.name} ({patient.gender === "MALE" ? "남" : "여"}, {patient.monthlyAge}개월)
+      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-6">
+        <div className="flex flex-col gap-2">
+          <div className="bg-[#d4d0c8] border border-[#808080] px-2 py-2 font-bold mb-1 shadow-sm text-[13px]">
+            환자 기본 정보
+          </div>
+
+          <div className="border border-[#808080] bg-white p-3 mb-2 leading-[1.8] shadow-sm">
+            <div className="text-[14px]">
+              성명:{" "}
+              <span className="text-[15px] font-bold">{patient.name}</span> (
+              {patient.gender === "MALE" ? "남" : "여"}/{patient.monthlyAge}개월)
             </div>
-            <div><span className="font-bold w-12 inline-block">생년월일:</span> {patient.birthdate}</div>
-            <div><span className="font-bold w-12 inline-block">신체:</span> {patient.height} / {patient.weight}</div>
-            <div><span className="font-bold w-12 inline-block">보호자:</span> {patient.caregiver}</div>
+          </div>
+
+          <div className="space-y-2 pl-1 text-[#333] text-[13px]">
+            <div><span className="font-bold text-[#000] inline-block w-[80px]">생년월일:</span> {patient.birthdate}</div>
+            <div><span className="font-bold text-[#000] inline-block w-[80px]">신체정보:</span> {patient.height} / {patient.weight}</div>
+            <div><span className="font-bold text-[#000] inline-block w-[80px]">주양육자:</span> {patient.caregiver}</div>
+            <div><span className="font-bold text-[#000] inline-block w-[80px]">복용약물:</span> {patient.medication}</div>
+            <div><span className="font-bold text-[#000] inline-block w-[80px]">가족력:</span> {patient.familyHistory}</div>
           </div>
         </div>
 
-        {/* 병력 */}
-        <div>
-          <div className="windows-header mb-1">과거 병력</div>
-          <table className="w-full border-collapse border border-gray-400 bg-white">
+        <div className="flex flex-col gap-1">
+          <div className="bg-[#d4d0c8] border border-[#808080] px-2 py-2 font-bold mb-1 shadow-sm text-[13px]">
+            과거 병력 (History)
+          </div>
+          <table className="w-full border-collapse bg-white text-[13px] shadow-sm">
+            <thead>
+              <tr className="bg-[#e2e2e2]">
+                <th className="border border-[#999] p-2 w-[80px] text-center font-bold">구분</th>
+                <th className="border border-[#999] p-2 font-bold">상세 내용</th>
+              </tr>
+            </thead>
             <tbody>
-              {patient.history.map((h, i) => (
-                <tr key={i} className="border-b border-gray-200">
-                  <td className="bg-gray-100 p-1 w-14 text-center border-r font-bold">{h.category}</td>
-                  <td className="p-1">{h.content}</td>
+              {patient.history.map((item, idx) => (
+                <tr key={`hist-${idx}`}>
+                  <td className="border border-[#ccc] p-2 text-center bg-[#f9f9f9] font-bold text-[#555]">{item.category}</td>
+                  <td className="border border-[#ccc] p-2">{item.content}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
 
-        {/* 주호소 */}
-        <div>
-          <div className="windows-header mb-1">주호소 및 관찰</div>
-          <ul className="list-disc list-inside bg-white border inset-border p-2 space-y-1">
-            {patient.complaints.map((c, i) => (
-              <li key={i}>
-                <span className="font-bold">[{c.category}]</span> {c.content}
-              </li>
-            ))}
-          </ul>
+        <div className="flex flex-col gap-1">
+          <div className="bg-[#d4d0c8] border border-[#808080] px-2 py-2 font-bold mb-1 shadow-sm text-[13px]">
+            상세 호소 및 관찰
+          </div>
+          <table className="w-full border-collapse bg-white text-[13px] shadow-sm">
+            <thead>
+              <tr className="bg-[#e2e2e2]">
+                <th className="border border-[#999] p-2 w-[80px] text-center font-bold">분류</th>
+                <th className="border border-[#999] p-2 font-bold">관찰 내용</th>
+              </tr>
+            </thead>
+            <tbody>
+              {patient.complaints.map((item, idx) => (
+                <tr key={`comp-${idx}`}>
+                  <td className="border border-[#ccc] p-2 text-center bg-[#f9f9f9] font-bold text-[#555]">{item.category}</td>
+                  <td className="border border-[#ccc] p-2">{item.content}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
 
-      <div className="p-2 bg-[#d4d0c8] shrink-0 border-t border-white">
-        <button onClick={handleLogout} className="w-full font-bold text-red-600 windows-btn py-1">
-          로그아웃 (EXIT)
+      <div className="p-3 border-t border-[#808080] shrink-0 mt-auto bg-[#f0f0f0]">
+        <button
+          onClick={handleLogout}
+          className="w-full bg-[#d4d0c8] border-2 border-white border-r-[#404040] border-b-[#404040] active:border-t-[#404040] active:border-l-[#404040] text-[#ff0000] font-bold py-2.5 cursor-pointer text-center hover:bg-[#e0e0e0] transition-colors text-[13px]"
+        >
+          로그아웃 (LOGOUT)
         </button>
       </div>
-
-      <style>{`
-        .windows-btn {
-          background: #d4d0c8;
-          border-top: 2px solid white;
-          border-left: 2px solid white;
-          border-right: 2px solid #404040;
-          border-bottom: 2px solid #404040;
-          padding: 2px 8px;
-          font-weight: bold;
-          font-size: 11px;
-        }
-        .windows-btn:active {
-          border-top: 2px solid #404040;
-          border-left: 2px solid #404040;
-          border-right: 2px solid white;
-          border-bottom: 2px solid white;
-        }
-        .windows-header {
-          background: linear-gradient(90deg, #000080, #1084d0);
-          color: white;
-          padding: 2px 4px;
-          font-weight: bold;
-        }
-        .inset-border {
-          border: 2px solid;
-          border-color: #808080 white white #808080;
-        }
-      `}</style>
     </div>
   );
 }
