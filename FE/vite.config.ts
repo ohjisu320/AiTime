@@ -71,6 +71,32 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // 청크 파일명에 해시를 포함하여 캐시 문제 방지
+        chunkFileNames: 'assets/[name]-[hash].js',
+        entryFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash].[ext]',
+        // 청크 분할 전략 최적화
+        manualChunks: (id) => {
+          // node_modules는 vendor 청크로 분리
+          if (id.includes('node_modules')) {
+            // 큰 라이브러리들은 별도 청크로 분리
+            if (id.includes('livekit')) return 'livekit-vendor';
+            if (id.includes('react-router')) return 'router-vendor';
+            if (id.includes('react') || id.includes('react-dom')) return 'react-vendor';
+            return 'vendor';
+          }
+          // 페이지별 청크 분할
+          if (id.includes('/features/exam/')) return 'exam-feature';
+          if (id.includes('/features/monitoring/')) return 'monitoring-feature';
+        },
+      },
+    },
+    // 청크 크기 경고 임계값 조정
+    chunkSizeWarningLimit: 1000,
+  },
   // 1. 개발 서버 설정 (npm run dev)
   server: {
     proxy: {
