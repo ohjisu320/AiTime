@@ -208,18 +208,23 @@ class SimilarityCalculator:
         self,
         query: np.ndarray,
         reference: np.ndarray,
-        aligned: bool = True
+        aligned: bool = True,
+        action_type: Optional[str] = None
     ) -> SimilarityResult:
         """
         두 시퀀스의 유사도 계산 (벡터화 버전).
         
-        유클리드 거리 역수 방식을 사용하여 유사도를 계산합니다.
-        similarity = 1 / (1 + euclidean_distance)
+        동작 타입에 따라 다른 유사도 계산 방식을 사용합니다:
+        - 상체 동작(throwing, hurray, clapping): 코사인 유사도 (어깨, 팔 관절)
+        - 하체 동작(kicking, jumping): 코사인 유사도 (골반, 다리 관절)
+        - 전신 동작(walking_back): 코사인 유사도 (전체 관절)
+        - 기타: 유클리드 거리 역수 (기존 방식)
         
         Args:
             query: 입력 시퀀스 shape (T, 17, 3)
             reference: 기준 시퀀스 shape (T, 17, 3)
             aligned: DTW 정렬 완료 여부
+            action_type: 동작 타입 (throwing, hurray, clapping, kicking, jumping, walking_back 등)
             
         Returns:
             SimilarityResult 객체
@@ -242,6 +247,13 @@ class SimilarityCalculator:
         
         T = len(query)
         
+        # 동작 타입에 따른 유사도 계산 방식 결정
+        use_cosine = self._should_use_cosine_similarity(action_type)
+        if use_cosine:
+            logger.info(f"코사인 유사도 사용 (동작: {action_type})")
+        else:
+            logger.info(f"유클리드 거리 역수 사용 (동작: {action_type})")
+        
         # ====================================================================
         # 벡터화된 유사도 계산
         # ====================================================================
@@ -263,14 +275,22 @@ class SimilarityCalculator:
         part_similarities: dict[str, np.ndarray] = {}
         for part, indices in self.keypoint_groups.items():
             idx_list = [int(i) for i in indices]
-            part_distances = keypoint_distances[:, idx_list]  # (T, n_keypoints)
             
-            # NaN 제외 평균 거리
-            with np.errstate(all='ignore'):
-                mean_dist = np.nanmean(part_distances, axis=1)  # (T,)
-            
-            # 유클리드 거리 역수로 유사도 변환
-            part_similarities[part] = self._euclidean_similarity(mean_dist)
+            if use_cosine:
+                # 코사인 유사도 계산
+                part_similarities[part] = self._compute_part_cosine_similarity(
+                    query, reference, idx_list, valid_keypoints
+                )
+            else:
+                # 유클리드 거리 역수 계산 (기존 방식)
+                part_distances = keypoint_distances[:, idx_list]  # (T, n_keypoints)
+                
+                # NaN 제외 평균 거리
+                with np.errstate(all='ignore'):
+                    mean_dist = np.nanmean(part_distances, axis=1)  # (T,)
+                
+                # 유클리드 거리 역수로 유사도 변환
+                part_similarities[part] = self._euclidean_similarity(mean_dist)
         
         # 5. 가중 평균으로 프레임별 유사도 계산
         part_names = list(self.keypoint_groups.keys())
@@ -434,6 +454,30 @@ class SimilarityCalculator:
         return float(self._euclidean_similarity(mean_distance))
     
     @staticmethod
+    def _should_use_cosine_similarity(action_type: Optional[str]) -> bool:
+        """
+        동작 타입에 따라 코사인 유사도 사용 여부 결정.
+        
+        Args:
+            action_type: 동작 타입
+            
+        Returns:
+            코사인 유사도 사용 여부
+        """
+        if action_type is None:
+            return False
+        
+        # 상체 동작: 공던지기, 만세, 박수
+        upper_body_actions = ["throwing", "hurray", "clapping"]
+        # 하체 동작: 공차기, 점프
+        lower_body_actions = ["kicking", "jumping"]
+        # 전신 동작: 뒤로 걷기
+        full_body_actions = ["walking_back"]
+        
+        action_lower = action_type.lower()
+        return action_lower in upper_body_actions + lower_body_actions + full_body_actions
+    
+    @staticmethod
     def _euclidean_similarity(distance: np.ndarray) -> np.ndarray:
         """
         유클리드 거리를 유사도로 변환.
@@ -450,6 +494,57 @@ class SimilarityCalculator:
             유사도 (0~1 범위)
         """
         return 1.0 / (1.0 + distance)
+    
+    def _compute_part_cosine_similarity(
+        self,
+        query: np.ndarray,
+        reference: np.ndarray,
+        indices: list[int],
+        valid_keypoints: np.ndarray
+    ) -> np.ndarray:
+        """
+        특정 부위의 코사인 유사도 계산.
+        
+        Args:
+            query: 쿼리 시퀀스 (T, 17, 3)
+            reference: 참조 시퀀스 (T, 17, 3)
+            indices: 부위 키포인트 인덱스
+            valid_keypoints: 유효 키포인트 마스크 (T, 17)
+            
+        Returns:
+            프레임별 유사도 (T,)
+        """
+        T = len(query)
+        part_sims = np.zeros(T)
+        
+        for t in range(T):
+            # 해당 부위의 유효한 키포인트만 선택
+            valid_mask = valid_keypoints[t, indices]
+            if np.sum(valid_mask) < 2:
+                part_sims[t] = 0.0
+                continue
+            
+            # 유효한 키포인트의 좌표만 추출
+            q_coords = query[t, indices, :2][valid_mask]  # (n, 2)
+            r_coords = reference[t, indices, :2][valid_mask]  # (n, 2)
+            
+            # 벡터를 flatten
+            q_flat = q_coords.flatten()  # (2n,)
+            r_flat = r_coords.flatten()  # (2n,)
+            
+            # 코사인 유사도 계산
+            dot_product = np.dot(q_flat, r_flat)
+            q_norm = np.linalg.norm(q_flat)
+            r_norm = np.linalg.norm(r_flat)
+            
+            if q_norm > EPSILON and r_norm > EPSILON:
+                cos_sim = dot_product / (q_norm * r_norm)
+                # -1~1 → 0~1 정규화
+                part_sims[t] = (cos_sim + 1.0) / 2.0
+            else:
+                part_sims[t] = 0.0
+        
+        return part_sims
     
     @staticmethod
     def _cosine_similarity_vectorized(

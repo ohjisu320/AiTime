@@ -60,12 +60,16 @@ def _load_detector():
         return _detector
     
     try:
-        from retinaface import RetinaFace as RF
-        _detector = RF
+        from retinaface import RetinaFaceDetector
+        _detector = RetinaFaceDetector()
         _detector_available = True
         logger.info("✅ RetinaFace 로드 성공")
-    except ImportError:
-        logger.warning("⚠️ RetinaFace 없음, OpenCV Haar Cascade로 폴백")
+    except ImportError as e:
+        logger.warning(f"⚠️ RetinaFace 없음 ({e}), OpenCV Haar Cascade로 폴백")
+        _detector_available = False
+        _detector = None
+    except Exception as e:
+        logger.warning(f"⚠️ RetinaFace 로드 실패 ({e}), OpenCV Haar Cascade로 폴백")
         _detector_available = False
         _detector = None
     
@@ -79,7 +83,7 @@ class FaceDetector:
     RetinaFace를 사용하며, 없을 경우 OpenCV Haar Cascade로 폴백합니다.
     """
     
-    def __init__(self, min_face_size: int = 64, confidence_threshold: float = 0.9):
+    def __init__(self, min_face_size: int = 40, confidence_threshold: float = 0.7):
         """
         FaceDetector 초기화.
         
@@ -95,7 +99,7 @@ class FaceDetector:
         _load_detector()
         
         logger.info(
-            f"FaceDetector 초기화: min_size={min_face_size}, "
+            f"FaceDetector 초기화: min_size={min_face_size}, confidence={confidence_threshold:.2f}, "
             f"backend={'RetinaFace' if _detector_available else 'Haar Cascade'}"
         )
     
@@ -117,36 +121,43 @@ class FaceDetector:
     def _detect_retinaface(self, frame_bgr: np.ndarray) -> list[FaceDetection]:
         """RetinaFace로 얼굴 탐지"""
         try:
-            # RetinaFace는 RGB를 기대하지만 BGR도 작동함
-            faces = _detector.detect_faces(frame_bgr)
+            import cv2
+            # BGR to RGB 변환
+            frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
             
-            if not faces:
+            # inference 메서드 사용
+            # 반환 형식: {'bbox': [[x1, y1, x2, y2]], 'score': [confidence], 'landmarks': [5x2 array]}
+            faces_dict = _detector.inference(frame_rgb)
+            
+            if faces_dict is None or 'bbox' not in faces_dict or len(faces_dict['bbox']) == 0:
+                logger.debug("RetinaFace: 얼굴 미탐지")
                 return []
             
             results = []
-            for face_key, face_data in faces.items():
-                confidence = face_data.get("score", 0.0)
+            bboxes = faces_dict['bbox']
+            scores = faces_dict.get('score', [1.0] * len(bboxes))
+            landmarks_list = faces_dict.get('landmarks', [None] * len(bboxes))
+            
+            for i, bbox in enumerate(bboxes):
+                confidence = scores[i] if i < len(scores) else 1.0
+                
                 if confidence < self.confidence_threshold:
+                    logger.debug(f"RetinaFace: 신뢰도 낮음 ({confidence:.2f} < {self.confidence_threshold:.2f})")
                     continue
                 
-                facial_area = face_data.get("facial_area", [0, 0, 0, 0])
-                x1, y1, x2, y2 = facial_area
+                x1, y1, x2, y2 = bbox
                 
                 # 최소 크기 필터링
-                if (x2 - x1) < self.min_face_size or (y2 - y1) < self.min_face_size:
+                face_width = x2 - x1
+                face_height = y2 - y1
+                if face_width < self.min_face_size or face_height < self.min_face_size:
+                    logger.debug(f"RetinaFace: 얼굴 크기 작음 ({face_width}x{face_height} < {self.min_face_size})")
                     continue
                 
                 # 랜드마크 추출
-                landmarks = None
-                if "landmarks" in face_data:
-                    lm = face_data["landmarks"]
-                    landmarks = np.array([
-                        lm.get("left_eye", [0, 0]),
-                        lm.get("right_eye", [0, 0]),
-                        lm.get("nose", [0, 0]),
-                        lm.get("mouth_left", [0, 0]),
-                        lm.get("mouth_right", [0, 0]),
-                    ], dtype=np.float32)
+                landmarks = landmarks_list[i] if i < len(landmarks_list) and landmarks_list[i] is not None else None
+                if landmarks is not None and not isinstance(landmarks, np.ndarray):
+                    landmarks = np.array(landmarks, dtype=np.float32)
                 
                 results.append(FaceDetection(
                     bbox=(int(x1), int(y1), int(x2), int(y2)),
@@ -154,6 +165,8 @@ class FaceDetector:
                     landmarks=landmarks
                 ))
             
+            
+            logger.debug(f"RetinaFace: {len(results)}개 얼굴 탐지됨")
             return results
             
         except Exception as e:

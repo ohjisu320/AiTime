@@ -25,6 +25,8 @@ from app.rtn.pipeline.window_analyzer import WindowAnalyzer
 from app.rtn.types import FrameBGR
 from app.rtn.vision.mp_face_detector import FaceDetectorMP
 from app.rtn.vision.mp_facemesh import FaceMeshMP
+from app.rtn.vision.openvino_face_detector import OpenVINOFaceDetector
+from app.rtn.vision.yolo_face_detector import YOLOFaceDetector
 
 logger = logging.getLogger("RTNAnalyzer.pipeline.video_analyzer")
 
@@ -49,7 +51,16 @@ class VideoAnalyzer:
         self.emotion_cfg = emotion_cfg
 
         self.vad = SileroVAD(vad_cfg)
-        self.detector = FaceDetectorMP(face_cfg)
+
+        # Detector selection
+        if face_cfg.model_selection == 2:
+            self.detector = OpenVINOFaceDetector(face_cfg.yolo_cfg)
+        elif face_cfg.model_selection == 1:
+            self.detector = YOLOFaceDetector(face_cfg.yolo_cfg)
+        else:
+            self.detector = FaceDetectorMP(face_cfg)
+
+        # FaceMeshMP는 기본 파라미터 사용 (별도 config 없음)
         self.facemesh = FaceMeshMP()
 
         self.window_analyzer = WindowAnalyzer(
