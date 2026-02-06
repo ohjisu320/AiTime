@@ -1,10 +1,12 @@
 package com.ssafy.aitime.domain.exam.service;
 
 import com.ssafy.aitime.domain.child.entity.Child;
+import com.ssafy.aitime.domain.exam.dto.response.AdosDetailResponse;
 import com.ssafy.aitime.domain.exam.dto.response.ExamInfoResponse;
 import com.ssafy.aitime.domain.exam.dto.response.ExamStartResponse;
 import com.ssafy.aitime.domain.exam.dto.response.ExamSummaryDTO;
 import com.ssafy.aitime.domain.exam.entity.Exam;
+import com.ssafy.aitime.domain.hospital.dto.response.AdosReportGraphsResponse;
 
 import java.util.List;
 import java.util.Map;
@@ -35,4 +37,20 @@ public interface ExamService {
      * Child 도메인에서 권한 확인 및 개월 수 검증 후 호출됨
      */
     ExamInfoResponse getExamInfo(UUID childId, boolean underEighteen);
+
+    /**
+     * 여러 Child의 모든 Exam을 최신순으로 조회
+     */
+    List<Exam> getExamsByChildIds(List<UUID> childIds);
+
+    /**
+     * 특정 Child의 모든 Exam을 최신순으로 조회
+     */
+    List<Exam> getExamsByChildId(UUID childId);
+
+    AdosReportGraphsResponse getAdosGraphData(UUID childId);
+
+    AdosDetailResponse getAdosDetail(UUID examId);
+
+    Exam getExamById(UUID examId);
 }

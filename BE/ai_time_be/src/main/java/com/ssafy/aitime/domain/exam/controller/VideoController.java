@@ -3,10 +3,7 @@ package com.ssafy.aitime.domain.exam.controller;
 import com.ssafy.aitime.common.response.ApiResponse;
 import com.ssafy.aitime.domain.exam.dto.request.PresignedKeyRequest;
 import com.ssafy.aitime.domain.exam.dto.request.VideoUploadCompleteRequest;
-import com.ssafy.aitime.domain.exam.dto.response.PresignedKeyResponse;
-import com.ssafy.aitime.domain.exam.dto.response.PresignedViewUrlResponse;
-import com.ssafy.aitime.domain.exam.dto.response.VideoDeleteResponse;
-import com.ssafy.aitime.domain.exam.dto.response.VideoUploadCompleteResponse;
+import com.ssafy.aitime.domain.exam.dto.response.*;
 import com.ssafy.aitime.domain.exam.service.VideoService;
 import com.ssafy.aitime.security.principal.UserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
@@ -91,6 +88,29 @@ public class VideoController {
         return ResponseEntity.ok(
                 ApiResponse.ok("재생 URL이 발급되었습니다.",
                         videoService.generatePresignedViewUrl(principal, examId, videoId, expiresInSec))
+        );
+    }
+
+    @Operation(
+            summary = "영상 재생 Presigned URL + 타임스탬프 발급 (의료진 전용 - 타임스탬프 포함)",
+            description = "특정 검사/태스크 영상 조회를 위한 GET Presigned URL과 이벤트 타임스탬프를 함께 발급한다. (의료진 권한 검증 포함)"
+    )
+    @GetMapping("/{examId}/videos/{videoId}/with-timestamps")
+    public ResponseEntity<ApiResponse<PresignedViewUrlWithTimestampsResponse>> getPresignedViewUrlWithTimestamps(
+            @AuthenticationPrincipal Object principal,
+            @PathVariable("examId") UUID examId,
+            @PathVariable("videoId") UUID videoId,
+            @RequestParam(value = "expiresInSec", defaultValue = "300")
+            @Min(value = 1, message = "만료시간은 최소 1초 이상이어야 합니다")
+            @Max(value = 3600, message = "만료시간은 최대 3600초(1시간)를 초과할 수 없습니다")
+            int expiresInSec) {
+
+        log.info("Presigned View URL + Timestamps 요청: examId={}, videoId={}, expiresInSec={}",
+                examId, videoId, expiresInSec);
+
+        return ResponseEntity.ok(
+                ApiResponse.ok("재생 URL과 타임스탬프가 발급되었습니다.",
+                        videoService.generatePresignedViewUrlWithTimestamps(principal, examId, videoId, expiresInSec))
         );
     }
 

@@ -42,4 +42,10 @@ public interface HospitalChildrenRepository extends JpaRepository<HospitalChildr
     default boolean existsByChild_ChildId(UUID childId) {
         return existsByChild_ChildIdAndLinkStatus(childId, LinkStatus.ACTIVE);
     }
+
+    boolean existsByChildAndHospitalAndLinkStatus(
+            com.ssafy.aitime.domain.child.entity.Child child,
+            com.ssafy.aitime.domain.hospital.entity.Hospital hospital,
+            LinkStatus linkStatus
+    );
 }

@@ -23,4 +23,10 @@ public interface ExamRepository extends JpaRepository<Exam, UUID> {
      * SQL: SELECT EXISTS(SELECT 1 FROM exam WHERE child_id = ? AND exam_status = ?)
      */
     boolean existsByChild_ChildIdAndExamStatus(UUID childId, ExamStatus examStatus);
+
+    /**
+     * 특정 Child의 모든 Exam을 completedAt 기준 내림차순으로 조회
+     * (환아별 검사 목록 조회용)
+     */
+    List<Exam> findByChild_ChildIdOrderByCompletedAtDesc(UUID childId);
 }

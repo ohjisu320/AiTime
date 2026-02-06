@@ -9,4 +9,5 @@ import java.util.UUID;
 
 public interface PoseImitationTrialRepository extends JpaRepository<PoseImitationTrial, UUID> {
     Optional<PoseImitationTrial> findByVideo(Video video);
+    Optional<PoseImitationTrial> findByVideoVideoId(UUID videoId);
 }

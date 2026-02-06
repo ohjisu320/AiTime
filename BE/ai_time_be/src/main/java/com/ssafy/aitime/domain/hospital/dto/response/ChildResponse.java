@@ -5,12 +5,12 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 public record ChildResponse(
-        UUID childId,
-        UUID userId,
-        String name,
-        int monthlyAge,
-        LocalDate birthdate,
+        UUID hospitalChildrenId,
+        String childName,
         String gender,
-        String latestExamStatus
+        int months,
+        LocalDateTime scheduledAt,
+        String examStatus,
+        boolean isSubmitted
 ) {
 }

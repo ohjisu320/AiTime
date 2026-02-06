@@ -1,9 +1,13 @@
 package com.ssafy.aitime.domain.hospital.controller;
 
 import com.ssafy.aitime.common.response.ApiResponse;
+import com.ssafy.aitime.domain.exam.dto.response.AdosDetailResponse;
+import com.ssafy.aitime.domain.exam.dto.response.ExamWithVideosResponse;
 import com.ssafy.aitime.domain.hospital.dto.request.CalendarRequest;
 import com.ssafy.aitime.domain.hospital.dto.request.PatientSearchRequest;
+import com.ssafy.aitime.domain.hospital.dto.response.AdosReportGraphsResponse;
 import com.ssafy.aitime.domain.hospital.dto.response.CalendarReservationResponse;
+import com.ssafy.aitime.domain.hospital.dto.response.InitialReportResponse;
 import com.ssafy.aitime.domain.hospital.dto.response.PatientSearchResponse;
 import com.ssafy.aitime.domain.hospital.service.DoctorService;
 import com.ssafy.aitime.domain.hospital.service.ReservationService;
@@ -15,6 +19,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/doctor/")
@@ -70,4 +77,93 @@ public class DoctorController {
         );
     }
 
+    @Operation(
+            summary = "환아별 검사 목록 조회",
+            description = "특정 환아의 검사 목록을 최신순으로 조회하고, 각 검사에 속한 비디오 목록을 함께 반환합니다."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "조회 성공"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "401",
+                    description = "인증 실패"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "403",
+                    description = "권한 없음 (다른 병원의 환아)"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404",
+                    description = "환아를 찾을 수 없음"
+            )
+    })
+    @GetMapping("/{hospitalChildrenId}/exams")
+    public ResponseEntity<ApiResponse<List<ExamWithVideosResponse>>> getExamsByHospitalChildren(
+            @AuthenticationPrincipal HospitalStaffPrincipal principal,
+            @PathVariable("hospitalChildrenId") UUID hospitalChildrenId) {
+
+        List<ExamWithVideosResponse> response = doctorService.getExamsByHospitalChildren(
+                principal.getHospitalStaffId(),
+                hospitalChildrenId
+        );
+
+        return ResponseEntity.ok(
+                ApiResponse.ok("환아별 검사 목록 조회 완료", response)
+        );
+    }
+
+    @Operation(
+            summary = "환아 ADOS 시계열 그래프 조회",
+            description = "특정 환아의 검사 히스토리를 바탕으로 4개 영역의 ADOS 점수 추이 데이터를 반환합니다."
+    )
+    @GetMapping("/{hospitalChildrenId}/exam-reports/ados-graphs")
+    public ResponseEntity<ApiResponse<AdosReportGraphsResponse>> getAdosGraphs(
+            @AuthenticationPrincipal HospitalStaffPrincipal principal,
+            @PathVariable("hospitalChildrenId") UUID hospitalChildrenId) {
+
+        AdosReportGraphsResponse response = doctorService.getAdosGraphData(
+                principal.getHospitalStaffId(),
+                hospitalChildrenId
+        );
+
+        return ResponseEntity.ok(ApiResponse.ok("ADOS 그래프 데이터 조회 완료", response));
+    }
+
+    @Operation(
+            summary = "ADOS 상세 점수 조회",
+            description = "특정 검사(Exam)에 대한 ADOS 상세 점수를 조회합니다. 환아의 연령대별로 노출 항목이 달라집니다."
+    )
+    @GetMapping("/exams/{examId}/ados")
+    public ResponseEntity<ApiResponse<AdosDetailResponse>> getAdosDetail(
+            @AuthenticationPrincipal HospitalStaffPrincipal principal,
+            @PathVariable("examId") UUID examId) {
+
+        AdosDetailResponse response = doctorService.getAdosDetail(
+                principal.getHospitalStaffId(),
+                examId
+        );
+
+        return ResponseEntity.ok(ApiResponse.ok("ADOS 조회 완료", response));
+    }
+
+    @Operation(
+            summary = "환아 검사 리포트 초기 데이터 통합 조회",
+            description = "의사가 환아 선택 시 필요한 모든 정보를 한 번에 반환합니다."
+    )
+    @GetMapping("/{hospitalChildrenId}/exam-reports/initial")
+    public ResponseEntity<ApiResponse<InitialReportResponse>> getInitialReport(
+            @AuthenticationPrincipal HospitalStaffPrincipal principal,
+            @PathVariable("hospitalChildrenId") UUID hospitalChildrenId,
+            @RequestParam(value = "expiresInSec", defaultValue = "300") Long expiresInSec) {
+
+        InitialReportResponse response = doctorService.getInitialReport(
+                principal.getHospitalStaffId(),
+                hospitalChildrenId,
+                expiresInSec
+        );
+
+        return ResponseEntity.ok(ApiResponse.ok("환아 검사 리포트 초기 데이터 조회 완료", response));
+    }
 }
