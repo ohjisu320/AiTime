@@ -18,8 +18,8 @@ const MissionListPage: React.FC = () => {
   // 로컬 스토리지에서 examId 가져오기 (새로고침/이어하기 대응)
   const examId = localStorage.getItem('currentExamId') || undefined;
 
-  // ✅ useMissions 훅 사용 (중복 선언 제거 및 isUnder18 구조 분해 할당)
-  const { missions, isLoading, error, isUnder18 } = useMissions(examId);
+  // ✅ useMissions 훅 사용 (중복 선언 제거 및 isUnder18 구조 분해 할당, examStatus 추가)
+  const { missions, isLoading, error, isUnder18, examStatus } = useMissions(examId);
 
   // ✅ 컨텐츠 리졸버 헬퍼
   const getResolvedContent = (videoType: string, isChildUnder18: boolean | null) => {
@@ -123,11 +123,11 @@ const MissionListPage: React.FC = () => {
                 ]}
               />
               <BigActionButton
-                disabled={!isAllDone}
+                disabled={!isAllDone || examStatus === 'COMPLETED'}
                 onClick={() => setSubmitModalOpen(true)}
                 variant="violet"
               >
-                리포트 전송하기
+                {examStatus === 'COMPLETED' ? '리포트 전송 완료' : '리포트 전송하기'}
               </BigActionButton>
             </div>
           </div>
@@ -140,7 +140,7 @@ const MissionListPage: React.FC = () => {
         title={recheckModal.title}
         examId={localStorage.getItem('examId')}
         videoId={recheckModal.videoId}
-        isCompleted={false}
+        isCompleted={examStatus === 'COMPLETED'}
         onClose={() => setRecheckModal({ ...recheckModal, isOpen: false })}
         onRetake={handleRecheckConfirm}
         onDelete={() => {

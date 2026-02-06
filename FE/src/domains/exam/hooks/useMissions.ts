@@ -138,6 +138,7 @@ export const useMissions = (examId?: string) => {
   const [missions, setMissions] = useState<Mission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUnder18, setIsUnder18] = useState<boolean>(true);
+  const [examStatus, setExamStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -156,11 +157,12 @@ export const useMissions = (examId?: string) => {
         // ✅ 실제 API 호출 (getExamInfo 사용)
         const examInfo = await getExamInfo(childId as string);
 
-        const { under18, videoTasks } = examInfo;
+        const { under18, videoTasks, status } = examInfo;
 
         // 1. 월령 그룹 결정
         const ageGroupKey = under18 ? '12-17' : '18-23';
         setIsUnder18(under18);
+        setExamStatus(status); // ✅ exam 상태 저장
 
         // 2. 서버 데이터 매핑
         const mergedMissions: Mission[] = videoTasks.map((task: ServerVideoTask) => {
@@ -232,5 +234,5 @@ export const useMissions = (examId?: string) => {
     fetchAllData();
   }, [examId]);
 
-  return { missions, isLoading, isUnder18, error };
+  return { missions, isLoading, isUnder18, examStatus, error };
 };
