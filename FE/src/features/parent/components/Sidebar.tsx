@@ -32,7 +32,7 @@ const Sidebar = ({ childName, onCodeInputClick }: SidebarProps) => {
     }
   };
   return (
-    <aside className="w-64 flex flex-none flex-col sticky top-0 bg-white border-r border-gray-200 h-screen min-h-[1000px]">
+    <aside className="w-64 flex flex-none flex-col sticky top-0 bg-white border-r border-gray-200 h-screen">
       <div className="h-24 px-6 pt-6 border-b border-gray-200 flex flex-col justify-start items-start shrink-0">
         <div className="inline-flex justify-start items-center gap-3 cursor-pointer" onClick={() => navigate('/parent/select-profile')}>
           {/* 홈 버튼 */}
@@ -45,7 +45,7 @@ const Sidebar = ({ childName, onCodeInputClick }: SidebarProps) => {
         </div>
       </div>
 
-      <nav className="flex-1 px-4 pt-4 pb-4 flex flex-col gap-2">
+      <nav className="flex-1 px-4 pt-4 pb-4 flex flex-col gap-2 overflow-y-auto">
 
         {/* 홈 버튼 */}
         <div className="h-12 pl-4 bg-gradient-to-b from-indigo-100 to-indigo-50 rounded-2xl inline-flex items-center gap-3 cursor-pointer" onClick={() => navigate('/parent/dashboard')} >
@@ -66,7 +66,8 @@ const Sidebar = ({ childName, onCodeInputClick }: SidebarProps) => {
           </div>
         </div>
 
-        <div className="mb-8 mt-auto pt-4 border-t border-gray-200">
+        {/* 로그아웃 섹션 - mt-auto로 맨 아래 배치 */}
+        <div className="mt-auto pt-4 border-t border-gray-200 shrink-0">
           <div className="h-32 px-4 pt-4 bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl flex flex-col gap-3">
             <div className="inline-flex items-center gap-3">
               <div className="w-10 h-10 bg-indigo-200 rounded-full flex justify-center items-center text-white text-sm">👤</div>
