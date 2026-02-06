@@ -169,6 +169,9 @@ export default function StaffLoginPage() {
                                 <input
                                     type="text"
                                     {...register("loginId", { required: true })}
+                                    autoCapitalize="off"
+                                    autoComplete="username"
+                                    autoCorrect="off"
                                     className="w-full h-11 pl-10 pr-4 bg-gray-50 border border-gray-200 rounded-none text-sm outline-none focus:bg-white focus:border-[#5A55D6] focus:ring-1 focus:ring-[#5A55D6] transition-all"
                                     placeholder="Enter your ID"
                                 />
