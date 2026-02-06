@@ -23,16 +23,14 @@ from app.rtn.indices import (
     RIGHT_IRIS,
 )
 from app.rtn.pipeline.results import CallResult
-from app.rtn.pipeline.roles import RoleAssignerHeuristic
+from app.rtn.pipeline.roles import RoleAssignerByArea
 from app.rtn.roi.contact import contact_by_raycast
 from app.rtn.roi.parent_eye_roi import ParentEyeROIBuilder
-from app.rtn.tracking.byte_tracker import ByteTracker
+from app.rtn.tracking.sort_tracker import SortTracker
 from app.rtn.types import BBox, FrameBGR, Landmarks
 from app.rtn.utils import crop_face_square
 from app.rtn.vision.mp_face_detector import FaceDetectorMP
 from app.rtn.vision.mp_facemesh import FaceMeshMP
-from app.rtn.vision.openvino_face_detector import OpenVINOFaceDetector
-from app.rtn.vision.yolo_face_detector import YOLOFaceDetector
 
 logger = logging.getLogger("RTNAnalyzer.pipeline.window_analyzer")
 
@@ -44,7 +42,7 @@ class WindowAnalyzer:
 
     def __init__(
         self,
-        detector: FaceDetectorMP | YOLOFaceDetector | OpenVINOFaceDetector,
+        detector: FaceDetectorMP,
         facemesh: FaceMeshMP,
         track_cfg: TrackConfig,
         role_cfg: RoleAssignConfig,
@@ -58,7 +56,7 @@ class WindowAnalyzer:
     ) -> None:
         self.detector = detector
         self.facemesh = facemesh
-        self.tracker = ByteTracker(track_cfg)  # SortTracker -> ByteTracker
+        self.tracker = SortTracker(track_cfg)
         self.role_cfg = role_cfg
         self.roi_builder = ParentEyeROIBuilder(roi_cfg)
         self.gaze_estimator = GazeEstimatorIrisRatio(gaze_cfg)
@@ -99,11 +97,7 @@ class WindowAnalyzer:
         fps = cap.get(cv2.CAP_PROP_FPS)
         if self.analysis_cfg.fps_override and self.analysis_cfg.fps_override > 0:
             fps = self.analysis_cfg.fps_override
-        fps = (
-            fps
-            if fps and fps > self.analysis_cfg.fps_min_valid
-            else self.analysis_cfg.fallback_fps
-        )
+        fps = fps if fps and fps > 1e-3 else 30.0
         dt = 1.0 / fps
 
         # 호명 이후를 보니까 분석을 call_end부터 시작
@@ -123,7 +117,7 @@ class WindowAnalyzer:
             fps,
         )
 
-        role_assigner = RoleAssignerHeuristic(self.role_cfg.warmup_s)
+        role_assigner = RoleAssignerByArea(self.role_cfg.warmup_s)
 
         consec_contact: int = 0
         first_contact_time: float | None = None
@@ -162,21 +156,12 @@ class WindowAnalyzer:
                 dbg: FrameBGR | None = frame.copy() if debug_mode else None
 
                 # detect + track
-                # ByteTrack 적용:
-                # - 기존 conf_th 필터링 대신, ByteTracker가 내부적으로 2-stage 매칭 수행
-                # - 단, 너무 낮은 점수(garbage)는 미리 제거 (low_thresh)
+                # - detector는 프레임 단위 noisy할 수 있어 conf_th로 1차 필터링
+                # - tracker(SORT)는 bbox를 ID로 연결해 parent/child를 시간축으로 추적
                 dets = self.detector.detect(frame)
-
-                # prepare (bbox, score) list
-                dets_with_scores = []
-                low_thresh = self.tracker.cfg.low_thresh
-                for d in dets:
-                    # d: (x1, y1, x2, y2, score)
-                    # ByteTracker의 low_thresh보다 낮은건 아예 필요 없음
-                    if d[4] >= low_thresh:
-                        dets_with_scores.append(((d[0], d[1], d[2], d[3]), d[4]))
-
-                tracks = self.tracker.update(dets_with_scores)
+                dets = [d for d in dets if d[4] >= self.conf_th]
+                dets_xyxy: list[BBox] = [(d[0], d[1], d[2], d[3]) for d in dets]
+                tracks = self.tracker.update(dets_xyxy)
 
                 # 역할 할당은 초반 몇 초(warmup_s) 동안 트랙 안정화를 기다린 뒤 수행
                 # 초기에는 bbox 흔들림/교차가 있어
@@ -290,17 +275,13 @@ class WindowAnalyzer:
                     continue
 
                 # crop
-                # - parent_margin: 부모는 상대적으로 안정적이라 조금 덜 줌
-                # - child_margin: 아이는 얼굴이 더 작고 움직임이 커서 여유를 더 줌
+                # - parent는 상대적으로 안정적이라 조금 덜 줌(0.25)
+                # - child는 얼굴이 더 작고 움직임이 커서 여유를 더 줌(0.40)
                 parent_crop, (pox, poy) = crop_face_square(
-                    frame,
-                    parent_bbox,
-                    margin=0.25,  # parent_margin default
+                    frame, parent_bbox, margin=0.25
                 )
                 child_crop, (cox, coy) = crop_face_square(
-                    frame,
-                    child_bbox,
-                    margin=0.4,  # child_margin default
+                    frame, child_bbox, margin=0.40
                 )
 
                 # =========================================================

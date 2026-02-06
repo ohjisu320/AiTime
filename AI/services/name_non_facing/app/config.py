@@ -66,7 +66,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     
     # ===== RabbitMQ 설정 =====
-    # #TODO 은 백엔드 협의 후 변경 예정
+    # ⚠️ 큐 이름은 백엔드 협의 후 변경 예정
     RABBITMQ_HOST: str = Field(
         default="localhost",
         description="RabbitMQ 호스트"
@@ -94,6 +94,22 @@ class Settings(BaseSettings):
     OUTPUT_QUEUE: str = Field(
         default="analysis.name_non_facing.result",
         description="결과 응답 큐 (TODO: 백엔드 협의 후 확정)"
+    )
+    RABBITMQ_MAX_RETRIES: int = Field(
+        default=5,
+        description="RabbitMQ 연결 최대 재시도 횟수"
+    )
+    RABBITMQ_INITIAL_RETRY_DELAY: int = Field(
+        default=1,
+        description="RabbitMQ 재시도 초기 지연 시간 (초)"
+    )
+    RABBITMQ_HEARTBEAT: int = Field(
+        default=600,
+        description="RabbitMQ 하트비트 간격 (초)"
+    )
+    RABBITMQ_BLOCKED_CONNECTION_TIMEOUT: int = Field(
+        default=300,
+        description="RabbitMQ 블로킹 연결 타임아웃 (초)"
     )
     
     # ===== 공통 오디오 설정 =====

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 from app.rtn.debug.broker import FrameBroker
@@ -31,6 +33,9 @@ def build_engine(
     emotion_skip_frames: int = 5,
     emotion_model: str = "enet_b0_8_best_vgaf",
 ) -> tuple[RTNEngine, object | None]:
+    """
+    분석 엔진 + (선택) 디버그 스트림 라우터를 생성한다.
+    """
     broker = FrameBroker(jpeg_quality=jpeg_quality)
 
     analyzer = build_analyzer(
