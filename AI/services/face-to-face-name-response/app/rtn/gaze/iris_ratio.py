@@ -119,12 +119,6 @@ class GazeEstimatorIrisRatio:
         self._dy_f: float = 0.0
         self._end_f: tuple[float, float] | None = None
 
-        self._kf = None
-        if cfg.filter_type == "kalman":
-            from app.rtn.gaze.gaze_kalman import GazeKalmanFilter
-
-            self._kf = GazeKalmanFilter(cfg.kf_process_noise, cfg.kf_measurement_noise)
-
     def estimate_end_point(
         self,
         clm: Landmarks,
@@ -134,9 +128,6 @@ class GazeEstimatorIrisRatio:
     ) -> tuple[tuple[float, float], float, float]:
         # 1) iris ratio로 정규화된 방향(dx,dy) 추정
         dx, dy = eye_ratio(clm)
-
-        # Y offset 보정 (시선이 약간 아래를 가리키는 문제 해결)
-        dy = dy + self.cfg.gaze_y_offset
 
         # deadzone : 거의 중앙을 보는 것처럼 보이는 작은 값은 0(떨림 억제)
         if abs(dx) < self.cfg.deadzone:
@@ -173,25 +164,14 @@ class GazeEstimatorIrisRatio:
             scale=self.cfg.gaze_scale,
         )
 
-        # end point smoothing
-        if self._kf is not None:
-            # Kalman Filter Update
-            if self._end_f is None:
-                self._kf.reset(end_raw)
-                self._end_f = end_raw
-            else:
-                self._end_f = self._kf.update(end_raw)
-            end_smoothed = self._end_f
-        else:
-            # Alpha Filter fallback (pixel-jump clamp)
-            end_smoothed = smooth_xy(
-                self._end_f,
-                end_raw,
-                alpha=self.cfg.end_alpha,
-                max_jump=self.cfg.end_jump_px,
-            )
-            self._end_f = end_smoothed
-
+        # end point smoothing (pixel-jump clamp)
+        end_smoothed = smooth_xy(
+            self._end_f,
+            end_raw,
+            alpha=self.cfg.end_alpha,
+            max_jump=self.cfg.end_jump_px,
+        )
+        self._end_f = end_smoothed
         return end_smoothed, dx, dy
 
     def reset(self) -> None:
@@ -200,8 +180,3 @@ class GazeEstimatorIrisRatio:
         self._dx_f = 0.0
         self._dy_f = 0.0
         self._end_f = None
-        if self._kf is not None:
-            # KF는 위치 초기화 시점이 첫 update 때 잡힘.
-            # 여기서는 명시적 reset 할 필요 없거나, None 처리하면 됨.
-            # But, estimate_end_point에서 _end_f is None일 때 reset하므로 pass
-            pass
