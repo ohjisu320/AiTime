@@ -171,3 +171,38 @@ export const MASTER_ADOS_ITEMS: AdosItemDefinition[] = [
     isAiAnalyzed: false,
   },
 ];
+
+// 3. ADOS 모듈별 검사 항목 코드 정의 (Pre-Verbal vs Verbal)
+export const CODES_PRE_VERBAL = [
+  "A-2",
+  "A-8",
+  "B-1",
+  "B-4",
+  "B-5",
+  "B-6",
+  "B-12",
+  "B-13",
+  "B-14",
+  "B-15",
+  "A-3",
+  "D-1",
+  "D-2",
+  "D-5",
+];
+
+export const CODES_VERBAL = [
+  "A-7",
+  "B-1",
+  "B-4",
+  "B-5",
+  "B-7",
+  "B-8",
+  "B-9",
+  "B-13",
+  "B-15",
+  "B-16b",
+  "B-18",
+  "D-1",
+  "D-2",
+  "D-5",
+];
