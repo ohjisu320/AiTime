@@ -11,7 +11,7 @@ services:
       - huggingface_cache:/root/.cache/huggingface
     environment:
       - PYTHONUNBUFFERED=1
-      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
       - DEVICE=cpu
     networks:
       - cmn-network
