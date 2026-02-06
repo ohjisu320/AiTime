@@ -29,12 +29,24 @@ export const useParentDashboard = () => {
       // API 호출 - 응답이 올 때까지 무한정 대기
       const response = await fetchChildHomeInfo(childId || TEST_CHILD_ID);
 
-      // ✅ examId가 있으면 localStorage에 저장 (검사 세션에서 사용)
+      // ✅ 디버깅: API 응답 전체 구조 확인
+      console.log('📦 [API Response] Full response:', response);
+      console.log('📦 [API Response] examId:', response.examId);
+      console.log('📦 [API Response] examStatus:', response.examStatus);
+      console.log('📦 [API Response] examId type:', typeof response.examId);
+
+      // ✅ examId 처리: 상태에 따라 저장 또는 삭제
       if (response.examId) {
         localStorage.setItem('examId', String(response.examId));
         console.log(`✅ examId 저장: ${response.examId}`);
       } else {
-        console.warn('⚠️ examId가 없습니다.');
+        // examId가 없으면 (AVAILABLE 상태 등) 기존 examId 삭제
+        const oldExamId = localStorage.getItem('examId');
+        if (oldExamId) {
+          localStorage.removeItem('examId');
+          console.log(`🗑️ 이전 examId 삭제: ${oldExamId}`);
+        }
+        console.log('⚠️ examId가 없습니다. (AVAILABLE 상태일 수 있음)');
       }
 
       setData(response);

@@ -35,6 +35,7 @@ const DashboardPage = () => {
     const [isCodeModalOpen, setIsCodeModalOpen] = useState(false);
     const [isResultLinkModalOpen, setIsResultLinkModalOpen] = useState(false); // 결과 연동 모달
     const [isRegistering, setIsRegistering] = useState(false); // 초대코드 등록 로딩 상태
+    const [modalError, setModalError] = useState<string | null>(null); // 모달 에러 메시지 상태
 
     // 로딩 중일 때 스켈레톤 UI 표시
     if (isLoading) {
@@ -67,6 +68,7 @@ const DashboardPage = () => {
     // 초대 코드 등록 핸들러
     const handleCodeRegister = async (code: string) => {
         setIsRegistering(true);
+        setModalError(null); // 에러 초기화
         try {
             // [DEBUG] Check data structure for childId
             console.log("Dashboard Data Debug:", data);
@@ -103,9 +105,31 @@ const DashboardPage = () => {
             }
         } catch (error: any) {
             console.error("Error registering invite code", error);
-            // 백엔드 에러 메시지 표시
-            const errorMessage = error?.response?.data?.message || "병원 연동 중 오류가 발생했습니다.";
-            toast.error(errorMessage);
+
+            // 디버깅: 에러 응답 데이터 로그
+            if (error.response) {
+                console.log("Error Response Data:", error.response.data);
+            }
+
+            // 에러 메시지 추출
+            let errorMessage = "병원 연동 중 오류가 발생했습니다.";
+
+            if (error?.response?.data) {
+                if (typeof error.response.data === 'string') {
+                    errorMessage = error.response.data;
+                } else if (error.response.data.message) {
+                    errorMessage = error.response.data.message;
+                }
+            }
+
+            // 400 에러인데 메시지가 명확하지 않은 경우 Fallback
+            if (error?.response?.status === 400 && errorMessage === "병원 연동 중 오류가 발생했습니다.") {
+                errorMessage = "잘못된 초대코드거나 이미 연동된 병원입니다.";
+            }
+
+            // 모달에 에러 표시
+            setModalError(errorMessage);
+            // toast.error(errorMessage); // 모달 내부에 표시하므로 토스트는 제거 (원하면 다시 추가 가능)
         } finally {
             setIsRegistering(false);
         }
@@ -210,13 +234,19 @@ const DashboardPage = () => {
             {/* 초대 코드 등록 모달 */}
             <CodeRegisterModal
                 isOpen={isCodeModalOpen}
-                onClose={() => !isRegistering && setIsCodeModalOpen(false)}
+                onClose={() => {
+                    if (!isRegistering) {
+                        setIsCodeModalOpen(false);
+                        setModalError(null); // 모달 닫을 때 에러 초기화
+                    }
+                }}
                 onConfirm={handleCodeRegister}
                 title="병원 초대 코드 등록"
                 childName={data?.name || "어린이"}
                 description="어린이의 검사 결과를 공유받을 병원 초대 코드를 입력해 주세요."
                 confirmText="병원 연결하기"
                 isLoading={isRegistering}
+                errorMessage={modalError}
             />
         </div>
     );

@@ -138,6 +138,7 @@ export const useMissions = (examId?: string) => {
   const [missions, setMissions] = useState<Mission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUnder18, setIsUnder18] = useState<boolean>(true);
+  const [examStatus, setExamStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -156,11 +157,12 @@ export const useMissions = (examId?: string) => {
         // ✅ 실제 API 호출 (getExamInfo 사용)
         const examInfo = await getExamInfo(childId as string);
 
-        const { under18, videoTasks } = examInfo;
+        const { under18, videoTasks, status } = examInfo;
 
         // 1. 월령 그룹 결정
         const ageGroupKey = under18 ? '12-17' : '18-23';
         setIsUnder18(under18);
+        setExamStatus(status); // ✅ exam 상태 저장
 
         // 2. 서버 데이터 매핑
         const mergedMissions: Mission[] = videoTasks.map((task: ServerVideoTask) => {
@@ -203,6 +205,27 @@ export const useMissions = (examId?: string) => {
         setError("데이터를 불러오는 중 오류가 발생했습니다.");
         setMissions([]);
 
+        // 에러 메시지 안전하게 추출
+        let errorMessage = "데이터를 불러오는 중 오류가 발생했습니다.";
+
+        if (err && typeof err === 'object') {
+          // AxiosError의 경우
+          if ('response' in err && err.response && typeof err.response === 'object') {
+            const response = err.response as any;
+            errorMessage = response.data?.message || response.statusText || errorMessage;
+          }
+          // 일반 Error 객체의 경우
+          else if ('message' in err && typeof err.message === 'string') {
+            errorMessage = err.message;
+          }
+        }
+        // 문자열 에러인 경우
+        else if (typeof err === 'string') {
+          errorMessage = err;
+        }
+
+        setError(errorMessage);
+        setMissions([]);
       } finally {
         setIsLoading(false);
       }
@@ -211,5 +234,5 @@ export const useMissions = (examId?: string) => {
     fetchAllData();
   }, [examId]);
 
-  return { missions, isLoading, isUnder18, error };
+  return { missions, isLoading, isUnder18, examStatus, error };
 };

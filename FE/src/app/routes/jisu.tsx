@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import type { RouteObject } from 'react-router';
 import MobileLayout from '@/components/layout/MobileLayout';
+import GlobalErrorPage from '@/components/common/GlobalErrorPage';
 
 // Lazy Loading을 사용하여 성능을 최적화
 const ConsentPage = lazy(() => import('@/features/exam/pages/ConsentPage'));
@@ -25,6 +26,7 @@ export const jisuRoutes: RouteObject[] = [
   {
     path: "/exam",
     element: <ExamLayout />, // 최상위에서 MobileLayout 적용
+    errorElement: <GlobalErrorPage />, // ✅ 전역 에러 페이지 추가
     children: [
       // 1. Consent Page (examId가 있으면 리다이렉트)
       {
@@ -41,27 +43,29 @@ export const jisuRoutes: RouteObject[] = [
         ]
       },
 
-      // 2. Protected Routes (examId가 없으면 리다이렉트)
+      // 2. Guide and Mission pages (no examId guard - navigation controlled by examStatus)
+      {
+        path: "guide",
+        children: [
+          {
+            index: true,
+            element: <ExamGuidePage />
+          },
+          {
+            path: ":missionId",
+            element: <ExamGuideVideoPage />
+          }
+        ]
+      },
+      {
+        path: "mission",
+        element: <MissionListPage />
+      },
+
+      // 3. Protected Routes (examId required for actual exam execution)
       {
         element: <ExamGuard requireExamId={true} />,
         children: [
-          {
-            path: "guide",
-            children: [
-              {
-                index: true,
-                element: <ExamGuidePage />
-              },
-              {
-                path: ":missionId",
-                element: <ExamGuideVideoPage />
-              }
-            ]
-          },
-          {
-            path: "mission",
-            element: <MissionListPage />
-          },
           {
             path: "screening/:missionId",
             element: <ExamRecordingPage />
