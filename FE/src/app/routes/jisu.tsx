@@ -41,27 +41,29 @@ export const jisuRoutes: RouteObject[] = [
         ]
       },
 
-      // 2. Protected Routes (examId가 없으면 리다이렉트)
+      // 2. Guide and Mission pages (no examId guard - navigation controlled by examStatus)
+      {
+        path: "guide",
+        children: [
+          {
+            index: true,
+            element: <ExamGuidePage />
+          },
+          {
+            path: ":missionId",
+            element: <ExamGuideVideoPage />
+          }
+        ]
+      },
+      {
+        path: "mission",
+        element: <MissionListPage />
+      },
+
+      // 3. Protected Routes (examId required for actual exam execution)
       {
         element: <ExamGuard requireExamId={true} />,
         children: [
-          {
-            path: "guide",
-            children: [
-              {
-                index: true,
-                element: <ExamGuidePage />
-              },
-              {
-                path: ":missionId",
-                element: <ExamGuideVideoPage />
-              }
-            ]
-          },
-          {
-            path: "mission",
-            element: <MissionListPage />
-          },
           {
             path: "screening/:missionId",
             element: <ExamRecordingPage />

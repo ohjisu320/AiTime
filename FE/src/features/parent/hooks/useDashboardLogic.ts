@@ -41,6 +41,13 @@ export const useDashboardLogic = (callbacks?: DashboardCallbacks) => {
 
     // Helper: Determine Hero Content
     const getHeroContent = (): HeroBannerProps => {
+        console.log('🔍 [getHeroContent] Current data:', {
+            examStatus: data?.examStatus,
+            examId: data?.examId,
+            examProgress: data?.examProgress,
+            hasLinkedHospitals: data?.linkedHospitals?.length || 0
+        });
+
         // 1. Safe Fallback
         if (!data) {
             return {
@@ -85,12 +92,20 @@ export const useDashboardLogic = (callbacks?: DashboardCallbacks) => {
                 };
 
             case 'AVAILABLE':
+                console.log('🔍 [DEBUG] examStatus is AVAILABLE, navigating to /exam/consent');
+                console.log('🔍 [DEBUG] examId value:', data.examId);
                 return {
                     ...baseProps,
                     title: "새 검사 시작하기",
                     subtitle: "아이의 성장 발달을 확인하고 전문적인 분석을 받아보세요.",
                     buttonText: "검사 시작하기",
-                    onPrimaryAction: () => navigate('/exam/consent'),
+                    onPrimaryAction: () => {
+                        console.log('🚀 [BUTTON CLICKED] AVAILABLE status button clicked');
+                        console.log('🚀 [NAVIGATE] Attempting to navigate to /exam/consent');
+                        console.log('🚀 [STATE] examId:', data.examId, 'examStatus:', data.examStatus);
+                        navigate('/exam/consent');
+                        console.log('🚀 [NAVIGATE] navigate() function called');
+                    },
                 };
 
             case 'AVAILABLE_EXPIRED':
