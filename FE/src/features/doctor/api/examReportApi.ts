@@ -1,8 +1,4 @@
 // src/features/doctor/api/examReportApi.ts
-/**
- * 환아 검사 리포트 API
- * 명세서 기준 구현 (2026-02-05)
- */
 import api from '@/api/axiosConfig';
 import type {
     ExamReportInitialData,
@@ -16,12 +12,6 @@ export const examReportApi = {
     /**
      * 0) 환아 검사 리포트 초기 데이터 조회 (통합)
      * GET /api/v1/doctor/{hospitalChildrenId}/exam-reports/initial
-     * 
-     * 포함 데이터:
-     * 1. examVideoList - 환아별 검사 목록(검사별 비디오 목록)
-     * 2. latestPoseImitationVideo - 최신 POSE_IMITATION 비디오 presign-view + timestamps
-     * 3. adosGraphs - 날짜별 ADOS 시계열(4개 그래프)
-     * 4. latestAdosDetail - 최신 exam 기준 ADOS 상세
      */
     getExamReportsInitial: async (
         hospitalChildrenId: string,
@@ -104,6 +94,12 @@ export const examReportApi = {
         return data.data;
     },
 
-    // TODO: ADOS 수정 API (PUT)는 명세서에 없음. 필요 시 백엔드 확인.
-    // updateAdos: ...
+    /**
+     * 6) 검사(Exam) 기준 ADOS 수정 (비활성화 상태)
+     * 현재 스펙 미지원 -> 에러 처리
+     */
+    updateAdos: async (_examId: string, _scores: unknown): Promise<AdosDetail> => {
+        console.warn('updateAdos is not implemented in backend spec.');
+        throw new Error('Not Implemented');
+    }
 };

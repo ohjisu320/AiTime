@@ -1,104 +1,56 @@
 // src/features/doctor/types/doctor.ts
 
-// ===== Enum Types =====
-
-// 명세서 상 videoType은 문자열로 오지만, 프론트에서 관리하기 편하게 리터럴로 정의
-// 백엔드가 실제로 보내는 값 확인 필요 (예: "POSE_IMITATION" 등일 수도 있음)
-export type VideoType = 'TASK1' | 'TASK2' | 'TASK3' | 'TASK4' | string;
-export type VideoStatus = 'UPLOADED' | 'ANALYZING' | 'FAILED' | 'EMPTY';
-export type ExamStatus = 'IN_PROGRESS' | 'COMPLETED' | 'NEED_HOSPITAL' | 'AVAILABLE';
-
-// ===== API Response Types (DTO) =====
-
-/**
- * API: /doctor/patients (환자 검색) 결과 아이템
- * Schema: ChildResponse
- */
+// 1. 환자 목록 (대기열)용 DTO
 export interface PatientDto {
-  // 명세서 필드 매핑
-  hospitalChildrenId: string; // UUID (필수)
-  childName: string;          // 명세서: childName (주의: name 아님)
-  gender: 'MALE' | 'FEMALE';
-  months: number;             // 명세서: months (주의: monthlyAge 아님)
-
-  // 아래 필드들은 명세서의 ChildResponse에는 있지만
-  // 검색 결과 목록에는 없을 수도 있음. 확인 필요.
-  childId?: string;
-  scheduledAt?: string;       // YYYY-MM-DDTHH:mm:ss
-  examStatus?: string;
-  isSubmitted?: boolean;
-
-  // 프론트엔드 편의를 위해 매핑해서 쓸 필드 (옵션)
-  birthdate?: string;         // API에는 없으므로 계산하거나 더미데이터 사용 시 필요
+  childId: string;
+  hospitalChildrenId?: string; // 선택적
+  name: string;       // 화면 표시용 이름 (API의 childName 매핑)
+  childName?: string; // API 원본 필드 대응
+  gender: string;
+  monthlyAge: number; // 화면 표시용 (API의 months 매핑)
+  months?: number;    // API 원본 필드 대응
+  birthdate?: string;
 }
 
-export interface PatientSearchResponse {
-  // [수정] 로그 기준: childResponses -> data
-  data: PatientDto[];
-  total: number;
+// 2. 환자 상세 정보 (PatientDetailPanel용)
+export interface PatientHistory {
+  category: string;
+  content: string;
 }
 
-export interface ApiResponsePatientSearchResponse {
-  code: number;
-  status: string;
-  message: string;
-  data: PatientSearchResponse;
-}
-
-// ===== Dashboard Types (OpenAPI) =====
-
-export interface AnalysisScore {
-  date: string;      // YYYY-MM-DD
-  score: number;
-  examId: string;    // UUID
-}
-
-export interface ExamHistoryItem {
-  examId: string;       // UUID
-  completedAt: string;  // YYYY-MM-DD
-  status: ExamStatus;
-}
-
-// ===== Patient Detail Types (Composite) =====
-
-/**
- * 환자 목록의 DTO 정보 + 추가 상세 정보(더미 데이터 등)를 합친 UI용 타입
- */
 export interface PatientDetailFull {
-  // PatientDto의 핵심 필드 상속
-  hospitalChildrenId: string;
-  childId?: string;
-  name: string;           // UI에서 편하게 쓰기 위해 childName을 매핑할 필드
-  monthlyAge: number;     // UI에서 편하게 쓰기 위해 months를 매핑할 필드
-  gender: 'MALE' | 'FEMALE';
-  birthdate: string;      // 더미/계산값
-
-  // 상세 정보 (API 미지원으로 더미 사용 중인 필드들)
+  name: string;
+  gender: "MALE" | "FEMALE";
+  monthlyAge: number;
+  birthdate: string;
   height: string;
   weight: string;
   caregiver: string;
   medication: string;
   familyHistory: string;
-  history: { category: string; content: string }[];
-  complaints: { category: string; content: string }[];
+  history: PatientHistory[];
+  complaints: PatientHistory[];
 }
 
-// ===== Video Analysis Types (UI State) =====
-
-/**
- * 프론트엔드 비디오 플레이어 타임라인 마커용 타입
- * (API 응답 TimestampDTO -> 이 타입으로 변환하여 사용)
- */
+// 3. UI용 분석 타임스탬프 (CentralAnalysisPanel용)
 export interface AnalysisTimestamp {
   id: number;
-  type: 'parent' | 'child-vocal' | 'child-behavior';
+  type: "parent" | "child-vocal" | "child-behavior"; // 타임라인 색상/위치 결정
   label: string;
-  startTime: number; // API의 startS
-  duration: number;  // API의 endS - startS
+  startTime: number;
+  duration: number;
+}
+
+// 4. 비디오 분석 데이터 통합 (DoctorDashboard -> CentralAnalysisPanel)
+export interface TimelineRow {
+  key: string;
+  label: string;
+  color: string;
 }
 
 export interface VideoAnalysisData {
   videoUrl: string;
   totalDuration: number;
   timestamps: AnalysisTimestamp[];
+  rows: TimelineRow[]; // 동적 타임라인 행 설정
 }
