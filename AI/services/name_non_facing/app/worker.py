@@ -82,12 +82,15 @@ class NameNonFacingWorker:
         start_time = time.time()
         task = json.loads(body)
         
-        exam_id = task.get("exam_id", "unknown")
-        child_name = task.get("child_name", "아이")
+        # BE는 camelCase로 전송
+        exam_id = task.get("examId", "unknown")
+        video_id = task.get("videoId", "unknown")
+        child_name = task.get("childName", "아이")
+        age_months = task.get("ageMonths")
         
         logger.info("=" * 60)
-        logger.info(f"!!!!!!!!!!!! 작업 수신: exam_id={exam_id}")
-        logger.info(f"   child_name={child_name}")
+        logger.info(f"!!!!!!!!!!!! 작업 수신: examId={exam_id}, videoId={video_id}")
+        logger.info(f"   childName={child_name}, ageMonths={age_months}")
         logger.info("=" * 60)
         
         tmp_path: Optional[str] = None
@@ -108,42 +111,37 @@ class NameNonFacingWorker:
                 request_id=exam_id
             )
             
-            # 성공 응답 생성
-            processing_time_ms = (time.time() - start_time) * 1000
-            
+            # 성공 응답 생성 (BE 스펙: camelCase, status="SUCCESS")
             result_message = {
-                "exam_id": exam_id,
-                "video_type": "NAME_NON_FACING",
-                "analyzed_at": datetime.now().isoformat(),
-                "status": "completed",
-                "processing_time_ms": round(processing_time_ms, 2),
+                "examId": exam_id,
+                "videoId": video_id,
+                "videoType": "NAME_NON_FACING",
+                "analyzedAt": datetime.now().isoformat(),
+                "status": "SUCCESS",
                 "metrics": pipeline_result.get("metrics"),
                 "ADOS": pipeline_result.get("ADOS"),
-                "error": None
             }
             
             # 결과 요약 로깅
             per_trial = pipeline_result.get("metrics", {}).get("per_trial", [])
             success_count = sum(1 for t in per_trial if t.get("success"))
+            elapsed_ms = (time.time() - start_time) * 1000
             logger.info(
-                f"✅ 작업 완료: exam_id={exam_id}, "
+                f"✅ 작업 완료: examId={exam_id}, "
                 f"success={success_count}/{len(per_trial)}, "
-                f"time={processing_time_ms:.0f}ms"
+                f"time={elapsed_ms:.0f}ms"
             )
             
         except Exception as e:
-            # 실패 응답 생성
-            processing_time_ms = (time.time() - start_time) * 1000
-            
+            # 실패 응답 생성 (BE 스펙: camelCase, status="FAILED")
             result_message = {
-                "exam_id": exam_id,
-                "video_type": "NAME_NON_FACING",
-                "analyzed_at": datetime.now().isoformat(),
-                "status": "failed",
-                "processing_time_ms": round(processing_time_ms, 2),
+                "examId": exam_id,
+                "videoId": video_id,
+                "videoType": "NAME_NON_FACING",
+                "analyzedAt": datetime.now().isoformat(),
+                "status": "FAILED",
                 "metrics": None,
                 "ADOS": None,
-                "error": str(e)
             }
             
             logger.exception(f"❌ 작업 실패: exam_id={exam_id}")
