@@ -94,12 +94,14 @@ class ParentEyeROIBuilder:
         bh = max(1.0, y2 - y1)
 
         # 얼굴 bbox 내부에서 눈이 있을 법한(이마~코) 상단 영역을 ellipse로 근사
-        # - x: 좌우 15%~85% (볼/귀 영역 일부 제외)
-        # - y: 위 18%~55% (눈썹~눈~코 윗부분 근처)
-        rx1 = int(clamp(x1 + 0.15 * bw, 0, img_w - 1))
-        rx2 = int(clamp(x1 + 0.85 * bw, 0, img_w - 1))
-        ry1 = int(clamp(y1 + 0.18 * bh, 0, img_h - 1))
-        ry2 = int(clamp(y1 + 0.55 * bh, 0, img_h - 1))
+        # - x: cfg.bbox_fallback_x1_ratio~cfg.bbox_fallback_x2_ratio
+        #   (볼/귀 영역 일부 제외)
+        # - y: cfg.bbox_fallback_y1_ratio~cfg.bbox_fallback_y2_ratio
+        #   (눈썹~눈~코 윗부분 근처)
+        rx1 = int(clamp(x1 + self.cfg.bbox_fallback_x1_ratio * bw, 0, img_w - 1))
+        rx2 = int(clamp(x1 + self.cfg.bbox_fallback_x2_ratio * bw, 0, img_w - 1))
+        ry1 = int(clamp(y1 + self.cfg.bbox_fallback_y1_ratio * bh, 0, img_h - 1))
+        ry2 = int(clamp(y1 + self.cfg.bbox_fallback_y2_ratio * bh, 0, img_h - 1))
 
         mask = np.zeros((img_h, img_w), dtype=np.uint8)
         cx = (rx1 + rx2) // 2
