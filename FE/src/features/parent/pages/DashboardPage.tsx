@@ -118,21 +118,21 @@ const DashboardPage = () => {
     };
 
     return (
-        <div className="flex w-full h-screen bg-white overflow-hidden">
+        <div className="flex w-full h-screen min-h-[820px] bg-white overflow-hidden">
             <Sidebar
                 childName={data?.name || "어린이"}
                 onCodeInputClick={() => setIsCodeModalOpen(true)}
             />
 
-            <main className="flex-1 overflow-y-auto p-8 flex flex-col gap-8 justify-center relative">
+            <main className="flex-1 h-full overflow-hidden p-3 sm:p-4 md:p-5 lg:p-6 flex flex-col gap-2 sm:gap-3 md:gap-3.5 lg:gap-4 relative">
 
                 {/* PWA Install Button (Floating) */}
-                <div className="absolute top-6 right-8 z-50">
+                <div className="absolute top-2 right-3 sm:top-3 sm:right-4 md:top-3.5 md:right-5 lg:top-4 lg:right-6 z-50">
                     {/* iOS Safari 사용자를 위한 안내 */}
                     {showIOSInstallGuide ? (
-                        <div className="flex items-center gap-2 px-4 py-2 rounded-full shadow-lg bg-indigo-600 text-white">
-                            <Download size={18} />
-                            <span className="text-sm">
+                        <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-full shadow-lg bg-indigo-600 text-white">
+                            <Download size={14} className="sm:w-4 sm:h-4" />
+                            <span className="text-[10px] sm:text-xs">
                                 Safari에서 <strong>공유 → 홈 화면에 추가</strong>를 눌러주세요
                             </span>
                         </div>
@@ -140,13 +140,13 @@ const DashboardPage = () => {
                         <button
                             onClick={installPWA}
                             disabled={!isInstallable}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-full shadow-lg transition-all font-bold 
+                            className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-full shadow-lg transition-all font-bold text-xs sm:text-sm
                                 ${isInstallable
                                     ? 'bg-indigo-600 text-white hover:bg-indigo-700 animate-bounce'
                                     : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
                             title={isInstallable ? "홈 화면에 추가하기" : "현재 브라우저에서는 설치할 수 없습니다"}
                         >
-                            <Download size={18} />
+                            <Download size={14} className="sm:w-4 sm:h-4" />
                             {isInstallable ? '홈 화면에 추가하기' : '설치 불가'}
                         </button>
                     )}
@@ -157,14 +157,14 @@ const DashboardPage = () => {
                     <HeroBanner {...heroProps} />
                 </div>
 
-                <section className="flex flex-col xl:flex-row gap-6 w-full max-w-[1350px]">
+                <section className="flex flex-col lg:flex-row gap-2 sm:gap-3 md:gap-3.5 lg:gap-4 w-full flex-1 overflow-hidden">
                     {/* GuideVideo */}
-                    <div className="flex-1 min-h-[450px]">
+                    <div className="flex-1 h-full overflow-hidden">
                         <GuideVideo />
                     </div>
 
                     {/* HospitalTimeline - 오른쪽 고정 */}
-                    <aside className="w-full xl:w-96 flex-none">
+                    <aside className="w-full sm:w-full md:w-full lg:w-80 flex-none h-full overflow-y-auto">
                         {data && <HospitalTimeline hospitals={data.linkedHospitals} childName={data.name} onAddClick={() => setIsCodeModalOpen(true)} />}
                     </aside>
                 </section>

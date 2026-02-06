@@ -70,7 +70,7 @@ const MissionListPage: React.FC = () => {
   // 로딩 상태 UI 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen h-screen min-h-[820px] flex items-center justify-center">
         <p className="text-xl font-bold text-gray-400 animate-pulse">검사 진행도를 불러오고 있습니다...</p>
       </div>
     );
@@ -79,7 +79,7 @@ const MissionListPage: React.FC = () => {
   // 에러 상태 UI
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen h-screen min-h-[820px] flex items-center justify-center">
         <div className="text-center">
           <p className="text-xl font-bold text-red-500 mb-4">데이터를 불러오는 중 오류가 발생했습니다.</p>
           <p className="text-gray-600">{error}</p>
@@ -89,60 +89,58 @@ const MissionListPage: React.FC = () => {
   }
 
   return (
-    <div className="w-full flex flex-col items-center pb-20">
+    <div className="w-full h-screen min-h-[820px] flex flex-col overflow-hidden">
       {/* 🚦 공통 헤더 컴포넌트 사용 */}
       <ConsentHeader
         currentStep={3}
         totalSteps={3}
-        onBack={() => navigate('/exam/guide')}
+        onBack={() => navigate('/parent/dashboard')}
+        title="검사 미션 선택"
+        subtitle={`촬영할 미션을 선택해주세요 (총 ${missions.length}개 미션을 완료해야 합니다)`}
       />
 
-      {/* 헤더 높이만큼 여백 확보 (mt-24) */}
-      <main className="w-full max-w-[1240px] mt-24 px-6">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl font-extrabold text-gray-900 mb-4 tracking-tight">검사 미션 선택</h2>
-          <p className="text-xl text-gray-500 font-medium">촬영할 미션을 선택해주세요 (총 {missions.length}개 미션을 완료해야 합니다)</p>
-        </div>
+      <main className="flex-1 w-full overflow-y-auto">
+        <div className="w-full max-w-[1240px] mx-auto pt-[100px] pb-10 px-6">
+          <div className="flex gap-5 items-start">
+            <div className="flex flex-col gap-3 flex-1">
+              {missions.map((task) => {
+                // ✅ 여기 수정: getResolvedContent 사용
+                const content = getResolvedContent(task.videoType, isUnder18);
+                // MissionCard status mapping: EMPTY/FAIL/PASS -> PENDING, UPLOADED -> UPLOADED
+                const cardStatus = task.status === 'UPLOADED' ? 'UPLOADED' : 'PENDING';
 
-        <div className="flex gap-10 items-start">
-          <div className="flex flex-col gap-6 flex-1">
-            {missions.map((task) => {
-              // ✅ 여기 수정: getResolvedContent 사용
-              const content = getResolvedContent(task.videoType, isUnder18);
-              // MissionCard status mapping: EMPTY/FAIL/PASS -> PENDING, UPLOADED -> UPLOADED
-              const cardStatus = task.status === 'UPLOADED' ? 'UPLOADED' : 'PENDING';
+                return (
+                  <MissionCard
+                    key={task.videoType}
+                    {...task}
+                    title={content?.korTitle || '미션'}
+                    subTitle={content?.engTitle}
+                    description={content?.description || ''}
+                    variant={content?.variant || 'indigo'}
+                    status={cardStatus}
+                    onClick={() => handleCardClick(task)}
+                  />
+                );
+              })}
+            </div>
 
-              return (
-                <MissionCard
-                  key={task.videoType}
-                  {...task}
-                  title={content?.korTitle || '미션'}
-                  subTitle={content?.engTitle}
-                  description={content?.description || ''}
-                  variant={content?.variant || 'indigo'}
-                  status={cardStatus}
-                  onClick={() => handleCardClick(task)}
-                />
-              );
-            })}
-          </div>
-
-          <div className="w-[480px] flex flex-col gap-6 sticky top-32">
-            <InfoNoticeBox
-              title="검사 진행 안내"
-              items={[
-                "한 번에 모든 검사를 완료하지 않아도 됩니다.",
-                "촬영 중 문제가 발생하면 언제든 다시 촬영할 수 있습니다.",
-                "모든 검사를 완료하면 AI 분석 리포트를 확인할 수 있습니다."
-              ]}
-            />
-            <BigActionButton
-              disabled={!isAllDone}
-              onClick={() => setSubmitModalOpen(true)}
-              variant="violet"
-            >
-              리포트 전송하기
-            </BigActionButton>
+            <div className="w-[400px] flex flex-col gap-3 sticky top-20">
+              <InfoNoticeBox
+                title="검사 진행 안내"
+                items={[
+                  "한 번에 모든 검사를 완료하지 않아도 됩니다.",
+                  "촬영 중 문제가 발생하면 언제든 다시 촬영할 수 있습니다.",
+                  "모든 검사를 완료하면 AI 분석 리포트를 확인할 수 있습니다."
+                ]}
+              />
+              <BigActionButton
+                disabled={!isAllDone}
+                onClick={() => setSubmitModalOpen(true)}
+                variant="violet"
+              >
+                리포트 전송하기
+              </BigActionButton>
+            </div>
           </div>
         </div>
       </main>

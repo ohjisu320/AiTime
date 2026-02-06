@@ -27,6 +27,13 @@ build/Release/
 .svelte-kit/
 .webpack/
 
+# PWA Auto-generated Files
+sw.js
+sw.js.map
+workbox-*.js
+workbox-*.js.map
+dev-dist/
+
 # Runtime and Cache
 pids
 *.pid

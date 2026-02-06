@@ -46,6 +46,9 @@ export default function ProfileSelectPage() {
         birthdate: "", // API 목록 조회에서는 생일이 넘어오지 않지만, UI 표시에 개월수가 우선이라면 공란 처리
       }));
 
+      // 나이순 정렬 (개월수 내림차순 → 첫째, 둘째, ... 순서)
+      mappedProfiles.sort((a, b) => b.months - a.months);
+
       setProfiles(mappedProfiles);
     } catch (error) {
       console.error("프로필 목록 로드 실패:", error);
@@ -97,7 +100,7 @@ export default function ProfileSelectPage() {
       alert(`자녀 추가 실패: ${serverMessage}`);
     }
   };
-  
+
   // 4. 프로필 삭제 (API 호출)
   const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
@@ -161,11 +164,10 @@ export default function ProfileSelectPage() {
         <Button
           variant="ghost"
           onClick={() => setIsManageMode(!isManageMode)}
-          className={`font-bold px-10 py-8 rounded-full text-xl transition-all shadow-sm hover:scale-105 ${
-            isManageMode
+          className={`font-bold px-10 py-8 rounded-full text-xl transition-all shadow-sm hover:scale-105 ${isManageMode
               ? "bg-[#5A55D6] text-white hover:bg-[#4844b8]"
               : "bg-purple-50 text-[#9D8AD6] hover:bg-purple-100"
-          }`}
+            }`}
         >
           {isManageMode ? "프로필 수정 완료" : "프로필 관리하기"}
         </Button>

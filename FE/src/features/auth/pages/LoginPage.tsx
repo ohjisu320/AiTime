@@ -98,10 +98,13 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          {/* 소셜 로그인 / 회원가입 링크 등 (필요 시 추가) */}
-          {/* <div className="mt-4 text-center">
-             <Link to="/signup" className="text-sm text-gray-400 hover:text-[#9593D9]">회원가입</Link>
-          </div> */}
+          {/* 회원가입 링크 */}
+          <div className="mt-4 text-center">
+            <span className="text-sm text-gray-400">계정이 없으신가요? </span>
+            <Link to="/signup" className="text-sm font-medium text-[#9593D9] hover:text-[#7B78C5] hover:underline">
+              회원가입
+            </Link>
+          </div>
 
           {/* 구분선 */}
           <div className="relative my-6">
