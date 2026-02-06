@@ -78,8 +78,8 @@ logger = logging.getLogger(__name__)
 ACTION_NOT_DETECTED = -1  # 동작 미감지 시 반환값
 
 # 반응 지연 및 지속 시간 계산
-DEFAULT_REACTION_DELAY_THRESHOLD = 0.85  # 동작 시작 판정 기본 임계값
-DEFAULT_DURATION_THRESHOLD = 0.8  # 동작 지속 판정 기본 임계값
+DEFAULT_REACTION_DELAY_THRESHOLD = 0.65  # 동작 시작 판정 기본 임계값
+DEFAULT_DURATION_THRESHOLD = 0.5  # 동작 지속 판정 기본 임계값
 
 # 유사도 계산
 EPSILON_NORM_CHECK = 1e-8  # 정규화 벡터 크기 체크용 엡실론
@@ -93,10 +93,10 @@ CLAPPING_WRIST_DISTANCE_FAR = 0.4  # 손목이 벌어졌다고 판단하는 거�
 CLAPPING_MIN_DISTANCE_CHANGE = 0.15  # 최소 거리 변화량 (박수 여부 판단)
 
 # 점프 동작 감지
-JUMPING_HIP_RISE_MARGIN = 0.03  # 엉덩이 상승 마진
+JUMPING_HIP_RISE_MARGIN = 0.08  # 엉덩이 상승 마진
 
 # 발차기 동작 감지
-KICKING_ANKLE_HEIGHT_DIFF = 0.2  # 발목 높이 차이
+KICKING_ANKLE_HEIGHT_DIFF = 0.15  # 발목 높이 차이
 
 # 던지기 동작 감지
 THROWING_WRIST_ABOVE_SHOULDER = 0.1  # 손목이 어깨 위로
@@ -401,9 +401,7 @@ class MotionAnalyzer:
         use_parent_reference: bool = True,
         identify_roles: bool = True,
         smooth: bool = True,
-        smooth_method: str = "one_euro",
-        start_sec: float = 0.0,
-        end_sec: Optional[float] = None
+        smooth_method: str = "one_euro"
     ) -> AnalysisResult:
         """
         동작 분석 메인 함수.
@@ -452,20 +450,16 @@ class MotionAnalyzer:
                 else:
                     output_folder = Path(tempfile.mkdtemp(prefix=TEMP_FOLDER_PREFIX))
                 
-                is_segment = start_sec > 0.0 or end_sec is not None
                 extraction_result = self.video_processor.extract_frames_to_folder(
                     video_path,
-                    output_folder=output_folder,
-                    start_sec=start_sec,
-                    end_sec=end_sec,
-                    validate=not is_segment,
+                    output_folder=output_folder
                 )
                 video_info = extraction_result.video_info
-
+                
                 # 3. 2D POSE ESTIMATION (폴더에서 읽기)
                 logger.info(f"자세 추출 중... (폴더: {output_folder})")
                 frames_data = self.pose_extractor.extract_from_folder(output_folder)
-
+                
                 # 임시 폴더 정리 (지정 폴더가 아닌 경우에만)
                 if not self.frames_folder and output_folder.exists():
                     shutil.rmtree(output_folder)
@@ -473,11 +467,7 @@ class MotionAnalyzer:
             else:
                 # Generator 방식: 기존 메모리 효율적 처리
                 video_info = self.video_processor.get_video_info(video_path)
-                frames = self.video_processor.extract_frames(
-                    video_path,
-                    start_sec=start_sec,
-                    end_sec=end_sec,
-                )
+                frames = self.video_processor.extract_frames(video_path)
                 
                 # 3. 2D POSE ESTIMATION
                 logger.info("자세 추출 중...")
@@ -553,7 +543,7 @@ class MotionAnalyzer:
             # 7. SIMILARITY CALCULATION
             logger.info("유사도 계산 중...")
             similarity_result = self.similarity_calculator.compute_similarity(
-                aligned_query, aligned_ref, aligned=True, action_type=action_type
+                aligned_query, aligned_ref, aligned=True
             )
             
             # 8. 지속 시간 계산 (정렬 후 유사도 기반)
@@ -863,69 +853,25 @@ class MotionAnalyzer:
         margin: float = JUMPING_HIP_RISE_MARGIN
     ) -> int:
         """
-        점프 동작 시작 프레임 감지 (발목 + 엉덩이 위치 기반).
+        점프 동작 시작 프레임 감지 (엉덩이 위치 기반).
         
-        발목이나 엉덩이가 초기 위치보다 올라가는 첫 프레임을 감지합니다.
+        엉덩이(hip)가 초기 위치보다 올라가는 첫 프레임을 감지합니다.
         
         Args:
             sequence: 분석할 시퀀스 (T, 17, 3)
-            margin: 상승 마진
+            margin: 엉덩이 상승 마진
             
         Returns:
             점프 시작 프레임 인덱스. 미감지 시 ACTION_NOT_DETECTED(-1) 반환.
         """
-        if len(sequence) < 5:
-            return ACTION_NOT_DETECTED
+        # COCO: 11=L_Hip, 12=R_Hip
+        initial_hip_y = (sequence[0, 11, 1] + sequence[0, 12, 1]) / 2
         
-        # COCO: 11=L_Hip, 12=R_Hip, 15=L_Ankle, 16=R_Ankle
-        # 초기 3~5프레임의 평균을 baseline으로 사용
-        baseline_frames = min(5, len(sequence) // 3)
-        baseline_hip_ys = []
-        baseline_ankle_ys = []
-        
-        for i in range(baseline_frames):
-            # 엉덩이
-            if sequence[i, 11, 2] > 0.3 and sequence[i, 12, 2] > 0.3:
-                hip_y = (sequence[i, 11, 1] + sequence[i, 12, 1]) / 2
-                baseline_hip_ys.append(hip_y)
-            
-            # 발목
-            if sequence[i, 15, 2] > 0.3 and sequence[i, 16, 2] > 0.3:
-                ankle_y = (sequence[i, 15, 1] + sequence[i, 16, 1]) / 2
-                baseline_ankle_ys.append(ankle_y)
-        
-        if not baseline_hip_ys and not baseline_ankle_ys:
-            return ACTION_NOT_DETECTED
-        
-        baseline_hip_y = np.mean(baseline_hip_ys) if baseline_hip_ys else None
-        baseline_ankle_y = np.mean(baseline_ankle_ys) if baseline_ankle_ys else None
-        
-        # baseline 이후부터 검사
-        for i in range(baseline_frames, len(sequence)):
-            detected = False
-            
-            # 발목 체크 (더 민감함 - 발이 땅에서 떨어지는 것 감지)
-            if baseline_ankle_y is not None:
-                if sequence[i, 15, 2] > 0.3 and sequence[i, 16, 2] > 0.3:
-                    current_ankle_y = (sequence[i, 15, 1] + sequence[i, 16, 1]) / 2
-                    # 발목이 baseline보다 margin 이상 올라갔으면
-                    if current_ankle_y < (baseline_ankle_y - margin):
-                        logger.debug(f"점프 감지(발목): frame={i}, baseline_y={baseline_ankle_y:.3f}, current_y={current_ankle_y:.3f}, diff={baseline_ankle_y - current_ankle_y:.3f}")
-                        detected = True
-            
-            # 엉덩이 체크 (보조 수단)
-            if not detected and baseline_hip_y is not None:
-                if sequence[i, 11, 2] > 0.3 and sequence[i, 12, 2] > 0.3:
-                    current_hip_y = (sequence[i, 11, 1] + sequence[i, 12, 1]) / 2
-                    # 엉덩이가 baseline보다 margin 이상 올라갔으면
-                    if current_hip_y < (baseline_hip_y - margin):
-                        logger.debug(f"점프 감지(엉덩이): frame={i}, baseline_y={baseline_hip_y:.3f}, current_y={current_hip_y:.3f}, diff={baseline_hip_y - current_hip_y:.3f}")
-                        detected = True
-            
-            if detected:
+        for i, frame in enumerate(sequence):
+            current_hip_y = (frame[11, 1] + frame[12, 1]) / 2
+            # y좌표는 위로 갈수록 작아짐 (정규화 기준)
+            if current_hip_y < (initial_hip_y - margin):
                 return i
-        
-        logger.debug(f"점프 미감지: hip_baseline={baseline_hip_y:.3f if baseline_hip_y else 'N/A'}, ankle_baseline={baseline_ankle_y:.3f if baseline_ankle_y else 'N/A'}, margin={margin}")
         return ACTION_NOT_DETECTED  # 동작 미감지
     
     def _detect_kicking_start_frame(
@@ -937,7 +883,6 @@ class MotionAnalyzer:
         발차기 동작 시작 프레임 감지 (발목 높이 기반).
         
         한쪽 발목이 반대쪽보다 높이 올라가는 첫 프레임을 감지합니다.
-        무릎 꿇은 상태의 미세한 움직임을 피하기 위해 임계값을 높게 설정.
         
         Args:
             sequence: 분석할 시퀀스 (T, 17, 3)
@@ -947,23 +892,12 @@ class MotionAnalyzer:
             발차기 시작 프레임 인덱스. 미감지 시 ACTION_NOT_DETECTED(-1) 반환.
         """
         # COCO: 15=L_Ankle, 16=R_Ankle
-        strict_threshold = height_diff * 1.3
-        
         for i, frame in enumerate(sequence):
-            # 신뢰도 체크
-            if frame[15, 2] < 0.3 or frame[16, 2] < 0.3:
-                continue
-                
             l_ankle_y = frame[15, 1]
             r_ankle_y = frame[16, 1]
-            
-            # 둘 중 하나가 다른 쪽보다 strict_threshold 이상 위에 있으면
-            ankle_diff = abs(l_ankle_y - r_ankle_y)
-            if ankle_diff > strict_threshold:
-                logger.debug(f"발차기 감지: frame={i}, ankle_diff={ankle_diff:.3f}, threshold={strict_threshold:.3f}")
+            # 둘 중 하나가 다른 쪽보다 height_diff 이상 위에 있으면
+            if abs(l_ankle_y - r_ankle_y) > height_diff:
                 return i
-        
-        logger.debug(f"발차기 미감지: threshold={strict_threshold:.3f}")
         return ACTION_NOT_DETECTED  # 동작 미감지
     
     def _detect_throwing_start_frame(
@@ -1129,63 +1063,6 @@ class MotionAnalyzer:
         parent_detected = parent_start != ACTION_NOT_DETECTED
         child_detected = child_start != ACTION_NOT_DETECTED
         
-        # 🔥 중요: 유사도가 높으면 동작 감지로 간주 (기하학적 감지 실패해도 허용)
-        # threshold보다 10% 높으면 동작이 있었다고 판단
-        high_similarity_detected = False
-        if not child_detected or not parent_detected:
-            # 유사도 기반 체크 (간단히 프레임별 평균 계산)
-            from app.pipeline.similarity import SimilarityCalculator
-            temp_calc = SimilarityCalculator()
-            
-            try:
-                # 임시로 유사도 계산해서 확인
-                aligned_query, aligned_ref = self.dtw_aligner.align_sequences(
-                    child_sequence, ref_sequence
-                )
-                temp_result = temp_calc.compute_similarity(
-                    aligned_query, aligned_ref, aligned=True, action_type=action_type
-                )
-                
-                # 유사도가 threshold + 0.1 이상이면 동작 있음으로 간주
-                if temp_result.overall >= (threshold + 0.1):
-                    logger.info(
-                        f"⚠️ 기하학적 감지 실패했지만 유사도 {temp_result.overall:.1%} >= "
-                        f"{threshold + 0.1:.1%}이므로 동작 감지로 간주"
-                    )
-                    high_similarity_detected = True
-                    
-                    # 유사도 기반으로 동작 시작 프레임 찾기 (프레임별 유사도가 급증하는 지점)
-                    if not child_detected:
-                        # 개선된 유사도 기반 감지 사용
-                        child_start_alt = self._detect_by_similarity_improved(
-                            child_sequence, ref_sequence, threshold * 0.8  # 더 낮은 임계값 사용
-                        )
-                        if child_start_alt != ACTION_NOT_DETECTED:
-                            child_start = child_start_alt
-                            child_detected = True
-                            logger.info(f"✓ 아이 동작 시작: frame={child_start} (유사도 기반)")
-                        else:
-                            # 그래도 못 찾으면 중간 지점 사용
-                            child_start = len(child_sequence) // 3
-                            child_detected = True
-                            logger.info(f"✓ 아이 동작 시작: frame={child_start} (추정값, 시퀀스 1/3 지점)")
-                    
-                    if not parent_detected:
-                        # 부모도 유사도 기반으로 찾기
-                        parent_start_alt = self._detect_by_similarity_improved(
-                            parent_sequence, ref_sequence, threshold * 0.8
-                        )
-                        if parent_start_alt != ACTION_NOT_DETECTED:
-                            parent_start = parent_start_alt
-                            parent_detected = True
-                            logger.info(f"✓ 부모 동작 시작: frame={parent_start} (유사도 기반)")
-                        else:
-                            parent_start = len(parent_sequence) // 3
-                            parent_detected = True
-                            logger.info(f"✓ 부모 동작 시작: frame={parent_start} (추정값, 시퀀스 1/3 지점)")
-            except Exception as e:
-                logger.warning(f"유사도 기반 동작 감지 실패: {e}")
-        
         # 상세 정보
         detail = {
             "parent_start_frame": parent_start if parent_detected else None,
@@ -1252,9 +1129,7 @@ class MotionAnalyzer:
         use_parent_reference: bool = True,
         identify_roles: bool = True,
         smooth: bool = True,
-        smooth_method: str = "one_euro",
-        start_sec: float = 0.0,
-        end_sec: Optional[float] = None
+        smooth_method: str = "one_euro"
     ) -> AnalysisResult:
         """
         동작 분석 + 스켈레톤 시각화 (역할 기반 색상 다르게 처리함!).
@@ -1273,9 +1148,7 @@ class MotionAnalyzer:
             identify_roles: 부모/아이 역할 식별 여부
             smooth: 스무딩 적용 여부
             smooth_method: 스무딩 방법 ("one_euro", "ema", "moving_average")
-            start_sec: 영상 시작 시간 (초, 구간 분할 시 사용)
-            end_sec: 영상 종료 시간 (초, None이면 끝까지)
-
+            
         Returns:
             AnalysisResult (visualization_info, role_info 포함)
         """
@@ -1299,18 +1172,10 @@ class MotionAnalyzer:
         
         try:
             # 2. 영상 → 프레임 폴더
-            is_segment = start_sec > 0.0 or end_sec is not None
-            logger.info(
-                f"영상 처리 시작: {video_path}"
-                + (f" (구간: {start_sec:.1f}s~{end_sec:.1f}s)"
-                   if is_segment and end_sec else "")
-            )
+            logger.info(f"영상 처리 시작: {video_path}")
             extraction_result = self.video_processor.extract_frames_to_folder(
                 video_path,
-                output_folder=frames_folder,
-                start_sec=start_sec,
-                end_sec=end_sec,
-                validate=not is_segment,
+                output_folder=frames_folder
             )
             video_info = extraction_result.video_info
             logger.info(f"프레임 추출 완료: {extraction_result.saved_count}개")
@@ -1394,12 +1259,49 @@ class MotionAnalyzer:
             child_action_detected = reaction_delay_detail.get("child_detected", False)
             parent_action_detected = reaction_delay_detail.get("parent_detected", False)
             
-            # 부모/아이 동작 미감지 시 경고만 출력 (시각화는 계속 진행)
+            # 부모 동작 미감지 시에만 조기 반환
             if not parent_action_detected:
-                logger.warning("부모 동작 미감지 → FAIL 예정, 시각화 영상 생성 중...")
+                logger.error("부모 동작 미감지 → 분석 불가")
+                processing_time = (datetime.now() - start_time).total_seconds()
+                
+                visualization_info = {
+                    "frames_folder": str(frames_folder),
+                    "visualized_folder": str(viz_folder),
+                    "skeleton_video": None,
+                    "extracted_frames": extraction_result.saved_count,
+                    "visualized_frames": viz_count,
+                    "valid_pose_frames": valid_count,
+                    "role_based_visualization": identify_roles
+                }
+                
+                if role_info:
+                    role_info["reaction_delay_detail"] = reaction_delay_detail
+                
+                return AnalysisResult(
+                    passed=False,
+                    similarity_score=0.0,
+                    reaction_delay_sec=None,
+                    duration_sec=None,
+                    validity=self._calculate_validity(query_normalized),
+                    threshold_used=threshold,
+                    action_type=action_type,
+                    age_months=age_months,
+                    processing_time_sec=processing_time,
+                    role_info=role_info,
+                    details={
+                        "fail_reason": "parent_action_not_detected",
+                        "parent_action_detected": False,
+                        "child_action_detected": child_action_detected,
+                        "total_frames_analyzed": len(frames_data),
+                        "video_duration_sec": video_info.duration_sec,
+                        "video_fps": video_info.fps
+                    },
+                    visualization_info=visualization_info
+                )
             
+            # 아이 동작 미감지는 경고만 (계속 진행)
             if not child_action_detected:
-                logger.warning("아이 동작 미감지 → FAIL 예정, 시각화 영상 생성 중...")
+                logger.warning("아이 동작 미감지 → FAIL 예정, 모니터링 영상 생성 중...")
             
             # 7. DTW ALIGNMENT
             logger.info("시간 정렬 중...")
@@ -1410,7 +1312,7 @@ class MotionAnalyzer:
             # 8. SIMILARITY CALCULATION
             logger.info("유사도 계산 중...")
             similarity_result = self.similarity_calculator.compute_similarity(
-                aligned_query, aligned_ref, aligned=True, action_type=action_type
+                aligned_query, aligned_ref, aligned=True
             )
             
             # 9. 지속 시간 계산 (정렬 후 유사도 기반)
@@ -1427,19 +1329,6 @@ class MotionAnalyzer:
             skeleton_video_path = None
             if save_skeleton_video:
                 skeleton_video_path = output_path / "skeleton_video.mp4"
-                
-                # Trial 정보 구성 (RabbitMQ JSON과 동일한 구조)
-                trial_info = {
-                    "similarity_score": similarity_result.overall,
-                    "attention_ratio": validity if 'validity' in locals() else self._calculate_validity(query_normalized),
-                    "parent_start_time": reaction_delay_detail.get("parent_start_sec") if reaction_delay_detail else None,
-                    "parent_end_time": (reaction_delay_detail.get("parent_start_sec", 0) + 3.0) if reaction_delay_detail else None,
-                    "child_start_time": reaction_delay_detail.get("child_start_sec") if reaction_delay_detail else None,
-                    "child_end_time": (reaction_delay_detail.get("child_start_sec", 0) + duration) if reaction_delay_detail and duration else None,
-                    "latency_s": reaction_delay,
-                    "duration_s": duration
-                }
-                
                 self._create_skeleton_video_with_metrics(
                     viz_folder, 
                     skeleton_video_path, 
@@ -1451,8 +1340,7 @@ class MotionAnalyzer:
                     reaction_delay_detail=reaction_delay_detail,
                     action_type=action_type,
                     threshold=threshold,
-                    child_action_detected=child_action_detected,
-                    trial_info=trial_info
+                    child_action_detected=child_action_detected
                 )
                 logger.info(f"동영상 생성 완료: {skeleton_video_path}")
             
@@ -1468,12 +1356,13 @@ class MotionAnalyzer:
                 passed = False
                 fail_reason = "child_action_not_detected"
             elif not parent_action_detected:
+                # 이미 조기 반환했으므로 여기는 안 옴
                 passed = False
                 fail_reason = "parent_action_not_detected"
             else:
                 # 둘 다 감지됨 → 유사도 기준
                 passed = similarity_result.overall >= threshold
-                fail_reason = None if passed else "similarity_below_threshold"
+                fail_reason = None
             
             # 시각화 정보 구성
             visualization_info = {
@@ -1532,9 +1421,6 @@ class MotionAnalyzer:
                 details={"video_path": video_path, "action_type": action_type}
             )
     
-    # 각 trial 구간 길이 (초)
-    TRIAL_DURATION_SEC = 16.0
-
     def analyze_multi_trial(
         self,
         video_path: str,
@@ -1546,46 +1432,49 @@ class MotionAnalyzer:
     ) -> MultiTrialAnalysisResult:
         """
         다중 시도 동작 모방행동 분석 (pose_imitation).
-
-        영상을 TRIAL_DURATION_SEC(16초)씩 구간 분할하여 각 trial을 분석합니다.
-        - Trial 1: 0~16초
-        - Trial 2: 16~32초
-        - Trial 3: 32~48초
-
+        
         Args:
-            video_path: 분석할 영상 경로 (~48초 연속 영상)
-            action_list: 동작 유형 리스트 (3개)
+            video_path: 분석할 영상 경로
+            action_list: 동작 유형 리스트 (3개, 예: ["clapping", "hurray", "waving"])
             age_months: 아동 월령
             identify_roles: 부모/아이 역할 자동 구분
             smooth: 스무딩 적용
             smooth_method: 스무딩 방법
-
+            
         Returns:
             MultiTrialAnalysisResult: 다중 시도 분석 결과
+            
+        Note:
+            현재 버전은 프로토타입입니다. 실제 구현에서는:
+            1. 영상을 시간대별로 자동 분할하여 각 trial 추출
+            2. 각 trial마다 부모/아이 동작 시간 구간 자동 감지
+            3. ADOS 점수 자동 계산 로직 추가
+            
+            임시로 전체 영상을 각 동작에 대해 순차 분석합니다.
         """
         start_time = datetime.now()
         logger.info(f"다중 시도 분석 시작: {len(action_list)} trials")
-
+        
         if len(action_list) != 3:
             raise InvalidInputError(
                 message="action_list must contain exactly 3 actions",
                 field="action_list",
                 value=action_list
             )
-
+        
         trial_results = []
         role_info = None
+        
+        # 1차: 각 trial 분석 수행 (raw 결과 수집)
         raw_trials = []
-
+        
+        # TODO: 실제 구현에서는 영상을 시간대별로 분할하여 각 trial 추출
+        # 현재는 임시로 전체 영상을 각 동작에 대해 분석
         for trial_idx, action_type in enumerate(action_list, start=1):
-            seg_start = (trial_idx - 1) * self.TRIAL_DURATION_SEC
-            seg_end = trial_idx * self.TRIAL_DURATION_SEC
-            logger.info(
-                f"Trial {trial_idx}/{len(action_list)}: "
-                f"{action_type} ({seg_start:.0f}~{seg_end:.0f}s)"
-            )
-
+            logger.info(f"Trial {trial_idx}/{len(action_list)}: {action_type}")
+            
             try:
+                # 기존 analyze 메서드 활용
                 single_result = self.analyze(
                     video_path=video_path,
                     action_type=action_type,
@@ -1593,53 +1482,24 @@ class MotionAnalyzer:
                     use_parent_reference=True,
                     identify_roles=identify_roles,
                     smooth=smooth,
-                    smooth_method=smooth_method,
-                    start_sec=seg_start,
-                    end_sec=seg_end,
+                    smooth_method=smooth_method
                 )
-
+                
+                # 첫 번째 trial에서 role_info 저장
                 if trial_idx == 1 and single_result.role_info:
                     role_info = single_result.role_info
-
-                # 구간 내 상대 시간 → 전체 영상 절대 시간
-                raw_latency = single_result.reaction_delay_sec
-                latency = (
-                    max(0.0, raw_latency)
-                    if raw_latency is not None
-                    else None
-                )
-
-                # reaction_delay_detail에서 부모/아이 시작 프레임 추출
-                rd = single_result.details.get(
-                    "reaction_delay_detail"
-                ) or (
-                    single_result.role_info.get(
-                        "reaction_delay_detail"
-                    ) if single_result.role_info else None
-                )
-                fps = single_result.details.get(
-                    "video_fps",
-                    self.video_processor.target_fps,
-                )
-
-                if rd and rd.get("parent_detected"):
-                    parent_start_rel = (
-                        rd["parent_start_frame"] / fps
-                    )
-                    parent_start = seg_start + parent_start_rel
-                else:
-                    parent_start = seg_start
-
-                if rd and rd.get("child_detected"):
-                    child_start_rel = (
-                        rd["child_start_frame"] / fps
-                    )
-                    child_start = seg_start + child_start_rel
-                else:
-                    child_start = None
-
+                
+                # TODO: 실제 구현에서는 영상 분석으로부터 정확한 시간 추출
+                # 현재는 임시 값 사용
+                parent_start = (trial_idx - 1) * 10.0  # 임시: 10초 간격
                 parent_end = parent_start + 3.0
-
+                
+                # latency 음수 처리: 음수이면 0으로 보정
+                raw_latency = single_result.reaction_delay_sec
+                latency = max(0.0, raw_latency) if raw_latency is not None else None
+                
+                child_start = parent_end + (latency or 0) if latency is not None else None
+                
                 raw_trials.append({
                     "trial_idx": trial_idx,
                     "action_type": action_type,
@@ -1650,50 +1510,46 @@ class MotionAnalyzer:
                     "child_start": child_start,
                     "latency": latency,
                     "duration": single_result.duration_sec,
-                    "attention_ratio": single_result.validity,
+                    "attention_ratio": single_result.validity
                 })
-
-                logger.info(
-                    f"Trial {trial_idx} 완료: "
-                    f"success={single_result.passed}, "
-                    f"score={single_result.similarity_score:.4f}"
-                )
-
+                
+                logger.info(f"Trial {trial_idx} 완료: success={single_result.passed}, score={single_result.similarity_score:.4f}")
+                
             except Exception as e:
                 logger.warning(f"Trial {trial_idx} 실패: {e}")
+                # 실패한 trial도 기록
                 raw_trials.append({
                     "trial_idx": trial_idx,
                     "action_type": action_type,
                     "success": False,
                     "similarity_score": 0.0,
-                    "parent_start": seg_start,
-                    "parent_end": seg_start + 3.0,
+                    "parent_start": (trial_idx - 1) * 10.0,
+                    "parent_end": (trial_idx - 1) * 10.0 + 3.0,
                     "child_start": None,
                     "latency": None,
                     "duration": None,
-                    "attention_ratio": 0.0,
+                    "attention_ratio": 0.0
                 })
-
-        # child_end_time 계산 (구간 경계 내로 제한)
-        for raw in raw_trials:
+        
+        # 2차: child_end_time 계산 (다음 trial의 child_start_time 이전까지)
+        for i, raw in enumerate(raw_trials):
             child_start = raw["child_start"]
             duration = raw["duration"]
-
+            
+            # 기본 child_end 계산
             if child_start is not None and duration is not None:
                 child_end = child_start + duration
             else:
                 child_end = None
-
-            # 구간 경계를 초과하지 않도록 제한
-            seg_boundary = raw["trial_idx"] * self.TRIAL_DURATION_SEC
-            if child_end is not None and child_end > seg_boundary:
-                child_end = seg_boundary
-                duration = (
-                    child_end - child_start
-                    if child_start is not None
-                    else None
-                )
-
+            
+            # 다음 trial의 child_start_time으로 제한
+            if child_end is not None and i < len(raw_trials) - 1:
+                next_child_start = raw_trials[i + 1]["child_start"]
+                if next_child_start is not None and child_end > next_child_start:
+                    child_end = next_child_start
+                    # duration도 재계산
+                    duration = child_end - child_start if child_start is not None else None
+            
             trial = TrialResult(
                 trial_index=raw["trial_idx"],
                 action_type=raw["action_type"],
@@ -1705,20 +1561,26 @@ class MotionAnalyzer:
                 child_end_time=child_end,
                 latency_s=raw["latency"],
                 duration_s=duration,
-                attention_ratio=raw["attention_ratio"],
+                attention_ratio=raw["attention_ratio"]
             )
-
+            
             trial_results.append(trial.to_dict())
-
+        
         processing_time = (datetime.now() - start_time).total_seconds()
-
+        
         # ADOS 점수 계산
         ados_scores = self._calculate_ados_scores(trial_results)
-
+        
         # 즐거움 감지 (표정 분석 모듈 사용)
         joy_result = self._detect_joy(video_path, trial_results)
+        
+        # B6은 즐거움 감지 결과로 업데이트
         ados_scores["B6"] = joy_result["detected"]
-
+        
+        # ADOS B6은 즐거움(Happiness) 비율이 임계값 이상이면 True
+        # joy_result["detected"]는 이미 joy_threshold 기반으로 판정됨
+        ados_scores["B6"] = joy_result["detected"]
+        
         result = MultiTrialAnalysisResult(
             assessment_type="pose_imitation",
             age_months=age_months,
@@ -1729,286 +1591,20 @@ class MotionAnalyzer:
             details={
                 "action_list": action_list,
                 "total_trials": len(action_list),
-                "successful_trials": sum(
-                    1 for t in trial_results if t["success"]
-                ),
-                "trial_duration_sec": self.TRIAL_DURATION_SEC,
+                "successful_trials": sum(1 for t in trial_results if t["success"]),
                 "smooth_method": smooth_method if smooth else None,
                 "expression_analysis": {
                     "method": joy_result.get("method", "unknown"),
                     "joy_ratio": joy_result.get("ratio", 0.0),
                     "joy_count": joy_result.get("count", 0),
-                    "frames_analyzed": joy_result.get(
-                        "frames_analyzed", 0
-                    ),
-                },
-            },
+                    "frames_analyzed": joy_result.get("frames_analyzed", 0),
+                }
+            }
         )
-
-        logger.info(
-            f"다중 시도 분석 완료: "
-            f"{result.details['successful_trials']}"
-            f"/{len(action_list)} trials 성공"
-        )
+        
+        logger.info(f"다중 시도 분석 완료: {result.details['successful_trials']}/{len(action_list)} trials 성공")
         return result
-
-    def analyze_multi_trial_with_visualization(
-        self,
-        video_path: str,
-        action_list: list[str],
-        age_months: int,
-        output_folder: str = "analysis_output",
-        identify_roles: bool = True,
-        smooth: bool = True,
-        smooth_method: str = "one_euro",
-    ) -> MultiTrialAnalysisResult:
-        """
-        다중 시도 분석 + 구간별 시각화 + 합본 영상 생성.
-
-        영상을 16초씩 구간 분할하여 각 trial을 분석하고,
-        구간별 스켈레톤 영상을 생성한 뒤 하나로 합본합니다.
-
-        Args:
-            video_path: 분석할 영상 경로 (~48초 연속 영상)
-            action_list: 동작 유형 리스트 (3개)
-            age_months: 아동 월령
-            output_folder: 시각화 결과 저장 폴더
-            identify_roles: 부모/아이 역할 자동 구분
-            smooth: 스무딩 적용
-            smooth_method: 스무딩 방법
-
-        Returns:
-            MultiTrialAnalysisResult: 분석 결과 (visualization_info 포함)
-        """
-        start_time = datetime.now()
-        logger.info(
-            f"다중 시도 시각화 분석 시작: {len(action_list)} trials"
-        )
-
-        if len(action_list) != 3:
-            raise InvalidInputError(
-                message="action_list must contain exactly 3 actions",
-                field="action_list",
-                value=action_list,
-            )
-
-        output_path = Path(output_folder)
-        output_path.mkdir(parents=True, exist_ok=True)
-
-        trial_analysis_results: list[AnalysisResult] = []
-        trial_video_paths: list[Path | None] = []
-        role_info = None
-        raw_trials = []
-
-        for trial_idx, action_type in enumerate(action_list, start=1):
-            seg_start = (trial_idx - 1) * self.TRIAL_DURATION_SEC
-            seg_end = trial_idx * self.TRIAL_DURATION_SEC
-            trial_folder = str(
-                output_path / f"trial_{trial_idx}_{action_type}"
-            )
-
-            logger.info(
-                f"Trial {trial_idx}/{len(action_list)}: "
-                f"{action_type} ({seg_start:.0f}~{seg_end:.0f}s)"
-            )
-
-            try:
-                single_result = self.analyze_with_visualization(
-                    video_path=video_path,
-                    action_type=action_type,
-                    age_months=age_months,
-                    output_folder=trial_folder,
-                    save_skeleton_video=True,
-                    use_parent_reference=True,
-                    identify_roles=identify_roles,
-                    smooth=smooth,
-                    smooth_method=smooth_method,
-                    start_sec=seg_start,
-                    end_sec=seg_end,
-                )
-
-                trial_analysis_results.append(single_result)
-
-                # skeleton_video 경로 수집
-                viz_info = single_result.visualization_info
-                if viz_info and viz_info.get("skeleton_video"):
-                    trial_video_paths.append(
-                        Path(viz_info["skeleton_video"])
-                    )
-                else:
-                    trial_video_paths.append(None)
-
-                if trial_idx == 1 and single_result.role_info:
-                    role_info = single_result.role_info
-
-                # timing 계산
-                raw_latency = single_result.reaction_delay_sec
-                latency = (
-                    max(0.0, raw_latency)
-                    if raw_latency is not None
-                    else None
-                )
-
-                rd = single_result.details.get(
-                    "reaction_delay_detail"
-                ) or (
-                    single_result.role_info.get(
-                        "reaction_delay_detail"
-                    ) if single_result.role_info else None
-                )
-                fps = single_result.details.get(
-                    "video_fps",
-                    self.video_processor.target_fps,
-                )
-
-                if rd and rd.get("parent_detected"):
-                    parent_start = (
-                        seg_start
-                        + rd["parent_start_frame"] / fps
-                    )
-                else:
-                    parent_start = seg_start
-
-                if rd and rd.get("child_detected"):
-                    child_start = (
-                        seg_start
-                        + rd["child_start_frame"] / fps
-                    )
-                else:
-                    child_start = None
-
-                parent_end = parent_start + 3.0
-
-                raw_trials.append({
-                    "trial_idx": trial_idx,
-                    "action_type": action_type,
-                    "success": single_result.passed,
-                    "similarity_score": single_result.similarity_score,
-                    "parent_start": parent_start,
-                    "parent_end": parent_end,
-                    "child_start": child_start,
-                    "latency": latency,
-                    "duration": single_result.duration_sec,
-                    "attention_ratio": single_result.validity,
-                })
-
-                logger.info(
-                    f"Trial {trial_idx} 시각화 완료: "
-                    f"success={single_result.passed}, "
-                    f"score={single_result.similarity_score:.4f}"
-                )
-
-            except Exception as e:
-                logger.warning(
-                    f"Trial {trial_idx} 실패: {e}", exc_info=True
-                )
-                trial_video_paths.append(None)
-                raw_trials.append({
-                    "trial_idx": trial_idx,
-                    "action_type": action_type,
-                    "success": False,
-                    "similarity_score": 0.0,
-                    "parent_start": seg_start,
-                    "parent_end": seg_start + 3.0,
-                    "child_start": None,
-                    "latency": None,
-                    "duration": None,
-                    "attention_ratio": 0.0,
-                })
-
-        # child_end 계산 (구간 경계 내로 제한)
-        trial_results = []
-        for raw in raw_trials:
-            child_start = raw["child_start"]
-            duration = raw["duration"]
-
-            if child_start is not None and duration is not None:
-                child_end = child_start + duration
-            else:
-                child_end = None
-
-            seg_boundary = raw["trial_idx"] * self.TRIAL_DURATION_SEC
-            if child_end is not None and child_end > seg_boundary:
-                child_end = seg_boundary
-                duration = (
-                    child_end - child_start
-                    if child_start is not None
-                    else None
-                )
-
-            trial = TrialResult(
-                trial_index=raw["trial_idx"],
-                action_type=raw["action_type"],
-                success=raw["success"],
-                similarity_score=raw["similarity_score"],
-                parent_start_time=raw["parent_start"],
-                parent_end_time=raw["parent_end"],
-                child_start_time=child_start,
-                child_end_time=child_end,
-                latency_s=raw["latency"],
-                duration_s=duration,
-                attention_ratio=raw["attention_ratio"],
-            )
-            trial_results.append(trial.to_dict())
-
-        # ADOS 점수 계산
-        ados_scores = self._calculate_ados_scores(trial_results)
-        joy_result = self._detect_joy(video_path, trial_results)
-        ados_scores["B6"] = joy_result["detected"]
-
-        # 합본 영상 생성
-        merged_video_path = output_path / "시각화최종.mp4"
-        self._merge_trial_videos(
-            trial_video_paths=trial_video_paths,
-            trial_results=trial_results,
-            output_path=merged_video_path,
-            fps=self.video_processor.target_fps,
-        )
-
-        processing_time = (datetime.now() - start_time).total_seconds()
-
-        result = MultiTrialAnalysisResult(
-            assessment_type="pose_imitation",
-            age_months=age_months,
-            processing_time_sec=processing_time,
-            metrics={"per_trial": trial_results},
-            ados=ados_scores,
-            role_info=role_info,
-            details={
-                "action_list": action_list,
-                "total_trials": len(action_list),
-                "successful_trials": sum(
-                    1 for t in trial_results if t["success"]
-                ),
-                "trial_duration_sec": self.TRIAL_DURATION_SEC,
-                "smooth_method": smooth_method if smooth else None,
-                "expression_analysis": {
-                    "method": joy_result.get("method", "unknown"),
-                    "joy_ratio": joy_result.get("ratio", 0.0),
-                    "joy_count": joy_result.get("count", 0),
-                    "frames_analyzed": joy_result.get(
-                        "frames_analyzed", 0
-                    ),
-                },
-                "visualization": {
-                    "output_folder": str(output_path),
-                    "merged_video": str(merged_video_path),
-                    "trial_videos": [
-                        str(p) if p else None
-                        for p in trial_video_paths
-                    ],
-                },
-            },
-        )
-
-        logger.info(
-            f"다중 시도 시각화 분석 완료: "
-            f"{result.details['successful_trials']}"
-            f"/{len(action_list)} trials 성공 "
-            f"→ {merged_video_path}"
-        )
-        return result
-
+    
     def _calculate_ados_scores(self, trial_results: list[dict]) -> dict[str, Any]:
         """
         ADOS 점수 계산.
@@ -2067,40 +1663,35 @@ class MotionAnalyzer:
         # 표정 분석기가 사용 가능한 경우 실제 분석 수행
         if self.expression_analyzer and self.expression_analyzer.available:
             try:
-                # 전체 영상 분석 (0~48초)
-                return self._detect_joy_with_expression_analyzer(
-                    video_path, 
-                    start_sec=0.0, 
-                    end_sec=48.0
-                )
+                return self._detect_joy_with_expression_analyzer(video_path)
             except Exception as e:
                 logger.warning(f"표정 분석 실패, fallback 사용: {e}")
         
-        # Fallback: 표정 분석이 안 되었으므로 False 처리
-        logger.warning("즐거움 감지 실패: ExpressionAnalyzer 사용 불가 (detected=False)")
+        # Fallback: placeholder 로직
+        successful_count = sum(1 for t in trial_results if t["success"])
+        detected = successful_count >= 1
+        confidence = min(0.3 + (successful_count * 0.2), 1.0)
+        
+        logger.info(f"즐거움 감지: detected={detected} (fallback/placeholder)")
         
         return {
-            "detected": False,
+            "detected": detected,
             "count": 0,
             "ratio": 0.0,
-            "confidence": 0.0,
-            "method": "unavailable",
-            "note": "ExpressionAnalyzer not available, cannot detect joy"
+            "confidence": float(confidence),
+            "method": "placeholder",
+            "note": "ExpressionAnalyzer not available, using fallback"
         }
     
     def _detect_joy_with_expression_analyzer(
         self,
-        video_path: str,
-        start_sec: float = 0.0,
-        end_sec: Optional[float] = None
+        video_path: str
     ) -> dict[str, Any]:
         """
         ExpressionAnalyzer를 사용한 실제 표정 분석.
         
         Args:
             video_path: 분석할 영상 경로
-            start_sec: 시작 시간 (초)
-            end_sec: 종료 시간 (초)
             
         Returns:
             표정 분석 결과
@@ -2109,91 +1700,42 @@ class MotionAnalyzer:
         
         logger.info("표정 분석 시작 (ExpressionAnalyzer)")
         
-        # 1. 포즈 추출 및 역할 식별로 아이 머리 위치 파악
+        # 프레임 추출
+        frames = []
+        cap = cv2.VideoCapture(video_path)
+        
+        if not cap.isOpened():
+            raise PipelineError(
+                message=f"영상을 열 수 없습니다: {video_path}",
+                code="VIDEO_OPEN_ERROR",
+                details={"video_path": video_path}
+            )
+        
         try:
-            extraction_result = self.video_processor.extract_frames(
-                video_path, start_sec=start_sec, end_sec=end_sec
-            )
-            frames_data = self.pose_extractor.extract_from_folder(extraction_result.frames_folder)
-            
-            # 역할 식별
-            frame_persons = self.role_identifier.identify_roles(frames_data)
-            
-            # 아이 머리 위치 추출 (코 키포인트 기준)
-            child_head_positions = []
-            frames = []
-            
-            cap = cv2.VideoCapture(video_path)
-            if not cap.isOpened():
-                raise PipelineError(
-                    message=f"영상을 열 수 없습니다: {video_path}",
-                    code="VIDEO_OPEN_ERROR",
-                    details={"video_path": video_path}
-                )
-            
-            # 시작/종료 시간 설정
-            fps = cap.get(cv2.CAP_PROP_FPS)
-            if start_sec > 0:
-                cap.set(cv2.CAP_PROP_POS_FRAMES, int(start_sec * fps))
-            
-            frame_idx = 0
-            max_frames = int((end_sec - start_sec) * fps) if end_sec else None
-            
-            try:
-                while True:
-                    if max_frames and frame_idx >= max_frames:
-                        break
-                    
-                    ret, frame = cap.read()
-                    if not ret:
-                        break
-                    
-                    frames.append(frame)
-                    
-                    # 아이 머리 위치 찾기
-                    child_pos = None
-                    if frame_idx < len(frame_persons):
-                        fp = frame_persons[frame_idx]
-                        if fp.child and fp.child.person_pose and fp.child.person_pose.keypoints:
-                            # 코(nose) 키포인트 사용
-                            nose = fp.child.person_pose.keypoints.get("nose")
-                            if nose and nose["score"] > 0.3:
-                                child_pos = (int(nose["x"]), int(nose["y"]))
-                    
-                    child_head_positions.append(child_pos)
-                    frame_idx += 1
-                    
-            finally:
-                cap.release()
-            
-            if not frames:
-                logger.warning("프레임을 추출할 수 없습니다")
-                return {
-                    "detected": False,
-                    "count": 0,
-                    "ratio": 0.0,
-                    "method": "expression_analyzer",
-                    "error": "no_frames"
-                }
-            
-            logger.info(f"아이 머리 위치 {sum(1 for p in child_head_positions if p is not None)}/{len(child_head_positions)} 프레임 탐지됨")
-            
-            # 표정 분석 수행 (아이 머리 위치 전달)
-            expression_result = self.expression_analyzer.analyze(
-                frames=frames,
-                child_head_positions=child_head_positions,
-                parent_head_positions=None
-            )
-            
-        except Exception as e:
-            logger.error(f"포즈 기반 표정 분석 실패: {e}")
+            while True:
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                frames.append(frame)
+        finally:
+            cap.release()
+        
+        if not frames:
+            logger.warning("프레임을 추출할 수 없습니다")
             return {
                 "detected": False,
                 "count": 0,
                 "ratio": 0.0,
                 "method": "expression_analyzer",
-                "error": f"pose_based_analysis_failed: {str(e)}"
+                "error": "no_frames"
             }
+        
+        # 표정 분석 수행 (아이 머리 위치는 None으로 전달 - 크기 기반 선택 사용)
+        expression_result = self.expression_analyzer.analyze(
+            frames=frames,
+            child_head_positions=None,
+            parent_head_positions=None
+        )
         
         logger.info(
             f"표정 분석 완료: joy_detected={expression_result.joy_detected}, "
@@ -2419,8 +1961,7 @@ class MotionAnalyzer:
         reaction_delay_detail: dict,
         action_type: str,
         threshold: float,
-        child_action_detected: bool = True,
-        trial_info: Optional[dict] = None
+        child_action_detected: bool = True
     ) -> None:
         """
         시각화된 프레임들을 메트릭 정보와 함께 동영상으로 합성.
@@ -2433,13 +1974,12 @@ class MotionAnalyzer:
             fps: 동영상 FPS
             reaction_delay: 반응 지연 시간 (초)
             duration: 동작 지속 시간 (초)
-            similarity_score: 전체 유사도 점수 (코사인 유사도)
+            similarity_score: 전체 유사도 점수
             frame_similarities: 프레임별 유사도
             reaction_delay_detail: 반응 지연 상세 정보
             action_type: 동작 타입
             threshold: 통과 임계값
             child_action_detected: 아이 동작 감지 여부 (기본값 True)
-            trial_info: Trial 결과 정보 (attention_ratio, parent/child 시간 등)
         """
         import cv2
         
@@ -2453,10 +1993,7 @@ class MotionAnalyzer:
         first_frame = cv2.imread(str(frame_files[0]))
         height, width = first_frame.shape[:2]
         
-        # 좌측 오버레이 패널 너비
-        overlay_width = 320
-        
-        # 비디오 라이터 (원본 크기 유지)
+        # 비디오 라이터
         fourcc = cv2.VideoWriter_fourcc(*VIDEO_FOURCC)
         out = cv2.VideoWriter(str(output_path), fourcc, fps, (width, height))
         
@@ -2470,134 +2007,75 @@ class MotionAnalyzer:
         # 강조 지속 프레임 수 (0.5초)
         highlight_duration = int(fps * 0.5)
         
-        # Trial 정보 추출 (RabbitMQ JSON 데이터 활용)
-        attention_ratio = trial_info.get("attention_ratio") if trial_info else None
-        parent_start_time = trial_info.get("parent_start_time") if trial_info else None
-        parent_end_time = trial_info.get("parent_end_time") if trial_info else None
-        child_start_time = trial_info.get("child_start_time") if trial_info else None
-        child_end_time = trial_info.get("child_end_time") if trial_info else None
-        latency_s = trial_info.get("latency_s") if trial_info else None
-        
         for frame_idx, frame_path in enumerate(frame_files):
             frame = cv2.imread(str(frame_path))
             frame_time = frame_idx / fps
             
-            # ========== 좌측 정보 오버레이 (반투명 배경) ==========
-            # 배경 오버레이 그리기
+            # ========== 상단 정보 패널 (반투명 배경) ==========
             overlay = frame.copy()
-            cv2.rectangle(overlay, (0, 0), (overlay_width, height), (40, 40, 40), -1)
-            # 반투명 블렌딩 (알파=0.85 → 85% 불투명)
-            cv2.addWeighted(overlay, 0.85, frame, 0.15, 0, frame)
-            
-            y_pos = 30  # 세로 위치 시작
+            cv2.rectangle(overlay, (0, 0), (width, 180), (0, 0, 0), -1)
+            cv2.addWeighted(overlay, 0.6, frame, 0.4, 0, frame)
             
             # 동작 타입 및 결과
             passed = similarity_score >= threshold and child_action_detected
-            result_text = f"{action_type.upper()}"
-            result_color = (0, 255, 0) if passed else (0, 0, 255)
-            cv2.putText(frame, result_text, (10, y_pos), 
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
-            y_pos += 30
+            result_text = f"{action_type.upper()} - {'PASS' if passed else 'FAIL'}"
+            result_color = (0, 255, 0) if passed else (0, 0, 255)  # BGR
+            cv2.putText(frame, result_text, (10, 30), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.9, result_color, 2)
             
-            status_text = "PASS" if passed else "FAIL"
-            cv2.putText(frame, status_text, (10, y_pos), 
-                       cv2.FONT_HERSHEY_SIMPLEX, 1.0, result_color, 2)
-            y_pos += 50
+            # 전체 유사도
+            cv2.putText(frame, f"Overall Score: {similarity_score:.1%}", (10, 60),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
             
-            # 구분선
-            cv2.line(frame, (10, y_pos), (overlay_width - 10, y_pos), (100, 100, 100), 1)
-            y_pos += 20
-            
-            # 전체 유사도 (코사인 기반)
-            cv2.putText(frame, "Cosine Similarity:", (10, y_pos),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 200, 200), 1)
-            y_pos += 25
-            cv2.putText(frame, f"{similarity_score:.1%}", (10, y_pos),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 0), 2)
-            y_pos += 30
-            
-            # Threshold
-            cv2.putText(frame, f"Threshold: {threshold:.1%}", (10, y_pos),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (150, 150, 150), 1)
-            y_pos += 30
-            
-            # 구분선
-            cv2.line(frame, (10, y_pos), (overlay_width - 10, y_pos), (100, 100, 100), 1)
-            y_pos += 20
-            
-            # 반응 지연 시간
-            if latency_s is not None:
-                delay_text = f"Latency: {latency_s:.2f}s"
-            elif reaction_delay is not None:
-                delay_text = f"Latency: {reaction_delay:.2f}s"
+            # 반응 지연 시간 (None 처리)
+            if reaction_delay is not None:
+                delay_text = f"Reaction Delay: {reaction_delay:.2f}s"
             else:
-                delay_text = "Latency: N/A"
-            cv2.putText(frame, delay_text, (10, y_pos),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
-            y_pos += 30
+                delay_text = "Reaction Delay: N/A"
+            delay_color = (0, 255, 255)
+            cv2.putText(frame, delay_text, (10, 90),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, delay_color, 2)
             
-            # 동작 지속 시간
+            # 동작 지속 시간 (None 처리)
             if duration is not None:
-                duration_text = f"Duration: {duration:.2f}s"
+                duration_text = f"Action Duration: {duration:.2f}s"
             else:
-                duration_text = "Duration: N/A"
-            cv2.putText(frame, duration_text, (10, y_pos),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 200, 100), 1)
-            y_pos += 30
-            
-            # 주의력/상호작용 비율
-            if attention_ratio is not None:
-                attention_text = f"Attention: {attention_ratio:.1%}"
-                attention_color = (0, 255, 0) if attention_ratio >= 0.7 else (100, 200, 255)
-                cv2.putText(frame, attention_text, (10, y_pos),
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.5, attention_color, 1)
-                y_pos += 35
-            
-            # 구분선
-            cv2.line(frame, (10, y_pos), (overlay_width - 10, y_pos), (100, 100, 100), 1)
-            y_pos += 20
-            
-            # 부모 동작 시간
-            if parent_start_time is not None and parent_end_time is not None:
-                cv2.putText(frame, "Parent Action:", (10, y_pos),
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.45, (200, 200, 200), 1)
-                y_pos += 20
-                cv2.putText(frame, f"{parent_start_time:.1f}s - {parent_end_time:.1f}s", (10, y_pos),
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 150, 100), 1)
-                y_pos += 25
-            
-            # 아이 동작 시간
-            if child_start_time is not None and child_end_time is not None:
-                cv2.putText(frame, "Child Action:", (10, y_pos),
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.45, (200, 200, 200), 1)
-                y_pos += 20
-                cv2.putText(frame, f"{child_start_time:.1f}s - {child_end_time:.1f}s", (10, y_pos),
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.45, (100, 200, 255), 1)
-                y_pos += 30
-            
-            # 구분선
-            cv2.line(frame, (10, y_pos), (overlay_width - 10, y_pos), (100, 100, 100), 1)
-            y_pos += 20
+                duration_text = "Action Duration: N/A"
+            cv2.putText(frame, duration_text, (10, 120),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 200, 100), 2)
             
             # 현재 시간 / 프레임
-            cv2.putText(frame, f"Time: {frame_time:.2f}s", (10, y_pos),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 200, 200), 1)
-            y_pos += 20
-            cv2.putText(frame, f"Frame: {frame_idx}", (10, y_pos),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 200, 200), 1)
-            y_pos += 25
+            cv2.putText(frame, f"Time: {frame_time:.2f}s (Frame {frame_idx})", (10, 150),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200, 200, 200), 1)
             
             # 감지 방식
-            cv2.putText(frame, f"Method: {detection_method}", (10, y_pos),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.4, (150, 150, 150), 1)
+            cv2.putText(frame, f"Detection: {detection_method}", (10, 175),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (150, 150, 150), 1)
+            
+            # ========== 우측 상단: 현재 프레임 유사도 ==========
+            if frame_idx < len(frame_similarities):
+                current_sim = frame_similarities[frame_idx]
+                sim_color = (0, 255, 0) if current_sim >= threshold else (100, 100, 255)
+                cv2.putText(frame, f"Sim: {current_sim:.1%}", (width - 150, 30),
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, sim_color, 2)
+                
+                # 유사도 바
+                bar_width = 120
+                bar_height = 15
+                bar_x = width - 150
+                bar_y = 40
+                filled_width = int(bar_width * current_sim)
+                cv2.rectangle(frame, (bar_x, bar_y), (bar_x + bar_width, bar_y + bar_height), 
+                             (100, 100, 100), -1)
+                cv2.rectangle(frame, (bar_x, bar_y), (bar_x + filled_width, bar_y + bar_height), 
+                             sim_color, -1)
             
             # ========== 부모 동작 시작 강조 ==========
             if parent_detected and parent_start_frame is not None:
                 if parent_start_frame <= frame_idx < parent_start_frame + highlight_duration:
-                    # 파란색 테두리
+                    # 파란색 테두리 깜빡임 효과
                     border_thickness = 8
-                    cv2.rectangle(frame, (0, 0), (width - 1, height - 1), 
-                                 (255, 100, 0), border_thickness)
+                    cv2.rectangle(frame, (0, 0), (width-1, height-1), (255, 100, 0), border_thickness)
                     
                     # 부모 시작 텍스트 (화면 중앙)
                     text = "PARENT ACTION START!"
@@ -2615,16 +2093,15 @@ class MotionAnalyzer:
                     parent_time = parent_start_frame / fps
                     time_text = f"Frame {parent_start_frame} ({parent_time:.2f}s)"
                     time_size = cv2.getTextSize(time_text, cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2)[0]
-                    cv2.putText(frame, time_text, (text_x + (text_size[0] - time_size[0]) // 2, text_y + 40),
+                    cv2.putText(frame, time_text, ((width - time_size[0]) // 2, text_y + 40),
                                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 200, 100), 2)
             
             # ========== 아이 동작 시작 강조 ==========
             if child_detected and child_start_frame is not None:
                 if child_start_frame <= frame_idx < child_start_frame + highlight_duration:
-                    # 주황색 테두리
+                    # 주황색 테두리 깜빡임 효과
                     border_thickness = 8
-                    cv2.rectangle(frame, (0, 0), (width - 1, height - 1), 
-                                 (0, 165, 255), border_thickness)
+                    cv2.rectangle(frame, (0, 0), (width-1, height-1), (0, 165, 255), border_thickness)
                     
                     # 아이 시작 텍스트 (화면 중앙)
                     text = "CHILD ACTION START!"
@@ -2664,124 +2141,6 @@ class MotionAnalyzer:
         
         out.release()
         logger.debug(f"메트릭 포함 동영상 생성: {output_path} ({len(frame_files)} frames, {fps}fps)")
-
-    def _merge_trial_videos(
-        self,
-        trial_video_paths: list[Path],
-        trial_results: list[dict],
-        output_path: Path,
-        fps: float,
-    ) -> None:
-        """
-        개별 trial 스켈레톤 영상들을 하나로 합본.
-
-        각 trial 영상 사이에 구분 타이틀 프레임(1초)을 삽입합니다.
-
-        Args:
-            trial_video_paths: trial별 skeleton_video.mp4 경로 리스트
-            trial_results: trial별 분석 결과 dict 리스트
-            output_path: 합본 영상 출력 경로
-            fps: 출력 영상 FPS
-        """
-        import cv2
-
-        # 첫 영상에서 해상도 확인
-        first_valid = None
-        for p in trial_video_paths:
-            if p and p.exists():
-                first_valid = p
-                break
-        if first_valid is None:
-            logger.warning("합본할 trial 영상이 없습니다.")
-            return
-
-        cap = cv2.VideoCapture(str(first_valid))
-        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        cap.release()
-
-        fourcc = cv2.VideoWriter_fourcc(*VIDEO_FOURCC)
-        out = cv2.VideoWriter(
-            str(output_path), fourcc, fps, (width, height)
-        )
-
-        title_frames = int(fps * 1.0)  # 구분 타이틀 1초
-
-        for idx, (video_path, trial) in enumerate(
-            zip(trial_video_paths, trial_results, strict=True)
-        ):
-            action = trial.get("action_type", "unknown")
-            trial_num = trial.get("trial_index", idx + 1)
-            passed = trial.get("success", False)
-            score = trial.get("similarity_score", 0.0)
-
-            # ── 구분 타이틀 프레임 삽입 ──
-            for _ in range(title_frames):
-                title = np.zeros((height, width, 3), dtype=np.uint8)
-
-                # Trial 번호 + 동작명
-                header = f"Trial {trial_num}: {action.upper()}"
-                h_size = cv2.getTextSize(
-                    header, cv2.FONT_HERSHEY_SIMPLEX, 1.5, 3
-                )[0]
-                h_x = (width - h_size[0]) // 2
-                cv2.putText(
-                    title, header, (h_x, height // 2 - 40),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1.5,
-                    (255, 255, 255), 3,
-                )
-
-                # PASS/FAIL + 유사도
-                result_text = (
-                    f"{'PASS' if passed else 'FAIL'}"
-                    f" ({score:.1%})"
-                )
-                r_color = (0, 255, 0) if passed else (0, 0, 255)
-                r_size = cv2.getTextSize(
-                    result_text, cv2.FONT_HERSHEY_SIMPLEX, 1.2, 2
-                )[0]
-                r_x = (width - r_size[0]) // 2
-                cv2.putText(
-                    title, result_text, (r_x, height // 2 + 30),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1.2, r_color, 2,
-                )
-
-                out.write(title)
-
-            # ── trial 영상 프레임 복사 ──
-            if video_path and video_path.exists():
-                cap = cv2.VideoCapture(str(video_path))
-                while True:
-                    ret, frame = cap.read()
-                    if not ret:
-                        break
-                    # 해상도 불일치 시 리사이즈
-                    if (
-                        frame.shape[1] != width
-                        or frame.shape[0] != height
-                    ):
-                        frame = cv2.resize(
-                            frame, (width, height)
-                        )
-                    out.write(frame)
-                cap.release()
-            else:
-                # 영상 없으면 빈 프레임으로 채움 (1초)
-                for _ in range(int(fps)):
-                    blank = np.zeros(
-                        (height, width, 3), dtype=np.uint8
-                    )
-                    cv2.putText(
-                        blank,
-                        f"Trial {trial_num}: No Video",
-                        (width // 4, height // 2),
-                        cv2.FONT_HERSHEY_SIMPLEX, 1.0,
-                        (100, 100, 100), 2,
-                    )
-                    out.write(blank)
-
-        out.release()
-        logger.info(f"합본 영상 생성 완료: {output_path}")
 
 
 def main():

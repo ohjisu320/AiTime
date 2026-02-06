@@ -193,10 +193,16 @@ class PipelineContext:
         최종 결과 딕셔너리 생성
         
         Reference:
-            - AI_BE_json양식.txt 의 비대면 호명반응(task4) 응답 양식
-            - docs/AI_to_BE_by_rabbitmq_json.txt
+            - 필수참고_작업설계.md의 응답 json 양식
         """
         return {
+            "request_id": self.request_id,
+            "analyzed_at": (
+                self.completed_at.isoformat() 
+                if self.completed_at 
+                else datetime.now().isoformat()
+            ),
+            "status": self.status.value,
             "metrics": {
                 "per_trial": [tr.to_dict() for tr in self.trial_results]
             },
@@ -204,4 +210,11 @@ class PipelineContext:
                 "B7": self.ados_b7,
                 "B18": self.ados_b18
             },
+            "metadata": {
+                "audio_duration_sec": self.audio_duration_sec,
+                "num_trials": len(self.name_call_events),
+                "processing_times": self.processing_times,
+            },
+            "errors": self.errors if self.errors else None,
+            "warnings": self.warnings if self.warnings else None,
         }
