@@ -238,15 +238,17 @@ class FullPipelineOrchestrator:
         - 1409_뒤통수_미탐지문제로_yolohead및6drepnet360 모델 조합으로 변경.md
     """
     
-    def __init__(self, stages: List[BaseStage] = None, target_fps: int = None, skip_audio: bool = False):
+    def __init__(self, stages: List[BaseStage] = None, target_fps: int = None, skip_audio: bool = False, continue_on_error: bool = False):
         """
         Args:
             stages: 실행할 Stage 목록 (None이면 기본 구성)
             target_fps: 프레임 추출 FPS (None이면 config 값 사용, 0이면 원본 FPS 유지)
             skip_audio: 오디오 반응 분석(ReactionDetectStage) 건너뛰기
+            continue_on_error: True면 개별 Stage 실패 시 건너뛰고 계속 진행
         """
         self._target_fps = target_fps
         self._skip_audio = skip_audio
+        self._continue_on_error = continue_on_error
         self._context: Optional[PipelineContext] = None  # 마지막 실행 context 저장
         
         if stages is None:
@@ -315,17 +317,37 @@ class FullPipelineOrchestrator:
         logger.info(f"   아이 이름: {child_name}")
         logger.info("=" * 60)
         
-        try:
+        if self._continue_on_error:
+            # Stage별 에러를 건너뛰고 계속 진행
             for stage in self._stages:
-                context = stage.run(context)
-            
-            context.status = PipelineStatus.COMPLETED
+                try:
+                    context = stage.run(context)
+                except Exception as e:
+                    logger.error(
+                        f"⚠️ {stage.name} 실패 (건너뜀): {e}",
+                    )
+                    context.errors.append(
+                        f"[{stage.name}] {e}"
+                    )
+            # 에러가 있었으면 PARTIAL, 없으면 COMPLETED
+            if context.errors:
+                context.status = PipelineStatus.FAILED
+            else:
+                context.status = PipelineStatus.COMPLETED
             context.completed_at = datetime.now()
-            
-        except Exception as e:
-            context.status = PipelineStatus.FAILED
-            context.completed_at = datetime.now()
-            logger.error(f"✖️✖️✖️ 파이프라인 실패: {e}", exc_info=True)
+        else:
+            try:
+                for stage in self._stages:
+                    context = stage.run(context)
+                context.status = PipelineStatus.COMPLETED
+                context.completed_at = datetime.now()
+            except Exception as e:
+                context.status = PipelineStatus.FAILED
+                context.completed_at = datetime.now()
+                logger.error(
+                    f"✖️✖️✖️ 파이프라인 실패: {e}",
+                    exc_info=True,
+                )
         
         result = context.to_result()
         

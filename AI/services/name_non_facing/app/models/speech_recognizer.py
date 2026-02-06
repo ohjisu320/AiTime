@@ -241,41 +241,128 @@ class SpeechRecognizer(BaseModel):
         
         # faster-whisper 실행
         # Reference: https://github.com/SYSTRAN/faster-whisper#usage
-        segments_generator, info = self._model.transcribe(
-            audio,
-            language=language,
-            beam_size=self._settings.WHISPER_BEAM_SIZE,
-            word_timestamps=self._settings.WHISPER_WORD_TIMESTAMPS,
-            vad_filter=True,  # 내장 VAD 필터 사용
-        )
+        # CUDA 런타임 에러 발생 시 CPU로 재시도
+        try:
+            segments_generator, info = self._model.transcribe(
+                audio,
+                language=language,
+                beam_size=self._settings.WHISPER_BEAM_SIZE,
+                word_timestamps=self._settings.WHISPER_WORD_TIMESTAMPS,
+                vad_filter=True,  # 내장 VAD 필터 사용
+            )
+        except Exception as e:
+            if ("cublas" in str(e).lower() or "cuda" in str(e).lower()) and \
+               hasattr(self, "_current_device") and self._current_device != "cpu":
+                # CUDA 실행 에러 → CPU 모드로 재로드 및 재시도
+                logger.warning(
+                    f"⚠️ CUDA 실행 실패 (cublas 라이브러리 누락), CPU로 재시도: {e}"
+                )
+                from faster_whisper import WhisperModel
+                model_size = self._settings.WHISPER_MODEL_SIZE.value
+                self._current_device = "cpu"
+                self._current_compute_type = "int8"
+                self._model = WhisperModel(
+                    model_size_or_path=model_size,
+                    device="cpu",
+                    compute_type="int8",
+                )
+                logger.info("✅ CPU 모드로 모델 재로드 완료, 재시도 중...")
+                
+                # CPU로 재시도
+                segments_generator, info = self._model.transcribe(
+                    audio,
+                    language=language,
+                    beam_size=self._settings.WHISPER_BEAM_SIZE,
+                    word_timestamps=self._settings.WHISPER_WORD_TIMESTAMPS,
+                    vad_filter=True,
+                )
+            else:
+                raise
         
         # 결과 파싱
+        # Generator iteration 중에도 CUDA 에러 발생 가능하므로 try-catch
         segments = []
         full_text_parts = []
         
-        for seg in segments_generator:
-            words = []
-            if seg.words:
-                for w in seg.words:
-                    word = Word(
-                        text=w.word,
-                        start_sec=w.start,
-                        end_sec=w.end,
-                        probability=w.probability
+        try:
+            for seg in segments_generator:
+                words = []
+                if seg.words:
+                    for w in seg.words:
+                        word = Word(
+                            text=w.word,
+                            start_sec=w.start,
+                            end_sec=w.end,
+                            probability=w.probability
+                        )
+                        words.append(word)
+                
+                segment = Segment(
+                    id=seg.id,
+                    text=seg.text.strip(),
+                    start_sec=seg.start,
+                    end_sec=seg.end,
+                    words=words,
+                    avg_logprob=seg.avg_logprob,
+                    no_speech_prob=seg.no_speech_prob
+                )
+                segments.append(segment)
+                full_text_parts.append(seg.text.strip())
+        except Exception as e:
+            if ("cublas" in str(e).lower() or "cuda" in str(e).lower()) and \
+               hasattr(self, "_current_device") and self._current_device != "cpu":
+                # Generator iteration 중 CUDA 에러 → CPU로 재시도
+                logger.warning(
+                    f"⚠️ CUDA 실행 실패 (generator iteration 중 cublas 누락), CPU로 전체 재시도: {e}"
+                )
+                from faster_whisper import WhisperModel
+                model_size = self._settings.WHISPER_MODEL_SIZE.value
+                self._current_device = "cpu"
+                self._current_compute_type = "int8"
+                self._model = WhisperModel(
+                    model_size_or_path=model_size,
+                    device="cpu",
+                    compute_type="int8",
+                )
+                logger.info("✅ CPU 모드로 모델 재로드 완료, 재시도 중...")
+                
+                # CPU로 전체 재시도
+                segments_generator, info = self._model.transcribe(
+                    audio,
+                    language=language,
+                    beam_size=self._settings.WHISPER_BEAM_SIZE,
+                    word_timestamps=self._settings.WHISPER_WORD_TIMESTAMPS,
+                    vad_filter=True,
+                )
+                
+                # 결과 파싱 재시도
+                segments = []
+                full_text_parts = []
+                for seg in segments_generator:
+                    words = []
+                    if seg.words:
+                        for w in seg.words:
+                            word = Word(
+                                text=w.word,
+                                start_sec=w.start,
+                                end_sec=w.end,
+                                probability=w.probability
+                            )
+                            words.append(word)
+                    
+                    segment = Segment(
+                        id=seg.id,
+                        text=seg.text.strip(),
+                        start_sec=seg.start,
+                        end_sec=seg.end,
+                        words=words,
+                        avg_logprob=seg.avg_logprob,
+                        no_speech_prob=seg.no_speech_prob
                     )
-                    words.append(word)
-            
-            segment = Segment(
-                id=seg.id,
-                text=seg.text.strip(),
-                start_sec=seg.start,
-                end_sec=seg.end,
-                words=words,
-                avg_logprob=seg.avg_logprob,
-                no_speech_prob=seg.no_speech_prob
-            )
-            segments.append(segment)
-            full_text_parts.append(seg.text.strip())
+                    segments.append(segment)
+                    full_text_parts.append(seg.text.strip())
+            else:
+                raise
         
         result = TranscriptionResult(
             text=" ".join(full_text_parts),

@@ -82,6 +82,51 @@ def angle_between_vectors_deg(v1: np.ndarray, v2: np.ndarray) -> float:
     return float(np.degrees(angle_rad))
 
 
+def angle_between_vectors_2d_deg(
+    v1: np.ndarray,
+    v2: np.ndarray,
+    y_weight: float = 0.3,
+) -> float:
+    """
+    2D 화면 공간에서 두 벡터 사이 각도 (도)
+    
+    3D 벡터의 x, y 성분만 사용하여 화면 공간 각도를 계산합니다.
+    y(pitch) 가중치를 낮춰 노이즈가 큰 pitch 추정값의 영향을 줄입니다.
+    
+    설계 의도:
+        - 시선 벡터 [x,y,z]와 위치 벡터 [dx,dy,0]의 차원 불일치 해결
+        - 6DRepNet360의 pitch 추정이 부정확한 경우(측면 프로필) 로버스트
+        - ADOS 호명반응에서 핵심 지표는 yaw(좌우 회전)이므로
+          수평 성분(x)에 높은 가중치 부여
+    
+    Args:
+        v1, v2: 입력 벡터 (2D 또는 3D, x/y 성분 사용)
+        y_weight: y(수직) 성분 가중치 (0.0~1.0)
+                  0.0 = 수평만 비교, 1.0 = 수직도 동등하게 비교
+                  기본값 0.3 = pitch 영향 70% 감쇠
+    
+    Returns:
+        각도 (도, 0° ~ 180°)
+    """
+    # x, y 성분 추출
+    v1x = float(v1[0]) if len(v1) > 0 else 0.0
+    v1y = float(v1[1]) * y_weight if len(v1) > 1 else 0.0
+    v2x = float(v2[0]) if len(v2) > 0 else 0.0
+    v2y = float(v2[1]) * y_weight if len(v2) > 1 else 0.0
+    
+    g = np.array([v1x, v1y])
+    p = np.array([v2x, v2y])
+    
+    gn = np.linalg.norm(g)
+    pn = np.linalg.norm(p)
+    if gn < 1e-8 or pn < 1e-8:
+        return 180.0
+    
+    cos_theta = np.dot(g / gn, p / pn)
+    cos_theta = np.clip(cos_theta, -1.0, 1.0)
+    return float(np.degrees(np.arccos(cos_theta)))
+
+
 def is_within_threshold(
     v1: np.ndarray,
     v2: np.ndarray,

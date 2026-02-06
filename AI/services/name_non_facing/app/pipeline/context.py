@@ -153,16 +153,20 @@ class PipelineContext:
     frame_width: int = 0
     frame_height: int = 0
     
-    # 얼굴 탐지 결과
-    face_detections: Dict[float, List[Any]] = field(default_factory=dict)  # {timestamp: [FaceDetection]}
+    # 머리 탐지 결과 (HeadDetectStage에서 저장)
+    head_detections: Dict[float, List[Any]] = field(default_factory=dict)  # {timestamp: [HeadDetection]}
     parent_positions: List[Any] = field(default_factory=list)   # [(timestamp, (cx, cy))]
-    child_detections: List[Any] = field(default_factory=list)   # [(timestamp, FaceDetection or None)]
+    child_detections: List[Any] = field(default_factory=list)   # [(timestamp, HeadDetection or None)]
     position_vectors: List[Any] = field(default_factory=list)   # [(timestamp, Vector3D)]
     is_first_person_view: bool = False  # 1인칭 모드 여부
     
-    # 시선 분석 결과
+    # [deprecated] MediaPipe 얼굴 탐지 결과 (YOLO head로 대체됨)
+    face_detections: Dict[float, List[Any]] = field(default_factory=dict)  # {timestamp: [FaceDetection]}
+    
+    # 시선 분석 결과 (ChildAnalysisStage에서 저장)
     gaze_frame_results: List[Any] = field(default_factory=list)  # List[GazeFrameResult]
     gaze_results: List[Any] = field(default_factory=list)        # List[GazeReactionResult]
+    head_pose_6d_results: List[Any] = field(default_factory=list)  # [(timestamp, HeadPose6D)]
     
     # ===== 최종 결과 =====
     trial_results: List[TrialResult] = field(default_factory=list)
