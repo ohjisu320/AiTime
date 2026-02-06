@@ -1,0 +1,34 @@
+services:
+  ai-task4:
+    build:
+      context: ../AI/services/name_non_facing
+      dockerfile: ../../../docker/dockerfiles/Dockerfile.ai_task4
+    container_name: ai-task4
+    ports:
+      - "8004:8004"
+    volumes:
+      - ../AI/services/name_non_facing/app:/app/app
+      - huggingface_cache:/root/.cache/huggingface
+    environment:
+      - PYTHONUNBUFFERED=1
+      - RABBITMQ_HOST=rabbitmq
+      - DEVICE=cpu
+    networks:
+      - cmn-network
+    restart: unless-stopped
+    command: ["python", "-m", "app.worker"]
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'python -m app.worker' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  huggingface_cache:
+    driver: local
+
+networks:
+  cmn-network:
+    external: true
+
