@@ -3,6 +3,7 @@ package com.ssafy.aitime.domain.hospital.service;
 import com.ssafy.aitime.common.enums.RecordStatus;
 import com.ssafy.aitime.domain.child.entity.Child;
 import com.ssafy.aitime.domain.child.repository.ChildRepository;
+import com.ssafy.aitime.domain.child.service.ChildService;
 import com.ssafy.aitime.domain.exam.dto.response.AdosDetailResponse;
 import com.ssafy.aitime.domain.exam.dto.response.ExamWithVideosResponse;
 import com.ssafy.aitime.domain.exam.entity.Ados;
@@ -17,6 +18,7 @@ import com.ssafy.aitime.domain.hospital.dto.request.PatientSearchRequest;
 import com.ssafy.aitime.domain.hospital.dto.response.*;
 import com.ssafy.aitime.domain.hospital.entity.HospitalChildren;
 import com.ssafy.aitime.domain.hospital.entity.HospitalStaff;
+import com.ssafy.aitime.domain.hospital.entity.Reservation;
 import com.ssafy.aitime.domain.hospital.entity.enums.LinkStatus;
 import com.ssafy.aitime.domain.hospital.entity.enums.ReservationStatus;
 import com.ssafy.aitime.domain.hospital.entity.enums.StaffRole;
@@ -47,7 +49,7 @@ public class DoctorServiceImpl implements DoctorService{
     private final ReservationRepository reservationRepository;
     private final HospitalChildrenRepository hospitalChildrenRepository;
     private final HospitalStaffRepository hospitalStaffRepository;
-    private final ChildRepository childRepository;
+    private final ChildService childService;
 
     private final ExamService examService;
     private final VideoService videoService;
@@ -75,127 +77,131 @@ public class DoctorServiceImpl implements DoctorService{
             UUID doctorId,
             PatientSearchRequest patientSearchRequest
     ) {
-        // TODO 0: 의사 ID 유효성 검증
-        validateDoctorId(doctorId);  // ← 추가!
+        validateDoctorId(doctorId);
 
         log.info("환자 검색 시작 - 의사 ID: {}, 검색 조건: {}", doctorId, patientSearchRequest);
 
-        // TODO 1: 날짜 필터링하여 Reservation 조회
+        // 1. 날짜 필터링하여 Reservation 조회
         LocalDate filterDate = patientSearchRequest.getEffectiveDate();
-        List<UUID> hospitalChildrenIds;
+        List<Reservation> reservations;
 
         if (filterDate != null) {
-            // 특정 날짜의 예약만 조회
             LocalDateTime startOfDay = filterDate.atStartOfDay();
             LocalDateTime endOfDay = filterDate.plusDays(1).atStartOfDay();
 
-            hospitalChildrenIds = reservationRepository
+            reservations = reservationRepository
                     .findByDoctorIdAndReservationStatusNotAndScheduledAtBetween(
                             doctorId,
                             ReservationStatus.CANCELLED,
                             startOfDay,
                             endOfDay
-                    )
-                    .stream()
-                    .map(r -> r.getHospitalChildren().getHospitalChildrenId())
-                    .distinct()
-                    .toList();
+                    );
         } else {
-            // 날짜 필터 없음 - 전체 예약 조회
-            hospitalChildrenIds = reservationRepository
+            reservations = reservationRepository
                     .findByDoctorIdAndReservationStatusNot(
                             doctorId,
                             ReservationStatus.CANCELLED
-                    )
-                    .stream()
-                    .map(r -> r.getHospitalChildren().getHospitalChildrenId())
-                    .distinct()
-                    .toList();
+                    );
         }
 
-        // 예약이 없으면 빈 결과 반환
-        if (hospitalChildrenIds.isEmpty()) {
+        if (reservations.isEmpty()) {
             return new PatientSearchResponse(Collections.emptyList(), 0);
         }
 
-        // TODO 2: hospitalChildrenIds를 이용하여 hospital_children 테이블에서 child_id UUID 뽑기
-        List<UUID> childIds = hospitalChildrenRepository
-                .findByHospitalChildrenIdInAndLinkStatus(hospitalChildrenIds, LinkStatus.ACTIVE)
-                .stream()
+        // 2. HospitalChildren ID별로 최신 예약 매핑 (scheduledAt 정보 필요)
+        Map<UUID, Reservation> latestReservationByHospitalChildrenId = new HashMap<>();
+        for (Reservation reservation : reservations) {
+            UUID hospitalChildrenId = reservation.getHospitalChildren().getHospitalChildrenId();
+            latestReservationByHospitalChildrenId.merge(
+                    hospitalChildrenId,
+                    reservation,
+                    (existing, current) ->
+                            current.getScheduledAt().isAfter(existing.getScheduledAt()) ? current : existing
+            );
+        }
+
+        // 3. HospitalChildren 조회
+        List<UUID> hospitalChildrenIds = new ArrayList<>(latestReservationByHospitalChildrenId.keySet());
+        List<HospitalChildren> hospitalChildrenList = hospitalChildrenRepository
+                .findByHospitalChildrenIdInAndLinkStatus(hospitalChildrenIds, LinkStatus.ACTIVE);
+
+        // 4. Child ID 추출 및 Child 조회
+        List<UUID> childIds = hospitalChildrenList.stream()
                 .map(hc -> hc.getChild().getChildId())
                 .distinct()
                 .toList();
 
-        // TODO 3: childIds를 이용하여 child 테이블에서 객체 받아오기
-        List<Child> children = childRepository.findByChildIdInAndRecordStatus(childIds, RecordStatus.ACTIVE);
+        Map<UUID, Child> childMap = childService.getChildrenByIds(childIds)  // ← 수정
+                .stream()
+                .collect(Collectors.toMap(Child::getChildId, child -> child));
 
-        // TODO 4: childIds로 exam 다 가져오기
+        // 5. childId별 최신 Exam 조회
         List<Exam> exams = examService.getExamsByChildIds(childIds);
 
-        // TODO 5: childId별 최신 ExamStatus 매핑
-        Map<UUID, String> latestExamStatusByChildId = new HashMap<>();
-
+        Map<UUID, Exam> latestExamByChildId = new HashMap<>();
         for (Exam exam : exams) {
             UUID childId = exam.getChild().getChildId();
-
-            // 이미 있으면 스킵 (createdAt desc라서 처음이 최신)
-            latestExamStatusByChildId.putIfAbsent(childId, exam.getExamStatus().name());
+            // getExamsByChildIds가 createdAt desc로 정렬되어 있다고 가정
+            // 첫 번째로 나온 것이 최신이므로 putIfAbsent 사용
+            latestExamByChildId.putIfAbsent(childId, exam);
         }
 
-        // TODO 6: DTO 변환
+        // 6. DTO 변환
         List<ChildResponse> responses = new ArrayList<>();
 
-        for (Child child : children) {
-            UUID childId = child.getChildId();
+        for (HospitalChildren hospitalChildren : hospitalChildrenList) {
+            UUID hospitalChildrenId = hospitalChildren.getHospitalChildrenId();
+            Child child = childMap.get(hospitalChildren.getChild().getChildId());
 
-            String latestExamStatus = latestExamStatusByChildId.getOrDefault(childId, "NONE");
+            if (child == null) continue;
 
-            int monthlyAge = calcMonthlyAge(child.getBirthdate());
+            Reservation reservation = latestReservationByHospitalChildrenId.get(hospitalChildrenId);
+            Exam latestExam = latestExamByChildId.get(child.getChildId());
+
+            String examStatus = latestExam != null ? latestExam.getExamStatus().name() : "NONE";
+            boolean isSubmitted = latestExam != null && latestExam.isSubmitted();
+
+            int months = calcMonthlyAge(child.getBirthdate());
 
             responses.add(new ChildResponse(
-                    childId,
-                    child.getUser().getUserId(),
+                    hospitalChildrenId,
                     child.getName(),
-                    monthlyAge,
-                    child.getBirthdate(),
                     child.getGender().name(),
-                    latestExamStatus
+                    months,
+                    reservation.getScheduledAt(),
+                    examStatus,
+                    isSubmitted
             ));
         }
 
-        // TODO 7: 이름 필터링 (메모리)
+        // 7. 이름 필터링
         if (patientSearchRequest.hasNameFilter()) {
             String nameFilter = patientSearchRequest.name().toLowerCase();
             responses = responses.stream()
-                    .filter(r -> r.name().toLowerCase().contains(nameFilter))
+                    .filter(r -> r.childName().toLowerCase().contains(nameFilter))
                     .toList();
         }
 
-        // TODO 8: 결과 상태 필터링 (메모리
+        // 8. 결과 상태 필터링
         if (patientSearchRequest.hasResultStatusFilter()) {
             String statusFilter = patientSearchRequest.resultStatus().toUpperCase();
             responses = responses.stream()
-                    .filter(r -> r.latestExamStatus().equals(statusFilter))
+                    .filter(r -> r.examStatus().equals(statusFilter))
                     .toList();
         }
 
-        // 전체 결과 개수 저장 (페이징 전)
         int totalCount = responses.size();
 
-        // TODO 9: 페이징 처리
+        // 9. 페이징 처리
         int page = patientSearchRequest.page();
         int size = patientSearchRequest.size();
         int fromIndex = page * size;
         int toIndex = Math.min(fromIndex + size, responses.size());
 
-        List<ChildResponse> pagedResponses;
-        if (fromIndex < responses.size()) {
-            pagedResponses = responses.subList(fromIndex, toIndex);
-        } else {
-            pagedResponses = Collections.emptyList();
-        }
+        List<ChildResponse> pagedResponses = fromIndex < responses.size()
+                ? responses.subList(fromIndex, toIndex)
+                : Collections.emptyList();
 
-        // TODO 10: 최종 결과 반환
         return new PatientSearchResponse(pagedResponses, totalCount);
     }
 
