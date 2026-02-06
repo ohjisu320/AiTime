@@ -24,26 +24,64 @@ const GlobalErrorPage = () => {
 
         // 로그인 안한 상태
         if (!accessToken) {
+            // 현재 경로 확인 - staff 페이지였는지 확인
+            const currentPath = window.location.pathname;
+            if (currentPath.startsWith('/doctor') || currentPath.startsWith('/reception')) {
+                return '/staff-login'; // STAFF 로그인 페이지
+            }
+            return '/'; // PARENT 로그인 페이지
+        }
+
+        // 로그인한 상태 - user 객체에서 type/staffRole 확인
+        const userStr = localStorage.getItem('user');
+        if (!userStr) {
+            // user 정보는 없지만 토큰은 있음 → 경로로 판단
+            const currentPath = window.location.pathname;
+            if (currentPath.startsWith('/doctor') || currentPath.startsWith('/reception')) {
+                return '/staff-login';
+            }
             return '/';
         }
 
-        // 로그인한 상태 - role에 따라 대시보드 결정
-        const role = localStorage.getItem('role');
+        try {
+            const user = JSON.parse(userStr);
+            const userType = user.type; // 'PARENT' or 'STAFF'
 
-        switch (role) {
-            case 'PARENT':
+            // PARENT 계정
+            if (userType === 'PARENT') {
                 return '/parent/dashboard';
-            case 'DOCTOR':
-                return '/doctor/dashboard';
-            case 'DESK':
-                return '/reception/dashboard';
-            default:
-                return '/';
+            }
+
+            // STAFF 계정 (DOCTOR 또는 DESK)
+            if (userType === 'STAFF') {
+                const staffRole = user.staffRole; // 'DOCTOR' or 'DESK'
+
+                if (staffRole === 'DOCTOR') {
+                    return '/doctor/dashboard';
+                } else if (staffRole === 'DESK') {
+                    return '/reception/dashboard';
+                }
+            }
+
+            // 알 수 없는 타입 - 경로로 판단
+            const currentPath = window.location.pathname;
+            if (currentPath.startsWith('/doctor') || currentPath.startsWith('/reception')) {
+                return '/staff-login';
+            }
+            return '/';
+        } catch (error) {
+            console.error('Failed to parse user data:', error);
+            // 파싱 실패 - 경로로 판단
+            const currentPath = window.location.pathname;
+            if (currentPath.startsWith('/doctor') || currentPath.startsWith('/reception')) {
+                return '/staff-login';
+            }
+            return '/';
         }
     };
 
     const homeUrl = getHomeUrl();
-    const buttonText = homeUrl === '/' ? '로그인 페이지로 이동' : '홈으로 이동';
+    const buttonText = homeUrl === '/' ? '로그인 페이지로 이동' : homeUrl === '/staff-login' ? '직원 로그인 페이지로 이동' : '홈으로 이동';
 
     return (
         <div className="min-h-screen h-screen flex items-center justify-center bg-[#E3E0F5]">
