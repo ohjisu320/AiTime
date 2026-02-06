@@ -3,7 +3,7 @@ import type { ExamVideoListItem } from "@/api/types/examReport.types";
 
 interface Props {
   examVideoList: ExamVideoListItem[];
-  onSelectVideo: (videoId: string) => void;
+  onSelectVideo: (examId: string, videoId: string) => void;
   // 현재 재생중인 비디오의 examId를 알면 하이라이팅 가능 (선택 사항)
   currentVideoExamId?: string;
 }
@@ -28,7 +28,7 @@ export default function SessionListPanel({ examVideoList, onSelectVideo, current
                 exam.videos.map((video) => (
                   <span
                     key={video.videoId}
-                    onClick={() => onSelectVideo(video.videoId)}
+                    onClick={() => onSelectVideo(exam.examId, video.videoId)}
                     className="cursor-pointer hover:font-bold hover:text-red-600"
                   >
                     ▷ {video.videoType}
