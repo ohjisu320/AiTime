@@ -394,7 +394,8 @@ def draw_multi_person_skeleton(
     keypoint_threshold: float = KEYPOINT_THRESHOLD,
     show_bbox: bool = True,
     show_keypoints: bool = True,
-    show_label: bool = True
+    show_label: bool = True,
+    show_child_face: bool = True
 ) -> Image.Image:
     """
     부모와 아이를 다른 색상으로 동시에 그리기.
@@ -407,6 +408,7 @@ def draw_multi_person_skeleton(
         show_bbox: 바운딩 박스 그리기 여부
         show_keypoints: 키포인트 그리기 여부
         show_label: 역할 라벨 표시 여부
+        show_child_face: 아이 얼굴 영역 표시 여부
     
     Returns:
         스켈레톤이 그려진 PIL 이미지
@@ -432,5 +434,67 @@ def draw_multi_person_skeleton(
             show_keypoints=show_keypoints,
             show_label=show_label
         )
+        
+        # 아이 얼굴 영역 표시 (핑크색 박스)
+        if show_child_face:
+            result_image = _draw_child_face_box(result_image, child_results, keypoint_threshold)
     
     return result_image
+
+
+def _draw_child_face_box(
+    image: Image.Image,
+    child_results: list[dict],
+    threshold: float
+) -> Image.Image:
+    """
+    아이 얼굴 영역에 핑크색 박스 그리기.
+    
+    Args:
+        image: PIL 이미지
+        child_results: 아이 자세 데이터
+        threshold: 키포인트 신뢰도 임계값
+        
+    Returns:
+        얼굴 박스가 그려진 PIL 이미지
+    """
+    from PIL import ImageDraw, ImageFont
+    
+    draw = ImageDraw.Draw(image)
+    
+    for person in child_results:
+        keypoints = person["keypoints"]
+        kp_dict = {kp["name"]: kp for kp in keypoints}
+        
+        # 얼굴 키포인트 추출 (코, 눈, 귀)
+        face_keypoints = []
+        for key in ["Nose", "L_Eye", "R_Eye", "L_Ear", "R_Ear"]:
+            if key in kp_dict and kp_dict[key]["score"] > threshold:
+                face_keypoints.append((kp_dict[key]["x"], kp_dict[key]["y"]))
+        
+        if len(face_keypoints) >= 2:  # 최소 2개 이상의 키포인트
+            xs = [p[0] for p in face_keypoints]
+            ys = [p[1] for p in face_keypoints]
+            x_min, x_max = min(xs), max(xs)
+            y_min, y_max = min(ys), max(ys)
+            
+            # 얼굴 영역 확장 (여유 공간 추가)
+            margin_x = (x_max - x_min) * 0.1
+            margin_y = (y_max - y_min) * 1.4
+            
+            x1 = int(max(0, x_min - margin_x))
+            y1 = int(max(0, y_min - margin_y))
+            x2 = int(min(image.width, x_max + margin_x))
+            y2 = int(min(image.height, y_max + margin_y))
+            
+            # 핑크색 박스 그리기 (255, 105, 180)
+            draw.rectangle([x1, y1, x2, y2], outline=(255, 105, 180), width=3)
+            
+            # 라벨
+            try:
+                font = ImageFont.truetype("arial.ttf", 16)
+            except:
+                font = ImageFont.load_default()
+            draw.text((x1, y1 - 20), "Child Face", fill=(255, 105, 180), font=font)
+    
+    return image
