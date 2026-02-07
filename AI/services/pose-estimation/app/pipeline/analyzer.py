@@ -2111,10 +2111,10 @@ class MotionAnalyzer:
         
         # 1. 포즈 추출 및 역할 식별로 아이 머리 위치 파악
         try:
-            extraction_result = self.video_processor.extract_frames(
+            frames_gen = self.video_processor.extract_frames(
                 video_path, start_sec=start_sec, end_sec=end_sec
             )
-            frames_data = self.pose_extractor.extract_from_folder(extraction_result.frames_folder)
+            frames_data = self.pose_extractor.extract_from_frames(frames_gen)
             
             # 역할 식별
             frame_persons = self.role_identifier.identify_roles(frames_data)
