@@ -20,6 +20,7 @@ interface ConfirmModalProps {
   confirmText?: string; // 👈 ? 추가 (선택 사항)
   confirmVariant?: 'violet' | 'rose' | 'slate';
   hideCloseButton?: boolean; // 👈 닫기 버튼 숨김 옵션 추가
+  disableKeyboardOffset?: boolean; // 👈 키보드 오프셋 비활성화 (검사 페이지 등)
 }
 
 const ConfirmModal = ({
@@ -31,12 +32,19 @@ const ConfirmModal = ({
   confirmText = "확인",
   confirmVariant = 'violet',
   closeOnConfirm = true, // 👈 추가
-  hideCloseButton = false // 👈 닫기 버튼 숨김
-}: ConfirmModalProps & { closeOnConfirm?: boolean }) => {
+  hideCloseButton = false, // 👈 닫기 버튼 숨김
+  disableKeyboardOffset = false // 👈 키보드 오프셋 기능 비활성화 옵션 추가
+}: ConfirmModalProps & { closeOnConfirm?: boolean; disableKeyboardOffset?: boolean }) => {
   // 모바일 키보드 대응: Visual Viewport API로 키보드 높이 감지
   const [keyboardOffset, setKeyboardOffset] = useState(0);
 
   useEffect(() => {
+    // 기능 비활성화 시 실행 안 함
+    if (disableKeyboardOffset) {
+      setKeyboardOffset(0);
+      return;
+    }
+
     // Visual Viewport API 지원 확인
     if (typeof window === 'undefined' || !window.visualViewport) return;
 
@@ -70,7 +78,7 @@ const ConfirmModal = ({
         window.visualViewport.removeEventListener('scroll', handleResize);
       }
     };
-  }, [isOpen]); // isOpen 변경 시 재실행
+  }, [isOpen, disableKeyboardOffset]); // 의존성 추가
 
   const variantStyles = {
     violet: 'bg-[#6366F1] hover:bg-[#4F46E5] shadow-indigo-100',
@@ -93,9 +101,11 @@ const ConfirmModal = ({
           "fixed left-[50%] top-[50%] z-50 w-full max-w-[420px] translate-x-[-50%] translate-y-[-50%] rounded-3xl p-8 bg-white shadow-2xl border-none outline-none transition-transform duration-200",
           confirmVariant === 'rose' && "border-t-8 border-rose-500"
         )}
-        style={{
-          transform: `translate(-50%, calc(-50% - ${keyboardOffset}px))`
-        }}
+        style={
+          disableKeyboardOffset ? undefined : {
+            transform: `translate(-50%, calc(-50% - ${keyboardOffset}px))`
+          }
+        }
       >
 
         <DialogHeader className="space-y-4 text-center">
