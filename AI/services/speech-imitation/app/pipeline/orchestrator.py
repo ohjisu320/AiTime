@@ -25,6 +25,7 @@ from app.pipeline.stages import (
     VadStage,
 )
 from app.pipeline.stages.base_stage import BaseStage
+from app.pipeline.stages.visualization_stage import VisualizationStage
 from app.utils.logger import setup_logging
 from app.utils.repro import compute_config_hash, get_git_revision_hash
 
@@ -43,6 +44,7 @@ class SpeechImitationPipelineOrchestrator:
             TrialPlanStage(),
             ImitationJudgeStage(),
             ResultStage(),
+            VisualizationStage(),
         ]
 
     def run(
