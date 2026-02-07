@@ -36,7 +36,8 @@ import numpy as np
 
 from app.core.angle_calculator import (
     angle_between_vectors_deg,
-    find_stable_crossing_index
+    angle_between_vectors_2d_deg,
+    find_stable_crossing_index,
 )
 from app.config import get_settings
 
@@ -327,7 +328,27 @@ def create_gaze_frame_result(
             child_detected=child_detected
         )
     
-    angle_deg = angle_between_vectors_deg(gaze_vector, position_vector)
+    # === 각도 비교용 시선 벡터 재계산 (pitch 클램핑 적용) ===
+    # 6DRepNet360은 측면 프로필에서 pitch를 과추정(-63° 등)하는 경향이 있음.
+    # 각도 비교 시에만 pitch를 ±30°로 클램핑하여 로버스트한 결과를 얻음.
+    # 시각화용 gaze_vector는 원본 유지.
+    PITCH_CLAMP_DEG = 30.0
+    clamped_pitch = float(np.clip(head_pitch_deg, -PITCH_CLAMP_DEG, PITCH_CLAMP_DEG))
+    yaw_r = np.radians(head_yaw_deg)
+    pitch_r = np.radians(clamped_pitch)
+    angle_gaze = np.array([
+        -np.cos(pitch_r) * np.sin(yaw_r),   # x: 화면좌표 (오른쪽 양수)
+        np.sin(pitch_r),                      # y: 아래 양수
+        np.cos(pitch_r) * np.cos(yaw_r),     # z: 앞 양수
+    ])
+    
+    # 2D 화면 공간 각도: y(pitch) 가중치 0.1로 yaw 중심 비교
+    # - ADOS 호명반응의 핵심 지표 = 좌우 머리 회전(yaw)
+    # - 시선 벡터 [x,y,z]와 위치 벡터 [dx,dy,0]의 차원 불일치 해결
+    # - pitch 영향 90% 감쇠로 노이즈 로버스트
+    angle_deg = angle_between_vectors_2d_deg(
+        angle_gaze, position_vector, y_weight=0.1,
+    )
     is_looking = angle_deg <= threshold_deg
     
     return GazeFrameResult(

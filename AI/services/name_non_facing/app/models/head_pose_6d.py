@@ -63,19 +63,34 @@ class HeadPose6D:
         
         Returns:
             정규화된 3D 시선 벡터 [x, y, z]
-            - x: 오른쪽이 양수
+            - x: 오른쪽이 양수 (화면/픽셀 좌표계 기준)
             - y: 아래가 양수
             - z: 앞(카메라 방향)이 양수
+        
+        좌표계 매핑:
+            6DRepNet360 yaw 규칙: 왼쪽이 양수 (yaw>0 = 왼쪽 회전)
+            화면 픽셀 좌표: 오른쪽이 x 양수
+            → x = -cos(pitch)*sin(yaw) 로 부호를 맞춤
+        
+        Note (2025-01-23 결정사항):
+            이 방식이 프로젝트의 primary 시선 벡터 계산법.
+            ViTPose COCO 키포인트(귀-코 법선 벡터) 도입을 검토했으나,
+            아래 이유로 현행 유지:
+            - 6DRepNet360이 360° 전방향(뒤통수 포함) 지원
+            - ViTPose는 2D 전용(z축 없음) + 귀 정밀도 부족
+            - 기하학적 법선 벡터가 필요시 MediaPipe가 더 적합 (이미 구현됨)
         """
         yaw = np.radians(self.yaw)
         pitch = np.radians(self.pitch)
         
         # 시선 벡터 계산
         # 초기 시선 방향: +Z (정면, 카메라를 향함)
-        # yaw: Y축 기준 회전
-        # pitch: X축 기준 회전
+        # yaw: Y축 기준 회전 (6DRepNet: 왼쪽 양수)
+        # pitch: X축 기준 회전 (6DRepNet: 아래 양수)
+        # x 부호 반전: sin(yaw)는 왼쪽이 양수이지만,
+        #   픽셀 좌표에서는 오른쪽이 양수이므로 -sin(yaw)
         
-        x = np.cos(pitch) * np.sin(yaw)
+        x = -np.cos(pitch) * np.sin(yaw)
         y = np.sin(pitch)
         z = np.cos(pitch) * np.cos(yaw)
         

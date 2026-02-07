@@ -30,6 +30,7 @@ import numpy as np
 from app.pipeline.stages.base_stage import BaseStage
 from app.pipeline.context import PipelineContext
 from app.models.head_pose_6d import HeadPoseEstimator6D, HeadPose6D
+from app.models.head_detector import HeadDetector
 from app.core.gaze_calculator import (
     compute_position_vector_2d,
     compute_gaze_angle,
@@ -68,16 +69,19 @@ class ChildAnalysisStage(BaseStage):
     def __init__(
         self,
         head_pose_estimator: HeadPoseEstimator6D = None,
-        gaze_analyzer: GazeAnalyzer = None
+        gaze_analyzer: GazeAnalyzer = None,
+        head_detector: HeadDetector = None
     ):
         """
         Args:
             head_pose_estimator: 360° Head Pose 추정기 (None이면 자동 생성)
             gaze_analyzer: 시선 분석기 (None이면 자동 생성)
+            head_detector: Head Detector (smoothing용, None이면 자동 생성)
         """
         self._settings = get_settings()
         self._head_pose_estimator = head_pose_estimator or HeadPoseEstimator6D()
         self._gaze_analyzer = gaze_analyzer or GazeAnalyzer()
+        self._head_detector = head_detector or HeadDetector()
     
     @property
     def name(self) -> str:
@@ -221,8 +225,31 @@ class ChildAnalysisStage(BaseStage):
                 threshold_deg=self._settings.GAZE_ANGLE_THRESHOLD_DEG
             ), None
         
+        # Smoothing 적용 (track_id 기반)
+        track_id = child_detection.track_id
+        if self._settings.ENABLE_SMOOTHING and track_id is not None:
+            # Head pose smoothing
+            (smoothed_pitch, smoothed_yaw, smoothed_roll
+             ) = self._head_detector.smooth_pose(
+                head_pose.pitch, head_pose.yaw, head_pose.roll, track_id
+            )
+            # Smoothed HeadPose 생성
+            from dataclasses import replace
+            head_pose = replace(
+                head_pose,
+                pitch=smoothed_pitch,
+                yaw=smoothed_yaw,
+                roll=smoothed_roll
+            )
+        
         # Euler → 시선 벡터 변환
         gaze_vector = head_pose.to_gaze_vector()
+        
+        # Gaze vector smoothing 적용
+        if self._settings.ENABLE_SMOOTHING and track_id is not None:
+            gaze_vector = self._head_detector.smooth_gaze(
+                gaze_vector[0], gaze_vector[1], gaze_vector[2], track_id
+            )
         
         # 아이 중심 (픽셀)
         child_center_pixel = child_detection.center_pixel(

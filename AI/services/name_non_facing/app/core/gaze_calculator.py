@@ -35,16 +35,16 @@ def euler_to_gaze_vector(yaw_deg: float, pitch_deg: float) -> np.ndarray:
     Euler angles (yaw, pitch)를 3D 시선 벡터로 변환
     
     Args:
-        yaw_deg: 좌우 회전 각도 (도), 왼쪽이 양수
+        yaw_deg: 좌우 회전 각도 (도), 왼쪽이 양수 (6DRepNet 규칙)
         pitch_deg: 상하 회전 각도 (도), 아래가 양수
         
     Returns:
         정규화된 3D 시선 벡터 [x, y, z]
         
-    좌표계:
+    좌표계 (화면/픽셀 좌표 기준):
         - 정면(yaw=0, pitch=0): [0, 0, 1]
-        - 왼쪽 90°(yaw=90): [1, 0, 0]
-        - 오른쪽 90°(yaw=-90): [-1, 0, 0]
+        - 오른쪽 90°(yaw=-90): [+1, 0, 0]  (x양수 = 오른쪽)
+        - 왼쪽 90°(yaw=+90): [-1, 0, 0]  (x음수 = 왼쪽)
         - 뒤통수(yaw=180): [0, 0, -1]
     """
     yaw = np.radians(yaw_deg)
@@ -54,8 +54,9 @@ def euler_to_gaze_vector(yaw_deg: float, pitch_deg: float) -> np.ndarray:
     # 초기 시선 방향: +Z (정면, 카메라를 향함)
     # yaw: Y축 기준 회전 (좌우)
     # pitch: X축 기준 회전 (상하)
+    # x 부호 반전: -sin(yaw) → 화면 좌표 x양수=오른쪽 맞춤
     
-    x = np.cos(pitch) * np.sin(yaw)
+    x = -np.cos(pitch) * np.sin(yaw)
     y = np.sin(pitch)
     z = np.cos(pitch) * np.cos(yaw)
     
