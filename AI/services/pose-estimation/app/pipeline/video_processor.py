@@ -141,7 +141,13 @@ class VideoProcessor:
                 return False, "유효하지 않은 FPS 값"
             
             if info.total_frames <= 0:
-                return False, "프레임을 찾을 수 없습니다"
+                # total_frames 메타데이터가 없는 경우, 실제 프레임 읽기로 재확인
+                test_cap = cv2.VideoCapture(str(video_path))
+                ret, _ = test_cap.read()
+                test_cap.release()
+                if not ret:
+                    return False, "프레임을 찾을 수 없습니다"
+                logger.info("total_frames=0이지만 프레임 읽기 가능, 유효한 영상으로 판정")
             
             if info.width <= 0 or info.height <= 0:
                 return False, "유효하지 않은 해상도"
@@ -188,7 +194,19 @@ class VideoProcessor:
             fps = cap.get(cv2.CAP_PROP_FPS)
             total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
             fourcc = int(cap.get(cv2.CAP_PROP_FOURCC))
-            
+
+            # 일부 코덱에서 CAP_PROP_FRAME_COUNT가 0을 반환하는 경우 대체 추정
+            if total_frames <= 0 and fps > 0:
+                cap.set(cv2.CAP_PROP_POS_AVI_RATIO, 1)  # 영상 끝으로 이동
+                duration_ms = cap.get(cv2.CAP_PROP_POS_MSEC)
+                if duration_ms > 0:
+                    total_frames = int(duration_ms / 1000.0 * fps)
+                    logger.info(
+                        f"CAP_PROP_FRAME_COUNT=0, 대체 추정: "
+                        f"duration={duration_ms:.0f}ms, total_frames={total_frames}"
+                    )
+                cap.set(cv2.CAP_PROP_POS_FRAMES, 0)  # 시작으로 복원
+
             return VideoInfo(
                 path=str(video_path),
                 filename=video_path.name,
@@ -253,25 +271,26 @@ class VideoProcessor:
             # 시작/종료 프레임 계산
             start_frame = int(start_sec * original_fps)
             end_frame = int(end_sec * original_fps) if end_sec else total_frames
-            end_frame = min(end_frame, total_frames)
-            
+            if total_frames > 0:
+                end_frame = min(end_frame, total_frames)
+
             # 시작 위치로 이동
             if start_frame > 0:
                 cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
-            
+
             logger.info(
                 f"프레임 추출 시작: {video_path.name} "
                 f"(fps: {original_fps:.1f}→{self.target_fps}, "
                 f"interval: {frame_interval}, "
                 f"range: {start_frame}-{end_frame})"
             )
-            
+
             frame_idx = start_frame
             extracted_count = 0
             consecutive_failures = 0
             max_consecutive_failures = 10
-            
-            while extracted_count < self.max_frames and frame_idx < end_frame:
+
+            while extracted_count < self.max_frames and (end_frame <= 0 or frame_idx < end_frame):
                 ret, frame = cap.read()
                 
                 if not ret:
@@ -394,25 +413,26 @@ class VideoProcessor:
             # 시작/종료 프레임 계산
             start_frame = int(start_sec * original_fps)
             end_frame = int(end_sec * original_fps) if end_sec else total_frames
-            end_frame = min(end_frame, total_frames)
-            
+            if total_frames > 0:
+                end_frame = min(end_frame, total_frames)
+
             if start_frame > 0:
                 cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
-            
+
             logger.info(
                 f"프레임 추출 시작: {video_path.name} → {output_folder} "
                 f"(fps: {original_fps:.1f}→{self.target_fps}, interval: {frame_interval})"
             )
-            
+
             frame_idx = start_frame
             saved_count = 0
             saved_files: list[str] = []
             consecutive_failures = 0
             max_consecutive_failures = 10
-            
+
             file_pattern = f"frame_{{:05d}}.{image_format}"
-            
-            while saved_count < self.max_frames and frame_idx < end_frame:
+
+            while saved_count < self.max_frames and (end_frame <= 0 or frame_idx < end_frame):
                 ret, frame = cap.read()
                 
                 if not ret:
