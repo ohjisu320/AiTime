@@ -136,6 +136,53 @@ class SpeechImitationWorker:
 
         return is_squeal or is_abnormal_pitch
 
+    def _save_benchmark_metrics(self, internal_result: dict) -> None:
+        """
+        Save processing times and metric distributions to a local JSONL file.
+        """
+        try:
+            timestamp = datetime.now().strftime("%Y-%m-%d")
+            log_dir = os.path.join("artifacts", "benchmarks")
+            os.makedirs(log_dir, exist_ok=True)
+            log_file = os.path.join(
+                log_dir, f"{timestamp}_speech_imitation_latency.jsonl"
+            )
+
+            processing_times = internal_result.get("processing_times", {})
+            metrics = internal_result.get("metrics", {})
+            per_trial = metrics.get("per_trial", [])
+
+            # Flatten metrics for distribution analysis
+            latencies = []
+            pitch_values = []
+            mad_values = []
+
+            for t in per_trial:
+                for r in t.get("repetitions", []):
+                    if r.get("latency_s") is not None:
+                        latencies.append(r["latency_s"])
+                    if r.get("child_mean_f0") is not None:
+                        pitch_values.append(r["child_mean_f0"])
+                    if r.get("child_mad_semitone") is not None:
+                        mad_values.append(r["child_mad_semitone"])
+
+            log_entry = {
+                "run_id": internal_result.get("request_id"),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "processing_times": processing_times,
+                "metrics_distribution": {
+                    "latency_s": latencies,
+                    "child_mean_f0": pitch_values,
+                    "child_mad_semitone": mad_values,
+                },
+            }
+
+            with open(log_file, "a", encoding="utf-8") as f:
+                f.write(json.dumps(log_entry) + "\n")
+
+        except Exception as e:
+            logger.error(f"Failed to save benchmark metrics: {e}")
+
     def process_message(
         self,
         ch: pika.adapters.blocking_connection.BlockingChannel,
@@ -259,6 +306,7 @@ class SpeechImitationWorker:
             }
 
             # 5. Publish Success
+            self._save_benchmark_metrics(internal_result)
             self.publish_result(final_output)
             logger.info("Task %s (examId) completed successfully.", exam_id)
             ch.basic_ack(delivery_tag=method.delivery_tag)
