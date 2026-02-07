@@ -10,6 +10,7 @@ import type {
   AdosDetail,
   AdosUpdateRequest,
 } from "@/api/types/examReport.types";
+import { MASTER_ADOS_ITEMS, CODES_PRE_VERBAL, CODES_VERBAL } from "../types/ados";
 
 export const useDoctorDashboard = () => {
   // --- UI 상태 ---
@@ -126,11 +127,70 @@ export const useDoctorDashboard = () => {
   /**
    * [API 6] ADOS 수정 (비활성화)
    */
-  const updateAdos = useCallback(async (examId: string, _scores: AdosUpdateRequest) => {
-    console.warn(`[ADOS] Update Requested for ${examId} but API is not implemented.`);
-    alert("현재 버전에서는 점수 수정 기능을 지원하지 않습니다.");
-    return Promise.reject("Not Implemented");
-  }, []);
+  /**
+   * [API 6] ADOS 수정 (로컬 상태 업데이트)
+   * API 미구현 시점까지 로컬 상태만 변경하여 "저장된 것처럼" 처리
+   */
+  const updateAdos = useCallback(async (_examId: string, scores: AdosUpdateRequest) => {
+    // 1. 현재 상태 복제
+    if (!currentAdosDetail) {
+      console.warn("⚠️ 업데이트할 상세 정보가 없습니다.");
+      return;
+    }
+
+    // 2. 새로운 점수 반영 (기존 점수 + 새 점수 병합)
+    const updatedScores = { ...currentAdosDetail.scores };
+    Object.entries(scores).forEach(([key, value]) => {
+      // API Key (a2) 형식을 그대로 사용
+      updatedScores[key] = value;
+    });
+
+    // 3. 총점 재계산 로직
+    // [중요] 환자 연령에 따라 Verbal/Pre-Verbal 필터링
+    const patientMonth = selectedPatient?.monthlyAge || 0;
+    const isVerbal = patientMonth > 21; // 21개월 초과 시 Verbal 간주 (AdosModal 기준)
+
+
+
+
+
+    const targetCodes = patientMonth >= 12 && patientMonth <= 21
+      ? CODES_PRE_VERBAL
+      : (isVerbal ? CODES_VERBAL : CODES_PRE_VERBAL);
+
+    let newSaTotal = 0;
+    let newRrbTotal = 0;
+
+    targetCodes.forEach(code => {
+      // 마스터 아이템 찾기
+      const item = MASTER_ADOS_ITEMS.find(i => i.code === code);
+      if (!item) return;
+
+      // 점수 찾기 (API 키 포맷인 소문자 key를 찾아야 함)
+      // code (A-2) -> key (a2)
+      const apiKey = code.replace("-", "").toLowerCase();
+      const scoreVal = updatedScores[apiKey];
+
+      if (typeof scoreVal === 'number') {
+        if (item.category === 'SA') newSaTotal += scoreVal;
+        if (item.category === 'RRB') newRrbTotal += scoreVal;
+      }
+    });
+
+    updatedScores.socialAffectTotal = newSaTotal;
+    updatedScores.rrbTotal = newRrbTotal;
+    updatedScores.total = newSaTotal + newRrbTotal;
+
+    console.log("📝 [ADOS Update] Local State Updated:", updatedScores);
+
+    // 4. 상태 업데이트
+    setCurrentAdosDetail({
+      ...currentAdosDetail,
+      scores: updatedScores
+    });
+
+    // alert("저장되었습니다 (로컬 반영)"); // 사용자 경험상 알림 제거 또는 Toast 권장
+  }, [currentAdosDetail, selectedPatient]);
 
   /**
    * 환자 선택 핸들러

@@ -8,11 +8,7 @@ interface Props {
   onExpandVideo: (currentTime: number) => void;
 }
 
-const TIMELINE_ROWS = [
-  { key: "parent", label: "부모 행동", color: "bg-gray-500" },
-  { key: "child-vocal", label: "아이 음성", color: "bg-green-600" },
-  { key: "child-behavior", label: "아이 행동", color: "bg-blue-600" },
-] as const;
+
 
 export default function CentralAnalysisPanel({
   analysisData,
@@ -115,7 +111,7 @@ export default function CentralAnalysisPanel({
           </div>
 
           <div className="flex flex-col justify-center gap-1.5 bg-[#f0f0f0] border border-gray-400 p-2">
-            {TIMELINE_ROWS.map((row) => (
+            {(analysisData.rows || []).map((row) => (
               <div key={row.key} className="flex items-center text-[12px] h-6">
                 <span className="w-[70px] font-bold shrink-0 text-right pr-2">{row.label}</span>
                 <div className="flex-1 h-5 bg-white border border-[#999] relative">

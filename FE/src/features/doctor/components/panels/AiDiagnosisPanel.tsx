@@ -1,8 +1,7 @@
 import { useMemo } from "react";
 import { SectionHeader, WindowsButton } from "../layout/WindowsLayout";
 import type { AdosDetail } from "@/api/types/examReport.types";
-// [추가] 항목명 매핑을 위해 MASTER_ADOS_ITEMS import
-import { MASTER_ADOS_ITEMS } from "../../types/ados";
+import { MASTER_ADOS_ITEMS, CODES_PRE_VERBAL, CODES_VERBAL } from "../../types/ados";
 
 interface Props {
   onExpandAdos: () => void;
@@ -11,16 +10,54 @@ interface Props {
 }
 
 export default function AiDiagnosisPanel({ onExpandAdos, patientAge, adosDetail }: Props) {
-  const isUnder21 = patientAge < 21;
   const scores = adosDetail?.scores;
 
+
+  // [로직] 환자 연령 및 점수 키 기반으로 Pre-Verbal/Verbal 판단
+  // 12~20개월: 무조건 Pre-Verbal
+  // 21~30개월: 점수 키에 Verbal 전용 키(예: A-7)가 있으면 Verbal, 없으면 Pre-Verbal
+  const moduleType = useMemo(() => {
+    if (patientAge <= 20) return "PRE_VERBAL";
+
+    // 21개월 이상일 때: 점수 데이터를 확인
+    if (!scores) return "PRE_VERBAL"; // 데이터 없으면 기본값
+
+    // Verbal 전용 키(CODES_VERBAL에만 있고 CODES_PRE_VERBAL에는 없는 키)가 존재하는지 확인
+    // 예: A-7 (Pre: A-2), B-7, B-8, B-9
+    const verbalSpecificKeys = ["a7", "b7", "b8", "b9", "b16b", "b18"];
+    const hasVerbalKey = Object.keys(scores).some(key => verbalSpecificKeys.includes(key.toLowerCase()));
+
+    return hasVerbalKey ? "VERBAL" : "PRE_VERBAL";
+  }, [patientAge, scores]);
+
   const displayKeys = useMemo(() => {
-    if (isUnder21) {
-      return ["a2", "a8", "b1", "b4", "b5", "b6", "b12", "b13", "b14", "b15"];
-    } else {
-      return ["a7", "b1", "b4", "b5", "b7", "b8", "b9", "b13", "b15", "b16b", "b18"];
+    const targetCodes = moduleType === "PRE_VERBAL" ? CODES_PRE_VERBAL : CODES_VERBAL;
+    return targetCodes.map(code => code.replace("-", "").toLowerCase());
+  }, [moduleType]);
+
+  // [로직] 총점 색상 결정
+  const getTotalColorClass = (total: number) => {
+    // 1. 12~20개월 (무조건 Pre-Verbal 기준)
+    if (patientAge <= 20) {
+      if (total >= 14) return 'text-red-600 border-red-600 bg-red-50';
+      if (total >= 10) return 'text-orange-600 border-orange-600 bg-orange-50'; // 10~13
+      return 'text-green-600 border-green-600 bg-green-50'; // 0~9
     }
-  }, [isUnder21]);
+
+    // 2. 21~30개월
+    if (moduleType === 'VERBAL') {
+      // Verbal (몇몇 단어 사용)
+      if (total >= 12) return 'text-red-600 border-red-600 bg-red-50';
+      if (total >= 8) return 'text-orange-600 border-orange-600 bg-orange-50'; // 8~11
+      return 'text-green-600 border-green-600 bg-green-50'; // 0~7
+    } else {
+      // Pre-Verbal (단어 사용 없음) -> 12~20개월 기준과 동일하게 적용 (구체적 언급은 없었으나 통상적용)
+      // * 요청 사항: "단어 사용이 거의 밝거나 전혀 없는 21~30개월 아동은 14점 이상..." => 12~20개월과 동일 기준
+      if (total >= 14) return 'text-red-600 border-red-600 bg-red-50';
+      if (total >= 10) return 'text-orange-600 border-orange-600 bg-orange-50'; // 10~13
+      return 'text-green-600 border-green-600 bg-green-50'; // 0~9
+    }
+  };
 
   // [헬퍼 함수] API 키(a2)를 기반으로 항목명(Label) 찾기
   const getLabel = (key: string) => {
@@ -45,9 +82,7 @@ export default function AiDiagnosisPanel({ onExpandAdos, patientAge, adosDetail 
               <span className="text-[14px] font-bold block mb-2">진단 총점</span>
               <div
                 className={`text-3xl font-black border-2 py-3 shadow-sm mx-auto w-32
-                  ${(scores.total ?? 0) >= 8
-                    ? 'text-red-600 border-red-600 bg-red-50'
-                    : 'text-green-600 border-green-600 bg-green-50'}`
+                  ${getTotalColorClass(scores.total ?? 0)}`
                 }
               >
                 {scores.total ?? '-'}점
@@ -85,7 +120,7 @@ export default function AiDiagnosisPanel({ onExpandAdos, patientAge, adosDetail 
               </tbody>
             </table>
             <div className="mt-2 text-[12px] text-gray-500 text-right">
-              * 환아 연령({patientAge}개월) 기준 적용
+              * 환아 연령({patientAge}개월) / {moduleType === 'VERBAL' ? 'Verbal' : 'Pre-Verbal'} 기준 적용
             </div>
           </>
         )}

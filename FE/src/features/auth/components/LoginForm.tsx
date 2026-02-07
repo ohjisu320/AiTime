@@ -36,6 +36,9 @@ export default function LoginForm({
               {...register("loginId", { required: true })}
               type="text"
               placeholder="아이디를 입력하세요"
+              autoCapitalize="off"
+              autoComplete="username"
+              autoCorrect="off"
               className={cn(
                 "w-full h-[64px] bg-gray-100 rounded-3xl px-6 text-lg border-2 border-transparent focus:border-[#9593D9] focus:bg-white transition-all outline-none placeholder:text-gray-400",
               )}
