@@ -38,13 +38,14 @@ class BaseModel(ABC, Generic[T]):
     
     _instances: dict = {}  # 클래스별 싱글톤 인스턴스 저장
     
-    def __new__(cls) -> "BaseModel":
+    def __new__(cls, *args, **kwargs) -> "BaseModel":
         """싱글톤 패턴 구현 - 클래스별로 하나의 인스턴스만 생성"""
         if cls not in cls._instances:
             instance = super().__new__(cls)
             # 인스턴스 변수 초기화는 여기서 한 번만
             instance._model = None
             instance._model_loaded = False
+            instance._initialized = False
             cls._instances[cls] = instance
             logger.debug(f"{cls.__name__} 싱글톤 인스턴스 생성")
         else:
@@ -97,6 +98,7 @@ class BaseModel(ABC, Generic[T]):
             del self._model
             self._model = None
         self._model_loaded = False
+        self._initialized = False
         logger.info(f"{self.__class__.__name__} 모델 언로드")
     
     @property
