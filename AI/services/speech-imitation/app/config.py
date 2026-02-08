@@ -76,8 +76,7 @@ class Settings(BaseSettings):
         description="12~17개월 자극 목록",
     )
     STIMULI_M18_23: list[str] = Field(
-        # default_factory=lambda: ["엄마", "우유", "자동차", "여기 봐", "야호!"],
-        default_factory=lambda: ["이모", "할머니", "할아버지", "삼촌"],
+        default_factory=lambda: ["엄마", "우유", "자동차", "까까 주세요", "야호!"],
         description="18~23개월 자극 목록",
     )
 
