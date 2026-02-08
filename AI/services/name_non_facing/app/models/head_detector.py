@@ -114,15 +114,20 @@ class HeadDetector(BaseModel):
         Args:
             model_path: YOLO 모델 경로 (None이면 config에서 가져옴)
         """
+        # 싱글톤: 이미 초기화된 인스턴스면 skip (모델 재로딩 방지)
+        if self._initialized:
+            return
         self._settings = get_settings()
         self._model_path = model_path or self._settings.YOLO_HEAD_MODEL
-        self._model = None
-        self._model_loaded = False
+        
+        # HeadDetector 전용 인스턴스 변수 초기화
         self._face_detector = None  # MediaPipe Face Detection
         self._face_detector_loaded = False
         
         # Smoothing state (track_id별로 이전 값 저장)
         self._smoothing_state: dict[int, dict] = {}  # {track_id: {bbox, pose, gaze, ...}}
+        
+        self._initialized = True
     
     def _load_model(self) -> None:
         """YOLO 모델 로드 (OpenVINO 최적화 포함)"""

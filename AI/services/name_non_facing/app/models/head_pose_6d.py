@@ -130,12 +130,14 @@ class HeadPoseEstimator6D(BaseModel):
             model_path: 모델 경로 (None이면 config에서 가져옴)
             device: 실행 디바이스 (None이면 config에서 가져옴)
         """
+        # 싱글톤: 이미 초기화된 인스턴스면 skip (모델 재로딩 방지)
+        if self._initialized:
+            return
         self._settings = get_settings()
         self._model_path = model_path or self._settings.SIXDREPNET_MODEL
         self._device = device or self._settings.SIXDREPNET_DEVICE
-        self._model = None
-        self._model_loaded = False
         self._torch = None
+        self._initialized = True
     
     def _download_model_if_needed(self) -> str:
         """모델 파일 다운로드 (없으면)"""
