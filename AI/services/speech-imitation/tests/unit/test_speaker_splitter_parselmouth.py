@@ -24,8 +24,12 @@ class TestSpeakerSplitterParselmouth(unittest.TestCase):
 
         mock_parselmouth.Sound.return_value = mock_sound
         mock_sound.to_pitch.return_value = mock_pitch
-        mock_sound.to_point_process.return_value = mock_point_process
+        mock_sound.to_pitch.return_value = mock_pitch
+        # mock_sound.to_point_process.return_value = mock_point_process -> Removed
         mock_sound.to_harmonicity.return_value = mock_harmonicity
+
+        # Mock praat.call for To PointProcess
+        mock_parselmouth.praat.call.return_value = mock_point_process
 
         # Pitch data
         real_array = np.array([300.0, 550.0, 0.0])
@@ -52,7 +56,8 @@ class TestSpeakerSplitterParselmouth(unittest.TestCase):
             # 1. Parselmouth called?
             mock_parselmouth.Sound.assert_called()
             mock_sound.to_pitch.assert_called()
-            mock_sound.to_point_process.assert_called()
+            # mock_sound.to_point_process.assert_called() -> Removed
+            mock_parselmouth.praat.call.assert_called()
             mock_sound.to_harmonicity.assert_called()
 
             # 2. Logic Check
