@@ -33,6 +33,10 @@ class LabeledSegment:
     mean_f0_hz: float | None = None
     f0_mad_semitone: float | None = None
     squeal_ratio: float | None = None
+    jitter_local: float | None = None
+    shimmer_local: float | None = None
+    hnr_db: float | None = None
+    voiced_fraction: float | None = None
 
 
 class SpeakerSplitter:
@@ -50,7 +54,11 @@ class SpeakerSplitter:
 
         for seg in segments:
             y = audio[seg.start_sample : seg.end_sample]
-            mean_f0, mad, squeal = self._analyze_prosody(y, sample_rate)
+            metrics = self._analyze_prosody(y, sample_rate)
+
+            mean_f0 = metrics.get("mean_f0")
+            mad = metrics.get("mad")
+            squeal = metrics.get("squeal_ratio")
 
             if mean_f0 is None:
                 out.append(
@@ -60,6 +68,10 @@ class SpeakerSplitter:
                         mean_f0_hz=None,
                         f0_mad_semitone=None,
                         squeal_ratio=None,
+                        jitter_local=None,
+                        shimmer_local=None,
+                        hnr_db=None,
+                        voiced_fraction=None,
                     )
                 )
                 logger.debug(
@@ -75,12 +87,18 @@ class SpeakerSplitter:
                     mean_f0_hz=float(mean_f0),
                     f0_mad_semitone=mad,
                     squeal_ratio=squeal,
+                    jitter_local=metrics.get("jitter"),
+                    shimmer_local=metrics.get("shimmer"),
+                    hnr_db=metrics.get("hnr"),
+                    voiced_fraction=metrics.get("voiced_fraction"),
                 )
             )
             logger.debug(
                 f"  seg [{seg.start_sec:.2f}-{seg.end_sec:.2f}s] "
                 f"F0={mean_f0:.1f}Hz, MAD={mad if mad else 'N/A'}, "
-                f"Squeal={squeal if squeal else 'N/A'} -> {label.value}"
+                f"Squeal={squeal if squeal else 'N/A'}, "
+                f"HNR={metrics.get('hnr') if metrics.get('hnr') else 'N/A'}",
+                f" -> {label.value}",
             )
         return out
 
@@ -98,55 +116,84 @@ class SpeakerSplitter:
         try:
             import parselmouth
 
-            # 1. Sound Object
-            # parselmouth.Sound takes path or data. with data,
-            # we need sampling_frequency.
             sound = parselmouth.Sound(y, sampling_frequency=sr)
 
-            # 2. Pitch Extraction (Robust)
-            # time_step=None (auto),
-            # pitch_floor=75.0 (default for widespread),
-            # pitch_ceiling=600.0
-            # User config might specify min/max.
             fmin = float(self._settings.PITCH_FMIN)
             fmax = float(self._settings.PITCH_FMAX)
 
+            # 1. Pitch & Voiced Fraction
             pitch = sound.to_pitch(pitch_floor=fmin, pitch_ceiling=fmax)
             pitch_values = pitch.selected_array["frequency"]
+            voiced_mask = pitch_values > 0
+            voiced_f0 = pitch_values[voiced_mask]
 
-            # Filter unvoiced (0.0)
-            voiced_f0 = pitch_values[pitch_values > 0]
+            total_frames = len(pitch_values)
+            voiced_frames = len(voiced_f0)
 
-            if len(voiced_f0) == 0:
-                return None, None, None
+            if voiced_frames == 0:
+                return {}
 
-            # 3. Mean F0
             mean_f0 = float(np.mean(voiced_f0))
+            voiced_fraction = (
+                float(voiced_frames / total_frames) if total_frames > 0 else 0.0
+            )
 
-            # 4. Squeal Ratio
+            # 2. Squeal Ratio
             squeal_thresh = float(self._settings.PITCH_SQUEAL_HZ_THRESHOLD)
             squeal_count = np.sum(voiced_f0 > squeal_thresh)
-            squeal_ratio = float(squeal_count / len(voiced_f0))
+            squeal_ratio = float(squeal_count / voiced_frames)
 
-            # 5. MAD (Mean Absolute Deviation) in Semitones
-            # St = 12 * log2(f0 / ref)
+            # 3. MAD (Semitone)
             st = 12.0 * np.log2(voiced_f0 + 1e-9)
             median_st = np.median(st)
             mad = float(np.mean(np.abs(st - median_st)))
 
-            return mean_f0, mad, squeal_ratio
+            # 4. Jitter & Shimmer (PointProcess)
+            point_process = sound.to_point_process(pitch)
+
+            # num_periods check? Parselmouth/Praat handles it
+            # (returns nan or -1/undefined)
+            # local jitter
+            # (shortest=0.0001s, longest=0.02s, max_period_factor=1.3) default
+            jitter = point_process.get_jitter_local(0.0001, 0.02, 1.3)
+
+            # local shimmer
+            shimmer = point_process.get_shimmer_local(0.0001, 0.02, 1.3, 1.6)
+
+            # 5. HNR (Harmonicity)
+            # to_harmonicity (
+            #   time_step=0.01,
+            #   min_pitch=75.0,
+            #   silence_threshold=0.1,
+            #   periods_per_window=1.0
+            # )
+            harmonicity = sound.to_harmonicity(min_pitch=fmin)
+            # Get mean HNR of voiced frames only? Or global?
+            # Usually we want HNR in speech regions.
+            hnr_values = harmonicity.values
+            # Filter -200 (silence/undefined)
+            valid_hnr = hnr_values[hnr_values > -200]
+            hnr_mean = float(np.mean(valid_hnr)) if len(valid_hnr) > 0 else None
+
+            return {
+                "mean_f0": mean_f0,
+                "mad": mad,
+                "squeal_ratio": squeal_ratio,
+                "voiced_fraction": voiced_fraction,
+                "jitter": float(jitter) if not np.isnan(jitter) else None,
+                "shimmer": float(shimmer) if not np.isnan(shimmer) else None,
+                "hnr": hnr_mean,
+            }
 
         except Exception as e:
-            logger.warning(
-                f"Parselmouth pitch analysis failed: {e}. Fallback to autocorr."
-            )
+            logger.warning(f"Parselmouth analysis failed: {e}. Fallback to autocorr.")
             f0_fallback = _autocorr_pitch(
                 y,
                 sr,
                 fmin=float(self._settings.PITCH_FMIN),
                 fmax=float(self._settings.PITCH_FMAX),
             )
-            return f0_fallback, None, None
+            return {"mean_f0": f0_fallback} if f0_fallback else {}
 
 
 def _autocorr_pitch(y: np.ndarray, sr: int, fmin: float, fmax: float) -> float | None:
