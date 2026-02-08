@@ -50,15 +50,40 @@ class SpeakerSplitter:
         sample_rate: int,
     ) -> list[LabeledSegment]:
         out: list[LabeledSegment] = []
-        threshold = float(self._settings.PITCH_CHILD_HZ_THRESHOLD)
+
+        # 1. First Pass: Extract Metrics
+        # We need to collect all F0s to calculate dynamic threshold
+        temp_results = []
+        f0_collection = []
 
         for seg in segments:
             y = audio[seg.start_sample : seg.end_sample]
             metrics = self._analyze_prosody(y, sample_rate)
 
             mean_f0 = metrics.get("mean_f0")
+            if mean_f0 is not None:
+                f0_collection.append(mean_f0)
+
+            temp_results.append((seg, metrics))
+
+        # 2. Determine Threshold
+        threshold = float(self._settings.PITCH_CHILD_HZ_THRESHOLD)
+        if self._settings.ENABLE_DYNAMIC_THRESHOLD:
+            dynamic_th = self._calculate_dynamic_threshold(f0_collection)
+            if dynamic_th is not None:
+                threshold = dynamic_th
+                logger.info(
+                    f"Dynamic Threshold Applied: {threshold:.1f} Hz (Static: {self._settings.PITCH_CHILD_HZ_THRESHOLD} Hz)"
+                )
+            else:
+                logger.info(f"Dynamic Threshold Fallback: {threshold:.1f} Hz")
+
+        # 3. Second Pass: Assign Labels
+        for seg, metrics in temp_results:
+            mean_f0 = metrics.get("mean_f0")
             mad = metrics.get("mad")
             squeal = metrics.get("squeal_ratio")
+            hnr = metrics.get("hnr")
 
             if mean_f0 is None:
                 out.append(
@@ -97,10 +122,56 @@ class SpeakerSplitter:
                 f"  seg [{seg.start_sec:.2f}-{seg.end_sec:.2f}s] "
                 f"F0={mean_f0:.1f}Hz, MAD={mad if mad else 'N/A'}, "
                 f"Squeal={squeal if squeal else 'N/A'}, "
-                f"HNR={metrics.get('hnr') if metrics.get('hnr') else 'N/A'}",
-                f" -> {label.value}",
+                f"HNR={hnr if hnr else 'N/A'}",
+                f" -> {label.value} (Th={threshold:.1f})",
             )
         return out
+
+    def _calculate_dynamic_threshold(self, f0_values: list[float]) -> float | None:
+        """
+        Perform 1D K-Means clustering (K=2) on F0 values.
+        Returns the decision boundary (mean of two centroids).
+        Falls back to None if clustering is unreliable.
+        """
+        if len(f0_values) < int(self._settings.MIN_CLUSTERING_SAMPLES):
+            return None
+
+        data = np.array(f0_values, dtype=np.float32)
+
+        # Init centroids (Min & Max to encourage split)
+        c1 = np.min(data)
+        c2 = np.max(data)
+
+        # If range is too small, it's unimodal
+        if (c2 - c1) < 1.0:  # Identical values
+            return None
+
+        # K-Means Loop (Max 10 iterations)
+        for _ in range(10):
+            # Assignment
+            d1 = np.abs(data - c1)
+            d2 = np.abs(data - c2)
+            mask1 = d1 < d2  # Points belonging to C1
+
+            # Update
+            new_c1 = np.mean(data[mask1]) if np.any(mask1) else c1
+            new_c2 = np.mean(data[~mask1]) if np.any(~mask1) else c2
+
+            if np.abs(new_c1 - c1) < 0.1 and np.abs(new_c2 - c2) < 0.1:
+                break
+
+            c1, c2 = new_c1, new_c2
+
+        # Unimodal Check (Distance in Semitones)
+        # 12 * log2(C2/C1)
+        semitone_diff = 12.0 * np.log2((max(c1, c2) + 1e-9) / (min(c1, c2) + 1e-9))
+
+        if (
+            semitone_diff < 3.0
+        ):  # Less than 3 semitones diff -> Unlikely distinct speakers
+            return None
+
+        return (c1 + c2) / 2.0
 
     def _analyze_prosody(
         self, y: np.ndarray, sr: int
