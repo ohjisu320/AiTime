@@ -73,7 +73,8 @@ class SpeakerSplitter:
             if dynamic_th is not None:
                 threshold = dynamic_th
                 logger.info(
-                    f"Dynamic Threshold Applied: {threshold:.1f} Hz (Static: {self._settings.PITCH_CHILD_HZ_THRESHOLD} Hz)"
+                    f"Dynamic Threshold Applied: {threshold:.1f} Hz ",
+                    f"(Static: {self._settings.PITCH_CHILD_HZ_THRESHOLD} Hz)",
                 )
             else:
                 logger.info(f"Dynamic Threshold Fallback: {threshold:.1f} Hz")
