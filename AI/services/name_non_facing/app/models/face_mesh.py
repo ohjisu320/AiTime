@@ -168,9 +168,12 @@ class FaceMesh(BaseModel):
     
     def __init__(self):
         """FaceMesh 초기화"""
+        # 싱글톤: 이미 초기화된 인스턴스면 skip (모델 재로딩 방지)
+        if self._initialized:
+            return
         self._settings = get_settings()
         self._landmarker = None
-        self._model_loaded = False
+        self._initialized = True
     
     def _load_model(self) -> None:
         """MediaPipe FaceLandmarker 모델 로드"""
