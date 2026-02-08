@@ -162,12 +162,9 @@ class ImitationJudgeStage(BaseStage):
                     if is_high_pitch and is_abnormal_mad:
                         is_bad_prosody = True
 
-                if is_bad_prosody:
-                    r.success = False
-                    r.failure_reason = "BAD_PROSODY"
-                elif sim_res.similarity >= float(self._settings.SIMILARITY_THRESHOLD):
+                if sim_res.similarity >= float(self._settings.SIMILARITY_THRESHOLD):
                     r.success = True
-                    r.failure_reason = None
+                    r.failure_reason = "BAD_PROSODY" if is_bad_prosody else None
                 else:
                     r.success = False
                     r.failure_reason = "LOW_SIMILARITY"
