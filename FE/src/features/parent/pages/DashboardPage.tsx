@@ -142,13 +142,15 @@ const DashboardPage = () => {
     };
 
     return (
-        <div className="flex w-full h-screen min-h-[820px] bg-white overflow-hidden">
-            <Sidebar
-                childName={data?.name || "어린이"}
-                onCodeInputClick={() => setIsCodeModalOpen(true)}
-            />
+        <div className="flex w-full min-h-screen bg-white overflow-x-hidden">
+            <div className="hidden lg:block h-full min-h-screen sticky top-0">
+                <Sidebar
+                    childName={data?.name || "어린이"}
+                    onCodeInputClick={() => setIsCodeModalOpen(true)}
+                />
+            </div>
 
-            <main className="flex-1 h-full overflow-hidden p-3 sm:p-4 md:p-5 lg:p-6 flex flex-col gap-2 sm:gap-3 md:gap-3.5 lg:gap-4 relative">
+            <main className="flex-1 w-full min-w-0 p-3 sm:p-4 md:p-5 lg:p-6 flex flex-col gap-2 sm:gap-3 md:gap-3.5 lg:gap-4 relative">
 
                 {/* PWA Install Button (Floating) */}
                 <div className="absolute top-2 right-3 sm:top-3 sm:right-4 md:top-3.5 md:right-5 lg:top-4 lg:right-6 z-50">
@@ -181,14 +183,14 @@ const DashboardPage = () => {
                     <HeroBanner {...heroProps} />
                 </div>
 
-                <section className="flex flex-col lg:flex-row gap-2 sm:gap-3 md:gap-3.5 lg:gap-4 w-full flex-1 overflow-hidden">
+                <section className="flex flex-col lg:flex-row gap-4 w-full flex-1">
                     {/* GuideVideo */}
-                    <div className="flex-1 h-full overflow-hidden">
+                    <div className="w-full lg:flex-1 aspect-video lg:aspect-auto lg:h-auto overflow-hidden">
                         <GuideVideo />
                     </div>
 
                     {/* HospitalTimeline - 오른쪽 고정 */}
-                    <aside className="w-full sm:w-full md:w-full lg:w-80 flex-none h-full overflow-y-auto">
+                    <aside className="w-full lg:w-80 flex-none h-auto lg:h-full lg:overflow-y-auto">
                         {data && <HospitalTimeline hospitals={data.linkedHospitals} childName={data.name} onAddClick={() => setIsCodeModalOpen(true)} />}
                     </aside>
                 </section>
