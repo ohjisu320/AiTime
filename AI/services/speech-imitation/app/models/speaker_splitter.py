@@ -174,16 +174,14 @@ class SpeakerSplitter:
 
         return (c1 + c2) / 2.0
 
-    def _analyze_prosody(
-        self, y: np.ndarray, sr: int
-    ) -> tuple[float | None, float | None, float | None]:
+    def _analyze_prosody(self, y: np.ndarray, sr: int) -> dict[str, float | None]:
         """
         Returns:
-            (mean_f0_hz, f0_mad_semitone, squeal_ratio)
+            { "mean_f0": ..., ... }
         """
         y = np.asarray(y, dtype=np.float32).reshape(-1)
         if len(y) < int(0.10 * sr):
-            return None, None, None
+            return {}
 
         try:
             import parselmouth
