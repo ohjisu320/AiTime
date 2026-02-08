@@ -66,6 +66,10 @@ class Settings(BaseSettings):
     # trial당 3번 반복
     REPETITIONS_PER_TRIAL: int = 1
 
+    # Protocol Timing (Fixed Slots)
+    TRIAL_DURATION_SEC: float = 8.0
+    STIMULUS_SEARCH_WINDOW_SEC: float = 3.0
+
     # 월령 밴드별 자극(엄마가 말하는 단어/구)
     STIMULI_M12_17: list[str] = Field(
         default_factory=lambda: ["아", "마", "바", "맘마", "까꿍"],
