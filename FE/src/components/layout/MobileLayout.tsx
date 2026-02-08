@@ -7,9 +7,12 @@ interface MobileLayoutProps {
 
 const MobileLayout = ({ className }: MobileLayoutProps) => {
   return (
-    // 1180px 너비 최적화, 반응형, 중앙 정렬
-    <div className={cn("w-full max-w-[1180px] mx-auto px-4 bg-background/0 font-wanted", className)}>
-      <Outlet />
+    // Outer Wrapper: 전체 너비 및 배경색 담당 (min-h-screen 필수)
+    <div className={cn("w-full min-h-screen flex flex-col items-center", className)}>
+      {/* Inner Container: 콘텐츠 너비 제한 (1180px) */}
+      <div className="w-full max-w-[1180px] px-4 font-wanted bg-transparent flex-1 w-full flex flex-col">
+        <Outlet />
+      </div>
     </div>
   );
 };
