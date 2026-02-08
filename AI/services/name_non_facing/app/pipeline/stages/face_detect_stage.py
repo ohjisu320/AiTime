@@ -149,8 +149,13 @@ class FaceDetectStage(BaseStage):
         context.child_detections = child_detections
         context.position_vectors = position_vectors
         
-        # 1인칭 모드 판정 (과반수 기준)
-        context.is_first_person_view = first_person_count > len(frames) / 2
+        # 1인칭 모드 판정
+        # FIRST_PERSON_FALLBACK=False(기본): 자동 전환 비활성화
+        settings = get_settings()
+        if not settings.FIRST_PERSON_FALLBACK:
+            context.is_first_person_view = False
+        else:
+            context.is_first_person_view = first_person_count > len(frames) / 2
         
         # 4. 결과 로깅
         child_detected_count = len(frames) - no_child_count
