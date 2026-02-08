@@ -32,7 +32,7 @@ const Sidebar = ({ childName, onCodeInputClick }: SidebarProps) => {
     }
   };
   return (
-    <aside className="w-64 flex flex-none flex-col sticky top-0 bg-white border-r border-gray-200 h-screen">
+    <aside className="w-64 flex flex-none flex-col sticky top-0 bg-white border-r border-gray-200 h-full min-h-screen">
       <div className="h-24 px-6 pt-6 border-b border-gray-200 flex flex-col justify-start items-start shrink-0">
         <div className="inline-flex justify-start items-center gap-3 cursor-pointer" onClick={() => navigate('/parent/select-profile')}>
           {/* 홈 버튼 */}
