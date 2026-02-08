@@ -1,14 +1,16 @@
 """
 VAD (Voice Activity Detection) 래퍼
 
-우선 Silero VAD를 사용하고, 로딩/실행이 불가능한 환경에서는
-간단한 에너지 기반 VAD로 fallback 합니다.
+Silero VAD v4 ONNX 모델을 로컬에서 실행합니다.
+외부 인터넷 연결(Torch Hub)이나 무거운 PyTorch 의존성을 제거하고,
+ONNX Runtime과 Numpy만 사용하여 추론 속도를 최적화합니다.
 
 Reference:
     - Silero VAD: https://github.com/snakers4/silero-vad
 """
 
 import logging
+import os
 from dataclasses import dataclass
 from typing import Any
 
@@ -43,48 +45,43 @@ class SpeechSegment:
 
 class VoiceActivityDetector(BaseModel[Any]):
     """
-    VAD (Silero 우선, 실패 시 에너지 기반 fallback)
+    VAD (Silero ONNX 우선, 실패 시 에너지 기반 fallback)
     """
-
-    _get_speech_timestamps: Any = None
-    _utils: Any = None
 
     def __init__(self) -> None:
         self._settings = get_settings()
         self._use_fallback = False
+        self._onnx_vad: OnnxSileroVAD | None = None
+        self._model_path = os.path.join(
+            os.path.dirname(__file__), "assets", "silero_vad.onnx"
+        )
 
     def ensure_loaded(self) -> None:
-        """Silero 로드 시도. 실패하면 fallback."""
+        """ONNX 모델 로드 시도. 실패하면 fallback."""
         if self._model_loaded:
             return
-        try:
-            super().ensure_loaded()
-        except Exception as e:
-            logger.warning(f"Silero VAD 로드 실패 → fallback VAD 사용: {e}")
+
+        # Check if asset exists
+        if not os.path.exists(self._model_path):
+            logger.warning(
+                f"Silero ONNX 모델 파일 없음: {self._model_path} -> fallback"
+            )
             self._use_fallback = True
-            self._model_loaded = True  # fallback도 로드 완료로 취급
+            self._model_loaded = True
+            return
+
+        try:
+            self._load_model()
+            self._model_loaded = True
+        except Exception as e:
+            logger.warning(f"Silero ONNX 로드 실패 → fallback VAD 사용: {e}")
+            self._use_fallback = True
+            self._model_loaded = True
 
     def _load_model(self) -> None:
-        import torch  # type: ignore
-
-        logger.info("Silero VAD 모델 로딩...")
-        model, utils = torch.hub.load(
-            repo_or_dir="snakers4/silero-vad",
-            model="silero_vad",
-            force_reload=False,
-            onnx=False,
-            trust_repo=True,
-        )
-        self._model = model
-        self._utils = utils
-        (
-            self._get_speech_timestamps,
-            _,  # save_audio
-            _,  # read_audio
-            _,  # VADIterator
-            _,  # collect_chunks
-        ) = utils
-        logger.info("Silero VAD 모델 로드 완료")
+        logger.info(f"Silero VAD ONNX 로딩... ({self._model_path})")
+        self._onnx_vad = OnnxSileroVAD(self._model_path)
+        logger.info("Silero VAD ONNX 로드 완료")
 
     def predict(
         self, audio: np.ndarray, sample_rate: int | None = None
@@ -106,31 +103,26 @@ class VoiceActivityDetector(BaseModel[Any]):
         if len(audio) == 0:
             return []
 
-        if not self._use_fallback and self._get_speech_timestamps is not None:
-            return self._detect_silero(audio, sr)
+        if not self._use_fallback and self._onnx_vad is not None:
+            return self._detect_silero_onnx(audio, sr)
 
         return self._detect_energy(audio, sr)
 
-    def _detect_silero(self, audio: np.ndarray, sr: int) -> list[SpeechSegment]:
-        import torch  # type: ignore
+    def _detect_silero_onnx(self, audio: np.ndarray, sr: int) -> list[SpeechSegment]:
+        if self._onnx_vad is None:
+            return []
 
-        # Silero는 float tensor 기대
-        audio_t = torch.from_numpy(audio)
-
-        speech_timestamps = self._get_speech_timestamps(
-            audio_t,
-            self._model,
-            sampling_rate=sr,
+        timestamps = self._onnx_vad.get_speech_timestamps(
+            audio,
+            sr,
             threshold=float(self._settings.VAD_THRESHOLD),
             min_speech_duration_ms=int(self._settings.VAD_MIN_SPEECH_DURATION_MS),
             min_silence_duration_ms=int(self._settings.VAD_MIN_SILENCE_DURATION_MS),
-            window_size_samples=int(self._settings.VAD_WINDOW_SIZE_SAMPLES),
             speech_pad_ms=int(self._settings.VAD_SPEECH_PAD_MS),
-            return_seconds=False,
         )
 
         segments: list[SpeechSegment] = []
-        for ts in speech_timestamps:
+        for ts in timestamps:
             s = int(ts["start"])
             e = int(ts["end"])
             segments.append(
@@ -210,3 +202,159 @@ class VoiceActivityDetector(BaseModel[Any]):
                 )
 
         return segments
+
+
+class OnnxSileroVAD:
+    def __init__(self, model_path: str) -> None:
+        try:
+            import onnxruntime as ort
+
+            # Set session options for CPU optimization
+            sess_options = ort.SessionOptions()
+            sess_options.intra_op_num_threads = 1
+            sess_options.inter_op_num_threads = 1
+            sess_options.graph_optimization_level = (
+                ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+            )
+
+            self.session = ort.InferenceSession(
+                model_path,
+                providers=["CPUExecutionProvider"],
+                sess_options=sess_options,
+            )
+        except ImportError as e:
+            raise ImportError("onnxruntime is required for OnnxSileroVAD") from e
+
+        self.reset_states()
+
+    def reset_states(self) -> None:
+        # Silero VAD v4 State: (2, 1, 64)
+        self._h = np.zeros((2, 1, 64), dtype=np.float32)
+        self._c = np.zeros((2, 1, 64), dtype=np.float32)
+
+    def __call__(
+        self, x: np.ndarray, sr: int
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        # x: (B, T) -> Silero expects (B, T) float32
+        if x.ndim == 1:
+            x = x[np.newaxis, :]  # (1, T)
+
+        # sr must be int64 for ONNX input
+        sr_arr = np.array([sr], dtype=np.int64)
+
+        ort_inputs = {
+            "input": x,
+            "sr": sr_arr,
+            "h": self._h,
+            "c": self._c,
+        }
+
+        # Run inference
+        out, h_new, c_new = self.session.run(None, ort_inputs)
+
+        # Update states
+        self._h = h_new
+        self._c = c_new
+
+        return out
+
+    def get_speech_timestamps(
+        self,
+        audio: np.ndarray,
+        sr: int,
+        threshold: float = 0.5,
+        min_speech_duration_ms: int = 250,
+        min_silence_duration_ms: int = 100,
+        speech_pad_ms: int = 30,
+        window_size_samples: int = 512,
+    ) -> list[dict]:
+        """
+        Numpy implementation of get_speech_timestamps
+        """
+        self.reset_states()
+
+        # Audio normalization OK? Original util does /32768 if int.
+        # Here we assume float32 [-1, 1].
+
+        # Chunk audio
+        # Silero works best with chunks of 512, 1024, 1536 samples (for 16k)
+        # For 8k: 256, 512, 768
+        # Standard: 512 samples at 16k
+
+        # Make sure audio is multiple of window_size_samples
+        if len(audio) % window_size_samples != 0:
+            pad_len = window_size_samples - (len(audio) % window_size_samples)
+            audio = np.pad(audio, (0, pad_len))
+
+        # Split into chunks of window_size_samples
+        # (N, window_size)
+        chunks = audio.reshape(-1, window_size_samples)
+
+        speech_probs = []
+        for chunk in chunks:
+            # inference
+            out = self(chunk, sr)  # out shape (1, 1) probability
+            speech_probs.append(float(out[0][0]))
+
+        # Thresholding logic
+        # Converted from utils_vad.py
+
+        triggered = False
+        speech_start = 0
+
+        speeches = []
+
+        temp_end = 0
+
+        # to seconds
+        min_speech_samples = sr * min_speech_duration_ms / 1000
+        min_silence_samples = sr * min_silence_duration_ms / 1000
+        speech_pad_samples = sr * speech_pad_ms / 1000
+
+        for i, prob in enumerate(speech_probs):
+            current_time = i * window_size_samples
+
+            if (prob >= threshold) and temp_end:
+                temp_end = 0
+
+            if (prob >= threshold) and not triggered:
+                triggered = True
+                speech_start = current_time
+                continue
+
+            if (prob < threshold - 0.15) and triggered:  # Hysteresis
+                if not temp_end:
+                    temp_end = current_time
+
+                # Check silence duration
+                if (current_time - temp_end) < min_silence_samples:
+                    continue
+                else:
+                    # End of speech
+                    speech_end = temp_end
+                    temp_end = 0
+                    triggered = False
+
+                    # Validate duration
+                    if (speech_end - speech_start) > min_speech_samples:
+                        speeches.append(
+                            {
+                                "start": int(max(0, speech_start - speech_pad_samples)),
+                                "end": int(
+                                    min(len(audio), speech_end + speech_pad_samples)
+                                ),
+                            }
+                        )
+
+        # Check last segment
+        if triggered:
+            speech_end = len(audio)
+            if (speech_end - speech_start) > min_speech_samples:
+                speeches.append(
+                    {
+                        "start": int(max(0, speech_start - speech_pad_samples)),
+                        "end": int(min(len(audio), speech_end + speech_pad_samples)),
+                    }
+                )
+
+        return speeches
