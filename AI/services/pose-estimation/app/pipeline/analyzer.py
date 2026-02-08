@@ -452,7 +452,8 @@ class MotionAnalyzer:
                 else:
                     output_folder = Path(tempfile.mkdtemp(prefix=TEMP_FOLDER_PREFIX))
                 
-                is_segment = start_sec > 0.0 or end_sec is not None
+                # 구간 추출 여부 (end_sec가 있으면 구간 추출로 간주)
+                is_segment = end_sec is not None
                 extraction_result = self.video_processor.extract_frames_to_folder(
                     video_path,
                     output_folder=output_folder,
@@ -472,11 +473,13 @@ class MotionAnalyzer:
                     logger.debug(f"임시 폴더 정리: {output_folder}")
             else:
                 # Generator 방식: 기존 메모리 효율적 처리
+                is_segment = end_sec is not None
                 video_info = self.video_processor.get_video_info(video_path)
                 frames = self.video_processor.extract_frames(
                     video_path,
                     start_sec=start_sec,
                     end_sec=end_sec,
+                    validate=not is_segment,
                 )
                 
                 # 3. 2D POSE ESTIMATION
@@ -1299,7 +1302,8 @@ class MotionAnalyzer:
         
         try:
             # 2. 영상 → 프레임 폴더
-            is_segment = start_sec > 0.0 or end_sec is not None
+            # 구간 추출 여부 (end_sec가 있으면 구간 추출로 간주)
+            is_segment = end_sec is not None
             logger.info(
                 f"영상 처리 시작: {video_path}"
                 + (f" (구간: {start_sec:.1f}s~{end_sec:.1f}s)"
