@@ -125,6 +125,11 @@ class Settings(BaseSettings):
     PITCH_MAD_MONOTONE_THRESHOLD: float = 1.0  # 단조로움 기준 (semitone)
     PITCH_MAD_SONG_THRESHOLD: float = 2.0  # 과장된 억양 기준 (semitone)
 
+    # ===== 일관성 체크 (Consistency Check) =====
+    # 아기 발화로 판정된 구간들 중에서도,
+    # 전체 평균과 너무 동떨어진(예: 1옥타브 이상) 건 제외
+    CONSISTENCY_SEMITONE_THRESHOLD: float = 12.0
+
     # ===== 디버그 산출물(옵션) =====
     # 예: debug/speech_imitation_20260129_153000/
     DEBUG_OUT_DIR: str | None = "./debug_output"

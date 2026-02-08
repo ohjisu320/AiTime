@@ -60,6 +60,17 @@ class ImitationJudgeStage(BaseStage):
 
             os.makedirs(debug_dir, exist_ok=True)
 
+        # Global Child F0 for Consistency Check (AI-408)
+        import math
+        import statistics
+
+        child_f0_values = [s.mean_f0_hz for s in child_segs if s.mean_f0_hz is not None]
+        global_child_f0 = (
+            statistics.median(child_f0_values) if child_f0_values else None
+        )
+        if global_child_f0:
+            logger.info(f"Global Child F0 Median: {global_child_f0:.1f} Hz")
+
         for t in context.trial_results:
             # Calculate fixed time slots for this trial
             # In a real scenario,
@@ -151,6 +162,25 @@ class ImitationJudgeStage(BaseStage):
                         - max(s.segment.start_sec, stim_seg.end_sec)
                     ),
                 )
+
+                # Consistency Check (AI-408)
+                if global_child_f0 and best_cand.mean_f0_hz:
+                    diff_semitone = 12.0 * math.log2(
+                        best_cand.mean_f0_hz / global_child_f0
+                    )
+                    if abs(diff_semitone) > float(
+                        self._settings.CONSISTENCY_SEMITONE_THRESHOLD
+                    ):
+                        r.failure_reason = "INCONSISTENT_RESPONSE"
+                        r.success = False
+                        r.response_detected = False
+                        logger.debug(
+                            f"Trial {trial_idx}: ",
+                            f"Candidate rejected due to inconsistency "
+                            f"(F0={best_cand.mean_f0_hz:.1f}Hz ",
+                            f"vs Global={global_child_f0:.1f}Hz)",
+                        )
+                        continue
 
                 # Clip
                 # We only evaluate the portion AFTER stimulus ends (Strict no-overlap)
