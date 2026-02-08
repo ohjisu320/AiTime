@@ -96,36 +96,40 @@ class SpeakerSplitter:
             return None, None, None
 
         try:
-            import librosa  # type: ignore
+            import parselmouth
 
-            # 1. Pitch Track
-            f0, voiced_flag, _ = librosa.pyin(
-                y.astype(float),
-                fmin=float(self._settings.PITCH_FMIN),
-                fmax=float(self._settings.PITCH_FMAX),
-                sr=sr,
-            )
-            voiced_f0 = f0[voiced_flag]
-            if voiced_f0 is None or len(voiced_f0) == 0:
+            # 1. Sound Object
+            # parselmouth.Sound takes path or data. with data,
+            # we need sampling_frequency.
+            sound = parselmouth.Sound(y, sampling_frequency=sr)
+
+            # 2. Pitch Extraction (Robust)
+            # time_step=None (auto),
+            # pitch_floor=75.0 (default for widespread),
+            # pitch_ceiling=600.0
+            # User config might specify min/max.
+            fmin = float(self._settings.PITCH_FMIN)
+            fmax = float(self._settings.PITCH_FMAX)
+
+            pitch = sound.to_pitch(pitch_floor=fmin, pitch_ceiling=fmax)
+            pitch_values = pitch.selected_array["frequency"]
+
+            # Filter unvoiced (0.0)
+            voiced_f0 = pitch_values[pitch_values > 0]
+
+            if len(voiced_f0) == 0:
                 return None, None, None
 
-            # 2. Mean F0
-            mean_f0 = float(np.nanmean(voiced_f0))
+            # 3. Mean F0
+            mean_f0 = float(np.mean(voiced_f0))
 
-            # 3. Squeal Ratio
-            # squeal if > PITCH_SQUEAL_HZ_THRESHOLD
+            # 4. Squeal Ratio
             squeal_thresh = float(self._settings.PITCH_SQUEAL_HZ_THRESHOLD)
             squeal_count = np.sum(voiced_f0 > squeal_thresh)
             squeal_ratio = float(squeal_count / len(voiced_f0))
 
-            # 4. MAD (Mean Absolute Deviation) in Semitones
-            # Convert Hz to semitones relative to A4 (440Hz)
-            # or just use relative variations?
-            # User paper says "MAD 1.47 st". Usually calculated on the semitone series.
-            # hz_to_semitone: 12 * log2(f / f_ref).
-            # We can pick arbitrary f_ref because MAD is about variability
-            # (distance from median).
-            # librosa.hz_to_midi or just formula
+            # 5. MAD (Mean Absolute Deviation) in Semitones
+            # St = 12 * log2(f0 / ref)
             st = 12.0 * np.log2(voiced_f0 + 1e-9)
             median_st = np.median(st)
             mad = float(np.mean(np.abs(st - median_st)))
@@ -133,8 +137,9 @@ class SpeakerSplitter:
             return mean_f0, mad, squeal_ratio
 
         except Exception as e:
-            logger.warning(f"Librosa pitch analysis failed: {e}. Fallback to autocorr.")
-            # fallback: autocorrelation (only mean f0)
+            logger.warning(
+                f"Parselmouth pitch analysis failed: {e}. Fallback to autocorr."
+            )
             f0_fallback = _autocorr_pitch(
                 y,
                 sr,
