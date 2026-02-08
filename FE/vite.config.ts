@@ -22,7 +22,7 @@ export default defineConfig({
         theme_color: '#6366F1',
         background_color: '#ffffff',
         display: 'standalone',
-        orientation: 'portrait',
+        orientation: 'any',
         start_url: '/',
         scope: '/',
         icons: [
@@ -106,7 +106,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api/v1': {
-        target: 'http://70.12.246.92:8080',
+        target: 'http://192.168.0.25:8080',
         changeOrigin: true,
         secure: false,
         cookieDomainRewrite: {
@@ -117,7 +117,7 @@ export default defineConfig({
         },
         configure: (proxy, _options) => {
           proxy.on('proxyReq', (proxyReq, _req, _res) => {
-            proxyReq.setHeader('Origin', 'http://70.12.246.92:8080');
+            proxyReq.setHeader('Origin', 'http://192.168.0.25:8080');
           });
           proxy.on('proxyRes', (proxyRes, _req, _res) => {
             const cookies = proxyRes.headers['set-cookie'];

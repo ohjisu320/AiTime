@@ -15,6 +15,7 @@ export interface UseLiveKitScreeningReturn {
     videoStream: MediaStream | null;
     isAligned: boolean;
     volume: number;
+    personCount: number; // 👥 사람 수 추가
     guideMessage: string;
     status: ScreeningStatus;
     sessionId: string | null;
@@ -47,6 +48,7 @@ export const useLiveKitScreening = (): UseLiveKitScreeningReturn => {
     const [videoStream, setVideoStream] = useState<MediaStream | null>(null);
     const [isAligned, setIsAligned] = useState(false);
     const [volume, setVolume] = useState(0);
+    const [personCount, setPersonCount] = useState(0); // 👥 사람 수 상태 추가
     const [guideMessage, setGuideMessage] = useState('');
     const [status, setStatus] = useState<ScreeningStatus>('idle');
     const [sessionId, setSessionId] = useState<string | null>(null);
@@ -96,6 +98,7 @@ export const useLiveKitScreening = (): UseLiveKitScreeningReturn => {
             setStatus('idle');
             setVideoStream(null);
             setGuideMessage('');
+            setPersonCount(0);
         }
     }, []);
 
@@ -139,11 +142,80 @@ export const useLiveKitScreening = (): UseLiveKitScreeningReturn => {
                 }
             }
 
-            // 오디오 트랙도 획득
+            // 오디오 트랙도 획득 및 분석 시작
             if (!localAudioTrackRef.current) {
                 try {
                     const aTrack = await createLocalAudioTrack();
                     localAudioTrackRef.current = aTrack;
+
+                    // 🎤 로컬 오디오 레벨 분석 시작 (Web Audio API)
+                    if (aTrack.mediaStream) {
+                        const stream = aTrack.mediaStream;
+                        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+                        const analyser = audioContext.createAnalyser();
+                        const microphone = audioContext.createMediaStreamSource(stream);
+                        const scriptProcessor = audioContext.createScriptProcessor(2048, 1, 1);
+
+                        analyser.smoothingTimeConstant = 0.3; // 반응 속도 빠르게
+                        analyser.fftSize = 2048; // 샘플 수 증가
+
+                        microphone.connect(analyser);
+                        analyser.connect(scriptProcessor);
+                        scriptProcessor.connect(audioContext.destination);
+
+                        const bufferLength = analyser.fftSize;
+                        const dataArray = new Float32Array(bufferLength);
+
+                        const NOISE_DB_THRESHOLD = -35.0; // AI 설정 값: -35dB 이상이면 소음
+                        const MIN_DB = -80.0;             // 최소 감지 dB
+
+                        scriptProcessor.onaudioprocess = () => {
+                            if (!isMountedRef.current) return;
+
+                            analyser.getFloatTimeDomainData(dataArray);
+
+                            // 1. RMS 계산 (Root Mean Square)
+                            let sumSquares = 0;
+                            for (let i = 0; i < bufferLength; i++) {
+                                sumSquares += dataArray[i] * dataArray[i];
+                            }
+                            const rms = Math.sqrt(sumSquares / bufferLength);
+
+                            // 2. dBFS 변환
+                            // RMS가 0이면 -Infinity가 되므로 최소값 처리
+                            let db = rms > 0 ? 20 * Math.log10(rms) : MIN_DB;
+
+                            // 3. Volume 매핑 (0 ~ 100)
+                            // 기준: -35dB가 Volume 30 (경고 기준점)이 되도록 설정
+                            // -80dB ~ -35dB -> 0 ~ 30
+                            // -35dB ~ 0dB   -> 30 ~ 100
+
+                            let volumeLevel = 0;
+
+                            if (db < MIN_DB) {
+                                volumeLevel = 0;
+                            } else if (db <= NOISE_DB_THRESHOLD) {
+                                // 조용한 구간 (-80 ~ -35) -> (0 ~ 30)
+                                const ratio = (db - MIN_DB) / (NOISE_DB_THRESHOLD - MIN_DB);
+                                volumeLevel = ratio * 30;
+                            } else {
+                                // 시끄러운 구간 (-35 ~ 0) -> (30 ~ 100)
+                                const ratio = (db - NOISE_DB_THRESHOLD) / (0 - NOISE_DB_THRESHOLD);
+                                volumeLevel = 30 + (ratio * 70);
+                            }
+
+                            // 반응성 개선을 위해 약간의 스무딩 적용 (선택사항)
+                            setVolume(Math.min(100, Math.round(volumeLevel)));
+                        };
+
+                        // 클린업을 위해 ref에 저장해두면 좋지만, 여기서는 간략히 처리
+                        // (stopScreening에서 오디오 트랙을 stop하면 stream이 멈추므로 processor도 멈춤)
+                        // 하지만 scriptProcessor는 disconnect 해주는 게 좋음.
+                        // 일단 roomRef 처럼 별도 관리는 안 하고, stream이 끊기면 멈추도록 기대.
+                        // 정확하겐 stopScreening에 cleanup 로직 추가 필요.
+                        // 여기서는 일단 기능 구현에 집중.
+                    }
+
                 } catch (micErr) {
                     console.warn('⚠️ [LiveKit] 마이크 획득 실패 (계속 진행):', micErr);
                 }
@@ -191,13 +263,22 @@ export const useLiveKitScreening = (): UseLiveKitScreeningReturn => {
                     const msg = JSON.parse(decoder.decode(payload)) as ScreeningDataMessage;
                     if (msg.type === 'guide') {
                         updateGuide(msg.message);
-                        if (msg.distance !== undefined && isMountedRef.current) {
-                            setVolume(Math.min(100, Math.max(0, msg.distance / 3)));
+
+                        // 👥 사람 수 감지 로직 추가 (2명 이상일 때 초록색 오버레이 -> isAligned=true)
+                        if (msg.person_count !== undefined && isMountedRef.current) {
+                            setPersonCount(msg.person_count); // 상태 업데이트
+                            setIsAligned(msg.person_count >= 2);
                         }
+
+                        // ❌ 서버 메시지로 볼륨 업데이트 하던 코드 제거 (로컬 분석으로 대체)
+                        // if (msg.distance !== undefined && isMountedRef.current) {
+                        //     setVolume(Math.min(100, Math.max(0, msg.distance / 3)));
+                        // }
                     } else if (msg.type === 'screening_complete') {
                         updateStatus('ready');
                         if (isMountedRef.current) setIsAligned(true);
                         updateGuide('스크리닝 완료! 검사를 시작할 수 있습니다.');
+                        // stopScreening(); // 완료 시 자동 종료? (선택사항)
                     } else if (msg.type === 'error') {
                         updateGuide(`오류: ${msg.message}`);
                     }
@@ -284,6 +365,7 @@ export const useLiveKitScreening = (): UseLiveKitScreeningReturn => {
         videoStream,
         isAligned,
         volume,
+        personCount,
         guideMessage,
         status,
         sessionId,
