@@ -73,8 +73,7 @@ class SpeakerSplitter:
             if dynamic_th is not None:
                 threshold = dynamic_th
                 logger.info(
-                    f"Dynamic Threshold Applied: {threshold:.1f} Hz ",
-                    f"(Static: {self._settings.PITCH_CHILD_HZ_THRESHOLD} Hz)",
+                    f"Dynamic Threshold Applied: {threshold:.1f} Hz (Static: {self._settings.PITCH_CHILD_HZ_THRESHOLD} Hz)"
                 )
             else:
                 logger.info(f"Dynamic Threshold Fallback: {threshold:.1f} Hz")
@@ -219,7 +218,9 @@ class SpeakerSplitter:
             mad = float(np.mean(np.abs(st - median_st)))
 
             # 4. Jitter & Shimmer (PointProcess)
-            point_process = sound.to_point_process(pitch)
+            # point_process = sound.to_point_process(pitch) -> doesn't exist in python parselmouth wrapper directly
+            # Use praat.call
+            point_process = parselmouth.praat.call([sound, pitch], "To PointProcess (cc)")
 
             # num_periods check? Parselmouth/Praat handles it
             # (returns nan or -1/undefined)
