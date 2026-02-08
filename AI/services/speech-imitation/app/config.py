@@ -123,7 +123,7 @@ class Settings(BaseSettings):
     HOP_LENGTH_MS: float = 10.0
 
     # DTW
-    DTW_RADIUS: int = 1  # 1이면 일반 DTW에 가깝고, >1이면 탐색 창 제한
+    DTW_RADIUS: int = 20  # 1이면 일반 DTW에 가깝고, >1이면 탐색 창 제한
     SIMILARITY_THRESHOLD: float = 0.29  # "비슷한 소리면 OK" 기준 (튜닝 대상)
 
     # ===== 운율 분석 (Prosody Analysis) =====
