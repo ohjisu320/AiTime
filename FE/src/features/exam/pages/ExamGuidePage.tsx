@@ -6,18 +6,18 @@ import EnvironmentCard from '@/domains/exam/components/Guide/EnvironmentCard';
 const ExamGuidePage = () => {
   const navigate = useNavigate();
 
-  /* 체크리스트 항목 정의 (정적) */
+  /* 체크리스트 항목 정의 - 아이콘 및 색상 추가 */
   const checklistItems = [
-    "태블릿을 가로 모드로 고정했나요?",
-    "아이가 편안하고 자연스러운 상태인가요?",
-    "주변의 소음이 심하지 않은 상태인가요?",
-    "인터넷 연결이 안정적인가요?",
-    "충분한 배터리 또는 충전기를 준비했나요?"
+    { emoji: "📱", text: "태블릿 가로 고정", color: "bg-indigo-50 text-indigo-600" },
+    { emoji: "👶", text: "아이 편안한 상태", color: "bg-pink-50 text-pink-600" },
+    { emoji: "🔇", text: "주변 소음 제거", color: "bg-gray-100 text-gray-600" },
+    { emoji: "🛜", text: "인터넷 연결 확인", color: "bg-blue-50 text-blue-600" },
+    { emoji: "🔋", text: "배터리 충전 확인", color: "bg-green-50 text-green-600" }
   ];
 
   return (
-    <div className="w-full h-screen min-h-[820px] flex flex-col overflow-hidden">
-      {/* 🚦 Step 1 완료(체크표시), Step 2 활성화 상태의 헤더 */}
+    <div className="w-full min-h-screen flex flex-col overflow-y-auto">
+      {/* 🚦 헤더 - ConsentHeader 자체가 이미 fixed */}
       <ConsentHeader
         currentStep={2}
         totalSteps={3}
@@ -26,12 +26,10 @@ const ExamGuidePage = () => {
         subtitle="정확한 검사를 위해 아래 환경을 준비해주세요"
       />
 
-      <div className="flex-1 w-full overflow-y-auto flex flex-col items-center">
-        <main className="w-full max-w-[1187px] pt-[100px] pb-10 px-4 flex flex-col items-center">
-          {/* 헤더 섹션 제거됨 (ConsentHeader로 이동) */}
-
-          {/* 환경 안내 카드 섹션 */}
-          <div className="flex gap-4 mb-6">
+      <div className="flex-1 w-full flex flex-col items-center pt-24"> {/* h-20(80px) + 여유공간 = pt-24(96px) */}
+        <main className="w-full max-w-5xl px-4 py-6 flex flex-col items-center gap-6">
+          {/* 환경 안내 카드 섹션 - 높이 유동적으로 변경 */}
+          <div className="flex gap-4 w-full flex-wrap lg:flex-nowrap justify-center">
             <EnvironmentCard
               emoji="💡"
               title="밝은 조명"
@@ -52,32 +50,35 @@ const ExamGuidePage = () => {
             />
           </div>
 
-          {/* 정적 체크리스트 섹션 */}
-          <div className="w-full max-w-[1024px] bg-white rounded-xl shadow-md p-4 flex flex-col gap-3 mb-5">
-            <h2 className="text-sm font-bold text-gray-800 flex items-center gap-2">
+          {/* 체크리스트 섹션 - 미니 카드 스타일 */}
+          <div className="w-full bg-white/50 rounded-xl flex flex-col gap-3">
+            <h2 className="text-sm font-bold text-gray-800 flex items-center gap-2 px-2">
               📋 체크리스트
             </h2>
-            <ul className="flex flex-col gap-1.5">
+            <ul className="flex flex-wrap gap-3 justify-center">
               {checklistItems.map((item, index) => (
-                <li key={index} className="flex items-center gap-2 p-2.5 bg-secondary rounded-lg shadow-sm">
-                  <span className="text-sm text-secondary-foreground font-medium">{item}</span>
+                <li key={index} className="flex flex-col items-center justify-center gap-2 p-3 bg-white rounded-xl shadow-sm border border-gray-100 w-full md:w-[calc(50%-0.6rem)] lg:w-[calc(33.33%-0.6rem)] grow transition-transform hover:scale-105">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-lg ${item.color}`}>
+                    {item.emoji}
+                  </div>
+                  <span className="text-sm text-gray-700 font-bold text-center">{item.text}</span>
                 </li>
               ))}
             </ul>
           </div>
 
-          {/* 준비 완료 버튼 (항상 활성화) - 보라색 오버라이드 */}
+          {/* 준비 완료 버튼 */}
           <Button
             variant="default"
-            className="w-full max-w-[1024px] h-12 text-sm font-bold rounded-xl transition-all bg-brand-purple hover:bg-brand-purple-dark text-white"
+            className="w-full max-w-[600px] h-14 text-base font-bold rounded-xl transition-all bg-brand-purple hover:bg-brand-purple-dark text-white mt-4 mb-10 shadow-lg hover:shadow-xl transform active:scale-95"
             onClick={() => navigate('/exam/mission')}
           >
             준비 완료, 미션 선택하기
           </Button>
         </main>
 
-        <footer className="mt-auto mb-8 text-gray-500 text-sm">
-          AiTime은 12~23개월 무발화 영유아의 자폐 스펙트럼(ASD) 조기 진단을 보조합니다
+        <footer className="w-full max-w-5xl px-4 pb-8 text-gray-500 text-xs text-center break-keep">
+          AiTime은 12-23개월 영유아와 부모가, 가정 내에서 수행하는 표준화된 4가지 과제를, AI가 채점하여, 소아과 의사의 초기 면담/ 관찰 과정을 대체하는, 디지털 의료기기입니다.
         </footer>
       </div>
     </div>

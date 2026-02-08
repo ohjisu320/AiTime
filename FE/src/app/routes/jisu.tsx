@@ -24,10 +24,15 @@ const ExamGuard = lazy(() => retryImport(() => import('@/features/exam/component
 
 
 
+import { useLocation } from 'react-router-dom';
+
 const ExamLayout = () => {
+  const location = useLocation();
+  const isGuidePage = location.pathname.includes('/guide');
+
   return (
     <Suspense fallback={<div className="flex justify-center items-center h-full">Loading...</div>}>
-      <MobileLayout />
+      <MobileLayout className={isGuidePage ? "bg-gray-50" : ""} />
     </Suspense>
   );
 };
