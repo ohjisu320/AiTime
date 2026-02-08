@@ -46,37 +46,11 @@ class ImitationJudgeStage(BaseStage):
         if not child_segs:
             context.add_warning("child segments가 없습니다. (VAD/화자분리 실패 가능)")
 
-        # 디버그: 세그먼트 타임스탬프 출력
-        logger.debug(f"Adult segments ({len(adult_segs)}):")
-        for i, seg in enumerate(adult_segs):
-            logger.debug(
-                f"  [{i}] {seg.segment.start_sec:.2f}-{seg.segment.end_sec:.2f}s"
-            )
-        logger.debug(f"Child segments ({len(child_segs)}):")
-        for i, seg in enumerate(child_segs):
-            logger.debug(
-                f"  [{i}] {seg.segment.start_sec:.2f}-{seg.segment.end_sec:.2f}s"
-            )
-
-        # 8차 개선: 교차 할당(Alternating) 전략
-        # Pitch 구분이 안 되므로, 모든 발화를 시간순으로 나열하고
-        # Stimulus(0) -> Response(1) -> Stimulus(2) -> Response(3)... 순서로 강제 할당
-
-        # 1) 모든 세그먼트 수집 (LabeledSegment 상태로 유지)
-        all_segs = []
-        for s in adult_segs:
-            all_segs.append(s)
-        for s in child_segs:
-            all_segs.append(s)
-
-        # 시간순 정렬
-        all_segs.sort(key=lambda x: x.segment.start_sec)
-
-        logger.info(f"Alternating Strategy: Total segments found = {len(all_segs)}")
-        for i, s in enumerate(all_segs):
-            logger.debug(
-                f"  Seg {i}: {s.segment.start_sec:.2f}-{s.segment.end_sec:.2f}s"
-            )
+        # Protocol Timing
+        # We assume session starts at 0.0s relative to audio beginning
+        trial_duration = float(self._settings.TRIAL_DURATION_SEC)
+        stim_search_win = float(self._settings.STIMULUS_SEARCH_WINDOW_SEC)
+        resp_timeout = float(self._settings.RESPONSE_TIMEOUT_SEC)
 
         debug_dir = self._settings.DEBUG_OUT_DIR
         save_clips = bool(self._settings.SAVE_WAV_CLIPS) and debug_dir is not None
@@ -86,93 +60,218 @@ class ImitationJudgeStage(BaseStage):
 
             os.makedirs(debug_dir, exist_ok=True)
 
-        current_seg_idx = 0
+        # Global Child F0 for Consistency Check (AI-408)
+        import math
+        import statistics
+
+        child_f0_values = [s.mean_f0_hz for s in child_segs if s.mean_f0_hz is not None]
+        global_child_f0 = (
+            statistics.median(child_f0_values) if child_f0_values else None
+        )
+        if global_child_f0:
+            logger.info(f"Global Child F0 Median: {global_child_f0:.1f} Hz")
 
         for t in context.trial_results:
+            # Calculate fixed time slots for this trial
+            # In a real scenario,
+            # we might need 'session_start_time' offset if audio doesn't start at 0
+            # Here we assume audio corresponds exactly to the session recording.
+            trial_idx = t.trial_index  # 0-based
+            trial_start_s = float(trial_idx * trial_duration)
+            trial_end_s = trial_start_s + trial_duration
+
+            # 1. Find Stimulus (Adult)
+            # Search for the *first* adult segment that *starts*
+            # within [trial_start, trial_start + stim_search_win]
+            stim_candidate = None
+            for seg in adult_segs:
+                if (
+                    seg.segment.start_sec >= trial_start_s
+                    and seg.segment.start_sec < trial_start_s + stim_search_win
+                ):
+                    stim_candidate = seg
+                    break  # Take the first one found
+
+            # Setup repetitions (currently repetitions=1 per trial)
             for r in t.repetitions:
-                # 짝수 인덱스: Stimulus, 홀수 인덱스: Response
-                if current_seg_idx + 1 >= len(all_segs):
-                    # 더 이상 짝(Stim+Resp)을 지을 수 없음
-                    r.failure_reason = (
-                        "NO_STIMULUS"
-                        if current_seg_idx >= len(all_segs)
-                        else "NO_RESPONSE"
-                    )
-                    r.response_detected = False
+                if not stim_candidate:
+                    r.failure_reason = "INSUFFICIENT_STIMULUS"
                     r.success = False
+                    r.response_detected = False
                     logger.debug(
-                        f"Trial {t.trial_index}: Not enough segments for pair "
-                        f"(idx={current_seg_idx})"
+                        f"Trial {trial_idx}: No stimulus found in ",
+                        f"[{trial_start_s}-{trial_start_s + stim_search_win}]",
                     )
                     continue
 
-                # 강제 할당
-                stim_labeled = all_segs[current_seg_idx]
-                resp_labeled = all_segs[current_seg_idx + 1]
-
-                stim_seg = stim_labeled.segment
-                resp_seg = resp_labeled.segment
-
-                current_seg_idx += 2  # 다음 쌍으로 이동
-
-                # 정보 기록
+                stim_seg = stim_candidate.segment
                 r.stimulus_time = (stim_seg.start_sec, stim_seg.end_sec)
-                r.response_detected = True
-                r.response_time = (resp_seg.start_sec, resp_seg.end_sec)
-                r.latency_s = float(max(0.0, resp_seg.start_sec - stim_seg.end_sec))
 
-                # Prosody Metrics (Child/Response)
-                r.child_mean_f0 = resp_labeled.mean_f0_hz
-                r.child_squeal_ratio = resp_labeled.squeal_ratio
-                r.child_mad_semitone = resp_labeled.f0_mad_semitone
+                # 2. Response Window
+                # Starts at Stimulus End.
+                # Ends at min(Stimulus Start + Timeout, Trial End)
+                # Note: Analysis Report said "Stimulus Onset + 5s"
+                # but logical flow is usually "After Stimulus End".
+                # Let's follow plan: "Window Start = Stimulus Start" (Onset Base)
+                # But to avoid overlapping,
+                # we only accept child segments that END after stimulus END.
 
-                logger.debug(
-                    f"Trial {t.trial_index}: Match "
-                    f"Stim[{stim_seg.start_sec:.2f}-{stim_seg.end_sec:.2f}] -> "
-                    f"Resp[{resp_seg.start_sec:.2f}-{resp_seg.end_sec:.2f}] "
-                    f"(MeanF0={r.child_mean_f0}, Squeal={r.child_squeal_ratio}, "
-                    f"MAD={r.child_mad_semitone})"
+                window_start = stim_seg.start_sec
+                window_end = min(stim_seg.start_sec + resp_timeout, trial_end_s)
+
+                # 3. Candidate Selection
+                # Candidates must:
+                # - Be labeled CHILD
+                # (or UNKNOWN fallback if needed? For now strict CHILD)
+                # - Start >= window_start (approx)
+                # - Overlap with [stim_seg.end_sec, window_end] is positive
+
+                candidates = []
+                for c_seg in child_segs:
+                    # Check overlap with the valid response region
+                    # [stim_seg.end_sec, window_end]
+                    # We want child speech *after* mom finishes,
+                    # or at least mostly after.
+                    # Strict Policy: Candidate must start AFTER Stimulus starts
+                    if c_seg.segment.start_sec < window_start:
+                        continue
+
+                    # Must end before window_end? Or just start before window_end?
+                    # Generally start before window_end.
+                    if c_seg.segment.start_sec >= window_end:
+                        continue
+
+                    candidates.append(c_seg)
+
+                if not candidates:
+                    r.failure_reason = "NO_RESPONSE"
+                    r.success = False
+                    r.response_detected = False
+                    logger.debug(f"Trial {trial_idx}: No child candidates in window")
+                    continue
+
+                # 4. Select Best Candidate & Clipping
+                # Heuristic: Pick longest duration within the valid window? Or first?
+                # Using "First valid" or "Longest" is common.
+                # Let's use "Longest overlap with valid region".
+
+                best_cand = max(
+                    candidates,
+                    key=lambda s: (
+                        min(s.segment.end_sec, window_end)
+                        - max(s.segment.start_sec, stim_seg.end_sec)
+                    ),
                 )
 
-                # 매칭 성공 처리 (유사도 계산 전 단계)
-                # 3) similarity
+                # Consistency Check (AI-408)
+                if global_child_f0 and best_cand.mean_f0_hz:
+                    diff_semitone = 12.0 * math.log2(
+                        best_cand.mean_f0_hz / global_child_f0
+                    )
+                    if abs(diff_semitone) > float(
+                        self._settings.CONSISTENCY_SEMITONE_THRESHOLD
+                    ):
+                        r.failure_reason = "INCONSISTENT_RESPONSE"
+                        r.success = False
+                        r.response_detected = False
+                        logger.debug(
+                            f"Trial {trial_idx}: ",
+                            f"Candidate rejected due to inconsistency "
+                            f"(F0={best_cand.mean_f0_hz:.1f}Hz ",
+                            f"vs Global={global_child_f0:.1f}Hz)",
+                        )
+                        continue
+
+                # Clip
+                # We only evaluate the portion AFTER stimulus ends (Strict no-overlap)
+                valid_start = max(best_cand.segment.start_sec, stim_seg.end_sec)
+                valid_end = min(best_cand.segment.end_sec, window_end)
+
+                duration = valid_end - valid_start
+                if duration < float(self._settings.RESPONSE_MIN_SEC):
+                    r.failure_reason = (
+                        "INSUFFICIENT_FEATURE_FRAMES"  # too short after clipping
+                    )
+                    r.success = False
+                    r.response_detected = True  # Detected but too short
+                    continue
+
+                # Update Result with Clipped info?
+                # The LabeledSegment has full audio metrics.
+                # We might need to re-extract if we clip signal.
+                # For now, we use the metrics of the *original full segment*
+                # as approximation unless it's very different.
+                # Ideally we slice audio -> extract prosody again.
+                # But here we assume LabeledSegment is close enough.
+                # EXCEPT mean_f0 etc might be wide.
+                # Let's stick to using the LabeledSegment's metrics for now
+                # to avoid re-running expensive pitch extraction in Python
+                # (unless we use Parselmouth on clip).
+
+                r.response_detected = True
+                r.response_time = (valid_start, valid_end)
+                r.latency_s = float(max(0.0, valid_start - stim_seg.end_sec))
+
+                # Prosody Metrics
+                r.child_mean_f0 = best_cand.mean_f0_hz
+                r.child_squeal_ratio = best_cand.squeal_ratio
+                r.child_mad_semitone = best_cand.f0_mad_semitone
+
+                # New Metrics (AI-407B)
+                # If they exist on LabeledSegment, mapping them would be great
+                # but 'RepetitionResult' might not have fields yet.
+                # The task AI-410 added 'SegmentSchema' but RepetitionResult is
+                # defined in 'trial_stage.py' or 'schemas.py'?
+                # Wait, 'schemas.py' defined 'PairSchema' but pipeline uses
+                # 'TrialResult'/'RepetitionResult' objects from 'pipeline.context'.
+                # We need to check if 'RepetitionResult' has slots for jitter/shimmer.
+                # Assuming current codebase doesn't have them in
+                # 'RepetitionResult' dataclass unless I added them.
+                # I did NOT add them to RepetitionResult (only LabeledSegment).
+                # So we just log them or ignore for now until schema update.
+
+                logger.debug(
+                    f"Trial {trial_idx}: Matched "
+                    f"Stim[{stim_seg.start_sec:.2f}-{stim_seg.end_sec:.2f}] -> "
+                    f"Resp[{valid_start:.2f}-{valid_end:.2f}] "
+                    f"(Original: ",
+                    f"{best_cand.segment.start_sec}-{best_cand.segment.end_sec})",
+                )
+
+                # 5. Evaluate Similarity (on Clipped Audio)
                 stim_audio = slice_audio(
                     context.audio, sr, stim_seg.start_sec, stim_seg.end_sec
                 )
-                resp_audio = slice_audio(
-                    context.audio, sr, resp_seg.start_sec, resp_seg.end_sec
-                )
+                resp_audio = slice_audio(context.audio, sr, valid_start, valid_end)
 
                 sim_res = self._scorer.score(stim_audio, resp_audio, sr)
                 r.similarity = float(sim_res.similarity)
 
                 # Prosody Check
-                # Pitch Mean > 450Hz AND (MAD < 1.0 or MAD > 2.0)
                 is_bad_prosody = False
                 if r.child_mean_f0 is not None and r.child_mad_semitone is not None:
-                    squeal_th = float(self._settings.PITCH_SQUEAL_HZ_THRESHOLD)
                     mad_min = float(self._settings.PITCH_MAD_MONOTONE_THRESHOLD)
                     mad_max = float(self._settings.PITCH_MAD_SONG_THRESHOLD)
 
-                    is_high_pitch = r.child_mean_f0 > squeal_th
+                    # is_high_pitch = r.child_mean_f0 > squeal_th (Unused)
                     is_abnormal_mad = (r.child_mad_semitone < mad_min) or (
                         r.child_mad_semitone > mad_max
                     )
-
-                    if is_high_pitch and is_abnormal_mad:
+                    # Note: We removed the BAD_PROSODY *Gate* (auto-fail) in AI-407A,
+                    # but we still mark the flag for information.
+                    if is_abnormal_mad:
+                        # Analysis Report said: "High pitch condition caused
+                        # generic monotony check to be skipped"
+                        # So we should check monotony regardless of pitch.
                         is_bad_prosody = True
 
-                if is_bad_prosody:
-                    r.success = False
-                    r.failure_reason = "BAD_PROSODY"
-                elif sim_res.similarity >= float(self._settings.SIMILARITY_THRESHOLD):
+                if sim_res.similarity >= float(self._settings.SIMILARITY_THRESHOLD):
                     r.success = True
-                    r.failure_reason = None
+                    r.failure_reason = "BAD_PROSODY" if is_bad_prosody else None
                 else:
                     r.success = False
                     r.failure_reason = "LOW_SIMILARITY"
 
-                # 4) optional debug clips
                 if save_clips:
                     success_mark = "OK" if r.success else "FAIL"
                     base = (

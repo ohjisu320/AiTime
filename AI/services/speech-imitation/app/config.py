@@ -66,14 +66,17 @@ class Settings(BaseSettings):
     # trial당 3번 반복
     REPETITIONS_PER_TRIAL: int = 1
 
+    # Protocol Timing (Fixed Slots)
+    TRIAL_DURATION_SEC: float = 8.0
+    STIMULUS_SEARCH_WINDOW_SEC: float = 3.0
+
     # 월령 밴드별 자극(엄마가 말하는 단어/구)
     STIMULI_M12_17: list[str] = Field(
         default_factory=lambda: ["아", "마", "바", "맘마", "까꿍"],
         description="12~17개월 자극 목록",
     )
     STIMULI_M18_23: list[str] = Field(
-        # default_factory=lambda: ["엄마", "우유", "자동차", "여기 봐", "야호!"],
-        default_factory=lambda: ["이모", "할머니", "할아버지", "삼촌"],
+        default_factory=lambda: ["엄마", "우유", "자동차", "까까 주세요", "야호!"],
         description="18~23개월 자극 목록",
     )
 
@@ -102,6 +105,8 @@ class Settings(BaseSettings):
     # ===== 화자(엄마/아기) 간이 분리 =====
     # pitch(F0)가 이 값 이상이면 아기로 간주(여성/아동 경계)
     PITCH_CHILD_HZ_THRESHOLD: float = 200.0
+    ENABLE_DYNAMIC_THRESHOLD: bool = True
+    MIN_CLUSTERING_SAMPLES: int = 3
 
     # pitch 추정 파라미터
     PITCH_FMIN: float = 50.0
@@ -117,13 +122,18 @@ class Settings(BaseSettings):
     HOP_LENGTH_MS: float = 10.0
 
     # DTW
-    DTW_RADIUS: int = 1  # 1이면 일반 DTW에 가깝고, >1이면 탐색 창 제한
+    DTW_RADIUS: int = 20  # 1이면 일반 DTW에 가깝고, >1이면 탐색 창 제한
     SIMILARITY_THRESHOLD: float = 0.29  # "비슷한 소리면 OK" 기준 (튜닝 대상)
 
     # ===== 운율 분석 (Prosody Analysis) =====
     PITCH_SQUEAL_HZ_THRESHOLD: float = 450.0  # Squeal(끼익) 판별 주파수
     PITCH_MAD_MONOTONE_THRESHOLD: float = 1.0  # 단조로움 기준 (semitone)
     PITCH_MAD_SONG_THRESHOLD: float = 2.0  # 과장된 억양 기준 (semitone)
+
+    # ===== 일관성 체크 (Consistency Check) =====
+    # 아기 발화로 판정된 구간들 중에서도,
+    # 전체 평균과 너무 동떨어진(예: 1옥타브 이상) 건 제외
+    CONSISTENCY_SEMITONE_THRESHOLD: float = 12.0
 
     # ===== 디버그 산출물(옵션) =====
     # 예: debug/speech_imitation_20260129_153000/
