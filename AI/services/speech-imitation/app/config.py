@@ -106,6 +106,8 @@ class Settings(BaseSettings):
     # ===== 화자(엄마/아기) 간이 분리 =====
     # pitch(F0)가 이 값 이상이면 아기로 간주(여성/아동 경계)
     PITCH_CHILD_HZ_THRESHOLD: float = 200.0
+    ENABLE_DYNAMIC_THRESHOLD: bool = True
+    MIN_CLUSTERING_SAMPLES: int = 3
 
     # pitch 추정 파라미터
     PITCH_FMIN: float = 50.0
