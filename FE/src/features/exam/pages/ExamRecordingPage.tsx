@@ -2,9 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useParams, useBlocker } from 'react-router-dom';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import ExamBaseLayout from '@/domains/exam/components/layout/ExamBaseLayout';
-// import ScreeningGuide from '@/domains/exam/components/Screening/ScreeningGuide';
 import { useLiveKitScreening } from '@/domains/exam/hooks/useLiveKitScreening';
-import { SCREENING_CONTENT } from '@/domains/exam/constants/missionData';
 
 interface ExamRecordingPageProps {
   missionId?: string;
@@ -14,27 +12,27 @@ const ExamRecordingPage: React.FC<ExamRecordingPageProps> = ({ missionId: propMi
   const navigate = useNavigate();
   const { missionId: paramMissionId } = useParams<{ missionId: string }>();
 
-  // 1. Props -> 2. Params -> 3. Default 순서로 결정
   const currentMissionId = propMissionId || paramMissionId || "POSE_IMITATION";
 
   const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
   const [isPassModalOpen, setIsPassModalOpen] = useState(false);
-  // const content = SCREENING_CONTENT[currentMissionId] || SCREENING_CONTENT["POSE_IMITATION"];
+  const [isProceeding, setIsProceeding] = useState(false);
+  const [isMinTimePassed, setIsMinTimePassed] = useState(false);
 
-  // TODO: 실제 childId는 Context나 props에서 가져와야 함
   const childId = localStorage.getItem('selectedChildId') || 'mock-child-id';
 
-  // ✅ 정상 진행 상태 관리
-  const [isProceeding, setIsProceeding] = useState(false);
+  // 최소 대기 시간 타이머 (5초)
+  useEffect(() => {
+    const timer = setTimeout(() => setIsMinTimePassed(true), 5000);
+    return () => clearTimeout(timer);
+  }, []);
 
+  // 다음 태스크로 이동
   const handleGoToNextTask = useCallback(() => {
-    setIsProceeding(true); // ✅ 차단 해제
-    // 상태 업데이트 반영을 위해 setTimeout 사용 (선택사항, React state batching 고려)
-    setTimeout(() => {
-      navigate(`/exam/task/${currentMissionId}`, {
-        state: { verified: true } // ✅ 검증 통과 증표 전달
-      });
-    }, 0);
+    setIsProceeding(true);
+    navigate(`/exam/task/${currentMissionId}`, {
+      state: { verified: true }
+    });
   }, [navigate, currentMissionId]);
 
   // LiveKit 스크리닝 훅
@@ -49,7 +47,7 @@ const ExamRecordingPage: React.FC<ExamRecordingPageProps> = ({ missionId: propMi
     stopScreening
   } = useLiveKitScreening();
 
-  // 🚫 뒤로가기/이탈 방지 처리 (정상 진행 시에는 차단하지 않음)
+  // 뒤로가기/이탈 방지
   const shouldBlock = !isProceeding;
 
   useEffect(() => {
@@ -63,24 +61,15 @@ const ExamRecordingPage: React.FC<ExamRecordingPageProps> = ({ missionId: propMi
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [shouldBlock]);
 
-  // React Router 네비게이션 방지
+  // React Router 네비게이션 방지 (모달 상태 불필요)
   const blocker = useBlocker(shouldBlock);
-  const [isBlockerModalOpen, setIsBlockerModalOpen] = useState(false);
-
-  useEffect(() => {
-    if (blocker.state === 'blocked') {
-      setIsBlockerModalOpen(true);
-    } else {
-      setIsBlockerModalOpen(false);
-    }
-  }, [blocker]);
 
   // 컴포넌트 마운트 시 스크리닝 시작
   useEffect(() => {
     console.log("👀 [ExamRecordingPage] Mounted. ChildId:", childId, "Mission:", currentMissionId);
 
     if (!childId || childId === 'mock-child-id') {
-      console.warn("⚠️ [ExamRecordingPage] Child ID가 없습니다. 로컬 스토리지가 비었거나 mock-child-id입니다.");
+      console.warn("⚠️ [ExamRecordingPage] Child ID가 없습니다.");
     }
 
     startScreening(childId);
@@ -88,23 +77,31 @@ const ExamRecordingPage: React.FC<ExamRecordingPageProps> = ({ missionId: propMi
       console.log("👋 [ExamRecordingPage] Unmounting... Stopping screening.");
       stopScreening();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [childId, startScreening, stopScreening, currentMissionId]);
 
   // 상태 변경 로그
   useEffect(() => {
     console.log(`📊 [ExamRecordingPage] Status: ${status}, Stream: ${videoStream ? 'Active' : 'Null'}, Aligned: ${isAligned}, Volume: ${volume}`);
   }, [status, videoStream, isAligned, volume]);
 
+  // 준비 완료 여부 (한 번 true 되면 유지 - 깜빡임 방지)
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    if (isAligned && volume <= 30 && isMinTimePassed) {
+      setIsReady(true);
+    }
+  }, [isAligned, volume, isMinTimePassed]);
+
   const handleStartExam = useCallback(() => {
-    if (!isAligned || volume > 30) {
-      console.log("🚫 [ExamRecordingPage] 준비 미흡 - Aligned:", isAligned, "Volume:", volume);
+    if (!isReady) {
+      console.log("🚫 [ExamRecordingPage] 준비 미흡 - Ready:", isReady);
       setIsAlertModalOpen(true);
       return;
     }
     console.log("✅ [ExamRecordingPage] 테스트 통과!");
     setIsPassModalOpen(true);
-  }, [isAligned, volume]);
+  }, [isReady]);
 
   return (
     <>
@@ -116,26 +113,26 @@ const ExamRecordingPage: React.FC<ExamRecordingPageProps> = ({ missionId: propMi
         volume={volume}
         onBack={() => navigate('/exam/mission')}
       >
-        {/* AI 가이드 메시지 오버레이 (중앙 하단) */}
+        {/* AI 가이드 메시지 (중앙 상단 -> 중앙 하단: 이전 코드와 일치시킴) */}
         {status === 'screening' && guideMessage && (
           <div className="absolute top-32 left-1/2 transform -translate-x-1/2 bg-black/70 text-white px-6 py-3 rounded-full text-lg font-medium animate-in fade-in slide-in-from-top-5">
             {guideMessage}
           </div>
         )}
 
-        {/* 검사 준비 완료 버튼 (하단 중앙) */}
+        {/* 검사 준비 완료 버튼 */}
         <div className="absolute bottom-12 left-1/2 transform -translate-x-1/2 z-50">
           <button
             onClick={handleStartExam}
-            disabled={!isAligned || volume > 30}
+            disabled={!isReady}
             className={`
               px-12 py-5 rounded-full font-bold text-xl shadow-2xl transition-all duration-300
-              ${isAligned && volume <= 30
+              ${isReady
                 ? "bg-brand-purple text-white hover:scale-105 hover:bg-brand-purple-dark shadow-[0_0_30px_rgba(110,86,207,0.5)]"
                 : "bg-gray-500/50 text-gray-300 cursor-not-allowed"}
             `}
           >
-            {isAligned && volume <= 30 ? "검사 준비 완료" : "준비 중..."}
+            {isReady ? "검사 준비 완료" : "준비 중..."}
           </button>
         </div>
       </ExamBaseLayout>
@@ -150,6 +147,7 @@ const ExamRecordingPage: React.FC<ExamRecordingPageProps> = ({ missionId: propMi
           <div className="text-center space-y-1">
             {!isAligned && <p>아이와 보호자의 얼굴을 가이드에 맞춰주세요.</p>}
             {volume > 30 && <p className="text-rose-500 font-medium">주변 소음이 너무 큽니다. (현재: {volume})</p>}
+            {!isMinTimePassed && <p>잠시만 기다려주세요 (안정화 중)...</p>}
           </div>
         }
         confirmText="확인"
@@ -168,7 +166,7 @@ const ExamRecordingPage: React.FC<ExamRecordingPageProps> = ({ missionId: propMi
       {/* 뒤로가기/이탈 방지 모달 */}
       {blocker.state === 'blocked' && (
         <ConfirmModal
-          isOpen={isBlockerModalOpen}
+          isOpen={true}
           onClose={() => blocker.reset()}
           onConfirm={() => blocker.proceed()}
           title="검사를 중단하시겠습니까?"
