@@ -1,0 +1,42 @@
+services:
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: livekit
+    ports:
+      # Signaling (HTTP/WebSocket API) - Nginx용
+      - "127.0.0.1:7880:7880/tcp"
+
+      # RTC Fixed Ports
+      - "8020:8020/tcp"                # TURN TCP
+
+      # RTC UDP Port Range (Media)
+      - "50000-51000:50000-51000/udp"  # WebRTC Media
+
+      # Built-in TURN
+      - "41000:41000/udp"              # STUN/TURN UDP
+    volumes:
+      - ./livekit.yaml:/livekit.yaml
+    command: --config /livekit.yaml
+    networks:
+      - cmn-network
+    restart: unless-stopped
+    # 메모리 및 CPU 제한 추가
+    deploy:
+      resources:
+        limits:
+          memory: 1G      # 최대 1GB
+          cpus: '2.0'     # 최대 2 CPU 코어
+        reservations:
+          memory: 512M    # 최소 512MB 예약
+          cpus: '0.5'     # 최소 0.5 CPU 코어
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:7880/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  cmn-network:
+    external: true
+    name: cmn-network

@@ -1,0 +1,28 @@
+services:
+  screening:
+    build:
+      context: ../AI/services/screening
+      dockerfile: ../../../docker/dockerfiles/Dockerfile.ai_screening
+    container_name: screening
+    ports:
+      - "127.0.0.1:8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - ../../AI/services/screening/artifacts:/app/artifacts
+    networks:
+      - cmn-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    mem_limit: 2g
+    mem_reservation: 512m
+    # memswap_limit 생략 - AI 추론 시 피크 대응
+
+networks:
+  cmn-network:
+    external: true
+    name: cmn-network

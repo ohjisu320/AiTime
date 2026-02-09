@@ -1,0 +1,64 @@
+<!-- python -m http.server 5173 -->
+<!doctype html>
+<html lang="ko">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebRTC Client</title>
+</head>
+
+<body>
+  <button id="start">Start</button>
+  <pre id="log"></pre>
+  <script>
+    const log = (s) => document.getElementById('log').textContent += s + "\n";
+
+    document.getElementById('start').onclick = async () => {
+      const pc = new RTCPeerConnection({
+        // 로컬 테스트면 없어도 되는 경우 많음. 외부망/모바일이면 STUN/TURN 필요.
+        // iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+      });
+
+      const dc = pc.createDataChannel("status");
+      dc.onopen = () => log("DataChannel open");
+      dc.onmessage = (e) => {
+        try {
+          const msg = JSON.parse(e.data);
+          if (msg.type === "hint") {
+            log("HINT: " + msg.hint);     // ✅ 한글 정상 표시
+          } else if (msg.type === "progress") {
+            log(`PROGRESS: ${(msg.progress * 100).toFixed(1)}%`);
+          } else if (msg.type === "result") {
+            log(`RESULT: ${msg.passed ? "PASS" : "FAIL"}`);
+          } else {
+            log("DC <- " + e.data);
+          }
+        } catch (err) {
+          log("DC(raw) <- " + e.data);
+        }
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      stream.getTracks().forEach(t => pc.addTrack(t, stream));
+      log("Tracks added: " + stream.getTracks().map(t => t.kind).join(","));
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      const res = await fetch("http://localhost:8000/webrtc/offer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sdp: offer.sdp, type: offer.type, client_info: { ua: navigator.userAgent } })
+      });
+      const ans = await res.json();
+      await pc.setRemoteDescription(ans);
+      log("Remote description set. run_id=" + ans.run_id);
+
+      pc.onconnectionstatechange = () => log("connectionState=" + pc.connectionState);
+      pc.oniceconnectionstatechange = () => log("iceConnectionState=" + pc.iceConnectionState);
+    };
+  </script>
+</body>
+
+</html>

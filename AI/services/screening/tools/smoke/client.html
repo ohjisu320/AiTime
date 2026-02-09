@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LiveKit Smoke Client</title>
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 16px; }
+      .row { display: flex; gap: 12px; flex-wrap: wrap; }
+      .col { flex: 1 1 320px; }
+      input { width: 100%; padding: 8px; }
+      button { padding: 10px 14px; cursor: pointer; }
+      pre { background: #111; color: #eee; padding: 12px; height: 280px; overflow: auto; }
+      video { width: 100%; max-width: 640px; background: #000; border-radius: 8px; }
+      small { color: #555; }
+    </style>
+  </head>
+  <body>
+    <h2>LiveKit Smoke Client</h2>
+    <p><small>이 페이지는 로컬 테스트용입니다. (카메라/마이크 권한 필요)</small></p>
+
+    <div class="row">
+      <div class="col">
+        <label>LiveKit URL</label>
+        <input id="url" value="ws://localhost:7880" />
+      </div>
+      <div class="col">
+        <label>Room</label>
+        <input id="room" placeholder="(자동 입력됨)" />
+      </div>
+      <div class="col">
+        <label>Token</label>
+        <input id="token" placeholder="(자동 입력됨)" />
+      </div>
+    </div>
+
+    <div style="margin-top: 12px" class="row">
+      <button id="connect">Connect + Publish (cam/mic)</button>
+      <button id="disconnect" disabled>Disconnect</button>
+      <button id="clear">Clear Log</button>
+    </div>
+
+    <h3 style="margin-top: 16px">Local Preview</h3>
+    <video id="local" autoplay playsinline muted></video>
+
+    <h3 style="margin-top: 16px">Logs</h3>
+    <pre id="log"></pre>
+
+    <script type="module">
+      import { Room, RoomEvent, createLocalTracks, Track, DisconnectReason } from "https://unpkg.com/livekit-client@latest/dist/livekit-client.esm.mjs";
+
+      const logEl = document.getElementById("log");
+      const log = (...args) => {
+        const s = args.map(x => (typeof x === "string" ? x : JSON.stringify(x))).join(" ");
+        logEl.textContent += s + "\n";
+        logEl.scrollTop = logEl.scrollHeight;
+        console.log(...args);
+      };
+
+      const qs = new URLSearchParams(location.search);
+      // NOTE: dev 서버는 TLS가 없으므로 wss:// 가 아니라 ws:// 를 써야 합니다.
+      // (wss:// 를 넣으면 ERR_SSL_PROTOCOL_ERROR 로 실패)
+      let url = qs.get("url") || "ws://127.0.0.1:7880";
+      let roomName = qs.get("room") || "";
+      let token = qs.get("token") || "";
+
+      document.getElementById("url").value = url;
+      document.getElementById("room").value = roomName;
+      document.getElementById("token").value = token;
+
+      let room;
+
+      function setButtons(connected) {
+        document.getElementById("connect").disabled = connected;
+        document.getElementById("disconnect").disabled = !connected;
+      }
+
+      document.getElementById("clear").onclick = () => (logEl.textContent = "");
+
+      document.getElementById("connect").onclick = async () => {
+        const wsUrl = document.getElementById("url").value.trim();
+        const tk = document.getElementById("token").value.trim();
+        const rn = document.getElementById("room").value.trim();
+
+        if (!wsUrl || !tk || !rn) {
+          alert("url/token/room 이 필요합니다. (bat 스크립트로 열면 자동 채워짐)");
+          return;
+        }
+
+        // Disable auto-reconnect for easier debugging.
+        // Reconnect loop can mask the real error and may trigger
+        // DisconnectReason.DUPLICATE_IDENTITY (=2).
+        const noReconnect = { nextRetryDelayInMs: () => null };
+
+        room = new Room({
+          adaptiveStream: true,
+          dynacast: true,
+          reconnectPolicy: noReconnect,
+        });
+
+        room.on(RoomEvent.Connected, () => log("[client] connected"));
+        room.on(RoomEvent.Disconnected, (reason) => {
+          const reasonName = Object.keys(DisconnectReason).find(k => DisconnectReason[k] === reason) || "unknown";
+          log("[client] disconnected:", reason, reasonName);
+        });
+        room.on(RoomEvent.ParticipantConnected, (p) => log("[client] participant_connected:", p.identity));
+        room.on(RoomEvent.ParticipantDisconnected, (p) => log("[client] participant_disconnected:", p.identity));
+
+        room.on(RoomEvent.DataReceived, (payload, participant, kind, topic) => {
+          try {
+            const txt = new TextDecoder().decode(payload);
+            const msg = JSON.parse(txt);
+
+            // 1. 친절한 한국어 로그
+            if (msg.type === "progress") {
+              const p = (msg.progress * 100).toFixed(1);
+              const flags = msg.flags || [];
+              const ratios = msg.ratios || {};
+              const scores = msg.scores || {};
+              let statusText = "상태 양호 ✅";
+              
+              if (flags.length > 0) {
+                const flagMap = {
+                  "NOISE_HIGH": "소음 과다",
+                  "LOW_LIGHT": "조명 어두움",
+                  "TOO_MANY_FACES": "얼굴 너무 많음",
+                  "TOO_FEW_FACES": "얼굴 부족",
+                  "ROI_FACE_MISSING_1": "왼쪽 영역 이탈",
+                  "ROI_FACE_MISSING_2": "오른쪽 영역 이탈"
+                };
+                const problems = flags.map(f => flagMap[f] || f).join(", ");
+                statusText = `⚠️ 문제 감지: ${problems}`;
+              }
+              
+              log(`[진행] ${p}% | ${statusText}`);
+              
+              // 상세 지표 표시 (디버깅용)
+              if (Object.keys(ratios).length > 0) {
+                const r = ratios;
+                const faceOk = (r.two_faces_ratio >= 0.8) ? "✅" : "❌";
+                const roi1Ok = (r.roi1_face_ratio >= 0.8) ? "✅" : "❌";
+                const roi2Ok = (r.roi2_face_ratio >= 0.8) ? "✅" : "❌";
+                const noiseOk = (r.noise_high_ratio <= 0.2) ? "✅" : "❌";
+                const lightOk = (r.low_light_ratio <= 0.2) ? "✅" : "❌";
+                log(`   📊 얼굴2명:${(r.two_faces_ratio*100).toFixed(0)}%${faceOk} ROI1:${(r.roi1_face_ratio*100).toFixed(0)}%${roi1Ok} ROI2:${(r.roi2_face_ratio*100).toFixed(0)}%${roi2Ok} 소음:${(r.noise_high_ratio*100).toFixed(0)}%${noiseOk} 어둠:${(r.low_light_ratio*100).toFixed(0)}%${lightOk}`);
+              }
+            } 
+            else if (msg.type === "guide" || msg.type === "hint") {
+              log(`📢 [안내] ${msg.message}`);
+            }
+            else if (msg.type === "screening_complete" || msg.type === "result") {
+              const status = msg.status || (msg.passed ? "success" : "failure");
+              const summary = msg.summary || {};
+              const reason = summary.failure_reason || msg.failure_reason;
+              const flags = summary.flags || msg.flags || [];
+              const details = summary.details || msg.details || {};
+              const ratios = summary.ratios || msg.ratios || {};
+              const scores = summary.scores || msg.scores || {};
+
+              if (status === "success" || msg.passed) {
+                log(`✅ [결과] 합격 (PASS)`);
+              } else {
+                let reasonKo = reason;
+                if (reason === "TIMEOUT") reasonKo = "시간 초과 (20초)";
+                if (reason === "FAIL_TIMEOUT") reasonKo = "시간 초과 (20초)";
+                if (reason === "FAIL_FACE_COUNT") reasonKo = "얼굴 수 불일치";
+                if (reason === "FAIL_NOISE") reasonKo = "소음 과다";
+                if (reason === "FAIL_LOW_LIGHT") reasonKo = "조명 어두움";
+                if (reason === "FAIL_ROI_MISMATCH") reasonKo = "영역 이탈";
+
+                let extra = "";
+                if ((reason === "TIMEOUT" || reason === "FAIL_TIMEOUT") && flags.length === 0) {
+                  extra = "\n   👉 (팁: 마지막 순간에 조건은 맞았으나, 1초 이상 '유지'하지 못하고 끝났습니다.)";
+                }
+                
+                log(`❌ [결과] 불합격 (${reasonKo}) ${extra}`);
+                if (flags.length > 0) log(`   - 감지된 문제: ${flags.join(", ")}`);
+                if (details.representative_failure) log(`   - 주요 원인: ${details.representative_failure}`);
+
+                // 📊 진단 정보: ratios
+                if (Object.keys(ratios).length > 0) {
+                  log(`📊 [진단] 비율 지표 (목표: 얼굴≥0.8, 소음/어둠≤0.2):`);
+                  for (const [k, v] of Object.entries(ratios)) {
+                    const val = typeof v === "number" ? v.toFixed(2) : v;
+                    let indicator = "";
+                    if (k === "two_faces_ratio" || k === "roi1_face_ratio" || k === "roi2_face_ratio") {
+                      indicator = v >= 0.8 ? " ✅" : " ❌";
+                    } else if (k === "noise_high_ratio" || k === "low_light_ratio") {
+                      indicator = v <= 0.2 ? " ✅" : " ❌";
+                    }
+                    log(`   - ${k}: ${val}${indicator}`);
+                  }
+                }
+
+                // 📊 진단 정보: scores
+                if (Object.keys(scores).length > 0) {
+                  log(`📊 [진단] 점수:`);
+                  for (const [k, v] of Object.entries(scores)) {
+                    const val = typeof v === "number" ? v.toFixed(1) : v;
+                    log(`   - ${k}: ${val}`);
+                  }
+                }
+              }
+            } else {
+              log(`[알림] 타입: ${msg.type}`);
+            }
+
+            // 2. 디버깅용 원본 JSON 출력 (요청사항)
+            log("🔍 [RAW]", msg);
+
+          } catch (e) {
+            // JSON 파싱 실패 시 원본 그대로 출력
+            const txt = new TextDecoder().decode(payload);
+            log("[client] data_received (raw):", { from: participant?.identity, kind, topic, txt });
+          }
+        });
+
+        room.on(RoomEvent.TrackSubscribed, (track, pub, participant) => {
+          log("[client] track_subscribed:", participant.identity, pub.trackSid, pub.kind);
+        });
+
+        try {
+          await room.connect(wsUrl, tk);
+          setButtons(true);
+
+          // publish local tracks
+          const tracks = await createLocalTracks({ audio: true, video: true });
+          for (const t of tracks) {
+            await room.localParticipant.publishTrack(t, { source: t.kind === Track.Kind.Video ? Track.Source.Camera : Track.Source.Microphone });
+          }
+          log("[client] published cam/mic");
+
+          // local preview
+          const videoTrack = tracks.find(t => t.kind === Track.Kind.Video);
+          if (videoTrack) {
+            const v = document.getElementById("local");
+            videoTrack.attach(v);
+          }
+
+        } catch (e) {
+          log("[client] connect error:", String(e));
+          alert(String(e));
+          setButtons(false);
+        }
+      };
+
+      document.getElementById("disconnect").onclick = async () => {
+        try {
+          await room?.disconnect();
+        } finally {
+          setButtons(false);
+        }
+      };
+
+      setButtons(false);
+      log("[client] ready");
+    </script>
+  </body>
+</html>

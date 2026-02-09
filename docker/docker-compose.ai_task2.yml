@@ -1,0 +1,33 @@
+services:
+  ai-task2:
+    build:
+      context: ../AI/services/speech-imitation
+      dockerfile: ../../../docker/dockerfiles/Dockerfile.ai_task2
+    container_name: ai-task2
+    ports:
+      - "8002:8002"
+    volumes:
+      - ../AI/services/speech-imitation/app:/app/app
+      - huggingface_cache:/root/.cache/huggingface
+    environment:
+      - PYTHONUNBUFFERED=1
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+      - DEVICE=cpu
+    networks:
+      - cmn-network
+    restart: unless-stopped
+    command: ["python", "-m", "app.worker"]
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'python -m app.worker' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  huggingface_cache:
+    driver: local
+
+networks:
+  cmn-network:
+    external: true
