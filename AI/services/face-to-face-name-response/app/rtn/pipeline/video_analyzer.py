@@ -14,7 +14,6 @@ from app.rtn.config import (
     ContactConfig,
     EmotionConfig,
     FaceDetConfig,
-    FaceMeshConfig,
     GazeSmoothConfig,
     ROIConfig,
     RoleAssignConfig,
@@ -45,8 +44,6 @@ class VideoAnalyzer:
         analysis_cfg: AnalysisConfig,
         emotion_cfg: EmotionConfig,
         conf_th: float,
-        face_mesh_cfg: FaceMeshConfig | None = None,
-        crop_cfg: CropConfig | None = None,
         debug_publish: Callable[[FrameBGR], None] | None = None,
     ) -> None:
         self.vad_cfg = vad_cfg
@@ -54,10 +51,17 @@ class VideoAnalyzer:
         self.emotion_cfg = emotion_cfg
 
         self.vad = SileroVAD(vad_cfg)
-        self.detector = FaceDetectorMP(face_cfg)
-        self.face_mesh_cfg = face_mesh_cfg or FaceMeshConfig()
-        self.crop_cfg = crop_cfg or CropConfig()
-        self.facemesh = FaceMeshMP(**asdict(self.face_mesh_cfg))
+
+        # Detector selection
+        if face_cfg.model_selection == 2:
+            self.detector = OpenVINOFaceDetector(face_cfg.yolo_cfg)
+        elif face_cfg.model_selection == 1:
+            self.detector = YOLOFaceDetector(face_cfg.yolo_cfg)
+        else:
+            self.detector = FaceDetectorMP(face_cfg)
+
+        # FaceMeshMP는 기본 파라미터 사용 (별도 config 없음)
+        self.facemesh = FaceMeshMP()
 
         self.window_analyzer = WindowAnalyzer(
             detector=self.detector,

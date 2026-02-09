@@ -7,6 +7,14 @@ import com.ssafy.aitime.common.response.ApiResponse;
 import com.ssafy.aitime.domain.child.exception.ChildAccessDeniedException;
 import com.ssafy.aitime.domain.child.exception.ChildAgeMismatchException;
 import com.ssafy.aitime.domain.child.exception.ChildNotFoundException;
+import com.ssafy.aitime.domain.exam.exception.*;
+import com.ssafy.aitime.domain.hospital.exception.*;
+import com.ssafy.aitime.domain.invite.exception.AlreadyIssuedInviteCodeException;
+import com.ssafy.aitime.domain.invite.exception.InviteCodeAlreadyUsedException;
+import com.ssafy.aitime.domain.invite.exception.InviteCodeNotFoundException;
+import com.ssafy.aitime.domain.screening.exception.ActiveScreeningException;
+import com.ssafy.aitime.domain.screening.exception.LiveKitException;
+import com.ssafy.aitime.domain.screening.exception.ScreeningNotFoundException;
 import com.ssafy.aitime.domain.user.exception.*;
 import com.ssafy.aitime.security.exception.RefreshTokenInvalidException;
 import com.ssafy.aitime.security.exception.RefreshTokenMissingException;
@@ -159,6 +167,16 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.FORBIDDEN).body(ApiResponse.of(HttpStatus.FORBIDDEN, e.getMessage(), null));
     }
 
+    @ExceptionHandler({
+            ChildAgeMismatchException.class
+    })
+    public ResponseEntity<ApiResponse<Object>> handleChildAgeMismatchException(RuntimeException e){
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST).body(ApiResponse.of(HttpStatus.BAD_REQUEST, e.getMessage(), null));
+    }
+
+
+
     /********************************************************************************/
     /*                        Security CustomException                              */
     /********************************************************************************/
@@ -170,6 +188,185 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Object>> handleSecurityUnauthorizedException(RuntimeException e){
         return ResponseEntity
                 .status(HttpStatus.UNAUTHORIZED).body(ApiResponse.of(HttpStatus.UNAUTHORIZED, e.getMessage(), null));
+    }
+
+
+    /********************************************************************************/
+    /*                        Hospital CustomException                              */
+    /********************************************************************************/
+
+    /**
+     * 병원 관련 BAD_REQUEST (400)
+     * - 이미 연동된 병원
+     */
+    @ExceptionHandler({
+            HospitalAlreadyLinkedException.class,
+            InvalidDoctorSelectionException.class
+    })
+    public ResponseEntity<ApiResponse<Object>> handleHospitalBadRequestException(RuntimeException e){
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.of(HttpStatus.BAD_REQUEST, e.getMessage(), null));
+    }
+
+    /**
+     * 병원 관련 NOT_FOUND (404)
+     * - 의사를 찾을 수 없음
+     * - 병원을 찾을 수 없음
+     */
+    @ExceptionHandler({
+            DoctorNotFoundException.class,
+            HospitalNotFoundException.class,
+            HospitalStaffNotFoundException.class,
+            HospitalChildrenNotFoundException.class
+    })
+    public ResponseEntity<ApiResponse<Object>> handleHospitalNotFoundException(RuntimeException e){
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.of(HttpStatus.NOT_FOUND, e.getMessage(), null));
+    }
+
+    @ExceptionHandler({
+            HospitalStaffAccessDeniedException.class
+    })
+    public ResponseEntity<ApiResponse<Object>> handleHospitalForbiddenException(RuntimeException e){
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN).body(ApiResponse.of(HttpStatus.FORBIDDEN, e.getMessage(), null));
+    }
+    /********************************************************************************/
+    /*                        InviteCode CustomException                            */
+    /********************************************************************************/
+
+    /**
+     * 초대코드 관련 BAD_REQUEST (400)
+     * - 이미 사용된 초대 코드
+     */
+    @ExceptionHandler({
+            InviteCodeAlreadyUsedException.class
+    })
+    public ResponseEntity<ApiResponse<Object>> handleInviteCodeBadRequestException(RuntimeException e){
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.of(HttpStatus.BAD_REQUEST, e.getMessage(), null));
+    }
+
+    /**
+     * 초대코드 관련 NOT_FOUND (404)
+     * - 존재하지 않는 초대 코드
+     */
+    @ExceptionHandler({
+            InviteCodeNotFoundException.class
+    })
+    public ResponseEntity<ApiResponse<Object>> handleInviteCodeNotFoundException(RuntimeException e){
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.of(HttpStatus.NOT_FOUND, e.getMessage(), null));
+    }
+
+    @ExceptionHandler({
+            AlreadyIssuedInviteCodeException.class
+    })
+    public ResponseEntity<ApiResponse<Object>> handleInviteCodeConflictException(RuntimeException e){
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(ApiResponse.of(HttpStatus.CONFLICT, e.getMessage(), null));
+
+    }
+
+    /********************************************************************************/
+    /*                        Exam CustomException                                  */
+    /********************************************************************************/
+
+    /**
+     * 검사 관련 BAD_REQUEST (400)
+     * - 잘못된 비디오 타입
+     * - 잘못된 examId 형식
+     */
+    @ExceptionHandler({
+            InvalidVideoTypeException.class,
+            InvalidExamIdFormatException.class,
+            S3KeyMismatchException.class,
+            InvalidVideoStatusException.class
+    })
+    public ResponseEntity<ApiResponse<Object>> handleExamBadRequestException(RuntimeException e){
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.of(HttpStatus.BAD_REQUEST, e.getMessage(), null));
+    }
+
+    /**
+     * 검사 관련 NOT_FOUND (404)
+     * - 검사를 찾을 수 없음
+     * - 비디오를 찾을 수 없음
+     */
+    @ExceptionHandler({
+            ExamNotFoundException.class,
+            VideoNotFoundException.class
+    })
+    public ResponseEntity<ApiResponse<Object>> handleExamNotFoundException(RuntimeException e){
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.of(HttpStatus.NOT_FOUND, e.getMessage(), null));
+    }
+
+    /**
+     * 검사 상태 CONFLICT (409)
+     */
+    @ExceptionHandler({
+            ExamStatusNotAllowedException.class
+    })
+    public ResponseEntity<ApiResponse<Object>> handleExamConflictException(RuntimeException e){
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(ApiResponse.of(HttpStatus.CONFLICT, e.getMessage(), null));
+    }
+
+    /**
+     * S3 업로드/검증 관련 INTERNAL_SERVER_ERROR (500)
+     * - S3 업로드 실패
+     * - S3 파일 검증 실패 (신규)
+     */
+    @ExceptionHandler({
+            S3UploadException.class,
+            S3FileVerificationException.class
+    })
+    public ResponseEntity<ApiResponse<Object>> handleS3Exception(RuntimeException e){
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.of(HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage(), null));
+    }
+
+    @ExceptionHandler({
+            ExamAccessDeniedException.class
+    })
+    public ResponseEntity<ApiResponse<Object>> handleExamForbiddenException(RuntimeException e){
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(ApiResponse.of(HttpStatus.FORBIDDEN, e.getMessage(), null));
+    }
+
+    /********************************************************************************/
+    /*                        Screening CustomException                              */
+    /********************************************************************************/
+
+    @ExceptionHandler(ScreeningNotFoundException.class)
+    public ResponseEntity<ApiResponse<Object>> handleScreeningNotFoundException(ScreeningNotFoundException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.of(HttpStatus.NOT_FOUND, e.getMessage(), null));
+    }
+
+
+    @ExceptionHandler(ActiveScreeningException.class)
+    public ResponseEntity<ApiResponse<Object>> handleScreeningConflictException(ActiveScreeningException e) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.of(HttpStatus.CONFLICT, e.getMessage(), null));
+    }
+
+
+    @ExceptionHandler(LiveKitException.class)
+    public ResponseEntity<ApiResponse<Object>> handleScreeningInternalServerErrorExceptionException(LiveKitException e) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.of(HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage(), null));
     }
 
 }

@@ -16,13 +16,17 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      devOptions: {
-        enabled: true
-      },
+      includeAssets: ['favicon.ico', 'favicon.svg', 'apple-touch-icon.png'],
       manifest: {
         name: '아이타임(AiTime)',
         short_name: 'AiTime',
-        theme_color: '#ffffff',
+        description: 'AiTime - 우리 아이 자폐 조기 선별 서비스',
+        theme_color: '#6366F1',
+        background_color: '#ffffff',
+        display: 'standalone',
+        orientation: 'any',
+        start_url: '/',
+        scope: '/',
         icons: [
           {
             src: 'web-app-manifest-192x192.png',
@@ -55,6 +59,9 @@ export default defineConfig({
             purpose: 'any'
           }
         ]
+      },
+      devOptions: {
+        enabled: true
       }
     }),
   ],

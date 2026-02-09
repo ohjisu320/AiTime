@@ -1,20 +1,21 @@
 package com.ssafy.aitime.domain.exam.service;
 
-import com.ssafy.aitime.domain.child.entity.Child;
-import com.ssafy.aitime.domain.exam.dto.response.ExamSummaryResponse;
 import com.ssafy.aitime.domain.exam.entity.Exam;
-import com.ssafy.aitime.domain.exam.entity.enums.ExamStatus;
+import com.ssafy.aitime.domain.exam.entity.Video;
+import com.ssafy.aitime.domain.exam.exception.PresignedUrlGenerationException;
+import com.ssafy.aitime.domain.exam.exception.S3FileVerificationException;
 import com.ssafy.aitime.domain.exam.repository.ExamRepository;
 import com.ssafy.aitime.domain.exam.repository.VideoRepository;
+import com.ssafy.aitime.infra.rabbitmq.dto.message.AnalysisRequestMessage;
+import com.ssafy.aitime.infra.rabbitmq.publisher.AnalysisPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Optional;
-import java.util.UUID;
-
+import java.time.Period;
 import java.util.List;
 import java.util.UUID;
 

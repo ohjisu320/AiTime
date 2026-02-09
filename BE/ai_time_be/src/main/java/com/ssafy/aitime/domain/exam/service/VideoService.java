@@ -42,4 +42,11 @@ public interface VideoService {
     String generatePresignedGetUrl(String bucket, String s3Key, int expiresInSec);
 
     boolean verifyS3FileExists(String bucket, String s3Key);
+
+    /**
+     * 여러 Exam의 비디오를 일괄 조회 (DELETED 제외)
+     */
+    List<Video> getVideosByExamIds(List<UUID> examIds);
+
+    LatestPoseVideoResponse getLatestPoseVideoResponse(Object principal, UUID examId, UUID videoId, int expiresInSec);
 }

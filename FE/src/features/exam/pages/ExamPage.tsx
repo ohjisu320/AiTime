@@ -3,7 +3,7 @@ import { useParams, useNavigate, useBlocker, useLocation } from 'react-router-do
 import { useMediaRecorder } from '@/domains/video/hooks/useMediaRecorder';
 import { useExamUpload } from '@/domains/video/hooks/useExamUpload';
 import type { VideoType } from '@/domains/video/api/videoApi';
-import { getExamInfo } from '@/domains/exam/api/examApi'; // ✅ Import added
+import { getExamInfo } from '@/domains/exam/api/examApi';
 import ExamBaseLayout from '@/domains/exam/components/layout/ExamBaseLayout';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import { FullScreenOverlayText } from '@/components/common/FullScreenOverlayText';
@@ -74,6 +74,33 @@ const ExamPage: React.FC = () => {
   const content = SCREENING_CONTENT[resolvedMissionId] || SCREENING_CONTENT[missionId] || SCREENING_CONTENT["POSE_IMITATION_12M"];
   const instructions = content?.instructions || [];
 
+  // 🔍 디버깅 로그 추가
+  useEffect(() => {
+    console.log('🎯 [Mission Resolution]', {
+      originalMissionId: missionId,
+      isUnder18,
+      resolvedMissionId,
+      contentKey: resolvedMissionId,
+      hasContent: !!SCREENING_CONTENT[resolvedMissionId],
+      instructionDuration: content?.instructionDuration,
+      instructionsLength: instructions.length
+    });
+  }, [missionId, isUnder18, resolvedMissionId, content, instructions.length]);
+
+  // 🛡️ 비정상 접근 차단 (스크리닝 통과 증표 확인)
+  const [isInvalidAccessModalOpen, setIsInvalidAccessModalOpen] = useState(false);
+  const isDev = localStorage.getItem('bypassScreening') === 'true';
+
+  useEffect(() => {
+    if (!isDev && !location.state?.verified) {
+      setIsInvalidAccessModalOpen(true);
+    }
+  }, [location, isDev]);
+
+  const handleInvalidAccessConfirm = () => {
+    navigate('/exam/mission', { replace: true });
+  };
+
   const { stream, isRecording, startSession, startRecording, stopRecording } = useMediaRecorder();
   const { mutate: uploadVideo, isPending } = useExamUpload();
 
@@ -82,10 +109,24 @@ const ExamPage: React.FC = () => {
   const [globalCount, setGlobalCount] = useState(content?.countdown || 3);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
 
-  // content가 undefined일 경우 방지
-  const TOTAL_DURATION = content?.duration || 25;
-  const COUNTDOWN_DURATION = content?.countdown || 3;
-  const CYCLE_DURATION = 8; // 3초 카운트 + 5초 지시사항
+  // ✅ 현재 활성 사이클 인덱스
+  const [currentCycleIndex, setCurrentCycleIndex] = useState(0);
+
+  // ✅ 전체 녹화 경과 시간 (글로벌 타이머)
+  const [totalElapsedTime, setTotalElapsedTime] = useState(0);
+
+  // ⏳ 시간 설정
+  const PREP_DURATION = 3; // 준비 시간 (노란 카드) 3초 고정
+  const INSTRUCTION_DURATION = content?.instructionDuration || 8; // missionData에서 가져온 전체 사이클 시간
+
+  // 🔄 타이머 로직에서 최신 state를 참조하기 위한 Ref
+  const currentCycleIndexRef = useRef(currentCycleIndex);
+  const totalElapsedTimeRef = useRef(totalElapsedTime);
+
+  useEffect(() => {
+    currentCycleIndexRef.current = currentCycleIndex;
+    totalElapsedTimeRef.current = totalElapsedTime;
+  }, [currentCycleIndex, totalElapsedTime]);
 
   // 🚫 뒤로가기/이탈 방지 처리
   const shouldBlock = !!stream && phase !== 'COMPLETED';
@@ -183,7 +224,7 @@ const ExamPage: React.FC = () => {
   useEffect(() => {
     if (phase === 'GLOBAL_COUNTDOWN') {
       if (globalCount > 0) {
-        const timer = setTimeout(() => setGlobalCount(c => c - 1), 1000);
+        const timer = setTimeout(() => setGlobalCount((prev: number) => prev - 1), 1000);
         return () => clearTimeout(timer);
       } else {
         // 카운트다운 종료 -> 녹화 시작

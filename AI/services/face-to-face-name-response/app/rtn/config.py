@@ -117,12 +117,12 @@ class AnalysisConfig:
 class RabbitMQConfig:
     """RabbitMQ 연결 설정"""
 
-    host: str = "localhost"
+    host: str = "rabbitmq"
     port: int = 5672
     user: str = "guest"
     password: str = "guest"
-    task_queue: str = "face_name_task_queue"
-    result_queue: str = "face_name_result_queue"
+    task_queue: str = "analysis.req.task3"
+    result_queue: str = "analysis.resp"
 
 
 @dataclass(frozen=True)

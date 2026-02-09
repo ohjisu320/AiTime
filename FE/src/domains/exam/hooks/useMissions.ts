@@ -1,33 +1,30 @@
 import { useState, useEffect } from 'react';
-import { fetchExamProgress } from '../api/missionApi';
+import { getExamInfo, type VideoTask as ServerVideoTask } from '../api/examApi';
 import type { Mission } from '../types/mission';
-
-// 💡 서버 연동 시 false로 변경하세요!
-
 
 // ----------------------------------------------------------------------
 // 1. UI 전용 메타 데이터 (고정 정보 - 타이틀, 색상 등)
 // ----------------------------------------------------------------------
 const MISSION_UI_META: Record<string, any> = {
-  TASK1: {
+  POSE_IMITATION: {
     title: '동작 모방하기',
     subTitle: 'Motion Imitation',
     description: '아이에게 특정 동작을 보여주고 따라 하는지 관찰합니다.',
     variant: 'pink',
   },
-  TASK2: {
+  SPEECH_IMITATION: {
     title: '발화 모방 자극',
     subTitle: 'Verbal Imitation',
     description: '단어나 소리를 들려주고 아이가 따라 말하는지 관찰합니다.',
     variant: 'amber',
   },
-  TASK3: {
+  NAME_FACING: {
     title: '대면 호명반응',
     subTitle: 'Face-to-Face Name Call',
     description: '마주 본 상태에서 이름을 불렀을 때 눈을 맞추는지 확인합니다.',
     variant: 'emerald',
   },
-  TASK4: {
+  NAME_NON_FACING: {
     title: '비대면 호명반응',
     subTitle: 'Non-Face Name Call',
     description: '시야 밖에서 이름을 불렀을 때 고개를 돌려 반응하는지 확인합니다.',
@@ -39,7 +36,7 @@ const MISSION_UI_META: Record<string, any> = {
 // 2. 월령별/미션별 상세 가이드 데이터 (동적 정보 - 스크립트, 가이드)
 // ----------------------------------------------------------------------
 const MISSION_DETAIL_BY_AGE: Record<string, { '12-17': any; '18-23': any; common?: any }> = {
-  TASK1: {
+  POSE_IMITATION: {
     '12-17': {
       steps: [
         {
@@ -79,7 +76,7 @@ const MISSION_DETAIL_BY_AGE: Record<string, { '12-17': any; '18-23': any; common
       ],
     },
   },
-  TASK2: {
+  SPEECH_IMITATION: {
     '12-17': {
       words: ['아', '마, 바', '맘마', '까꿍'],
       steps: [], // 발화 모방은 words 위주
@@ -96,7 +93,7 @@ const MISSION_DETAIL_BY_AGE: Record<string, { '12-17': any; '18-23': any; common
       ],
     },
   },
-  TASK3: {
+  NAME_FACING: {
     '12-17': { steps: [] },
     '18-23': { steps: [] },
     common: {
@@ -109,7 +106,7 @@ const MISSION_DETAIL_BY_AGE: Record<string, { '12-17': any; '18-23': any; common
       ],
     },
   },
-  TASK4: {
+  NAME_NON_FACING: {
     '12-17': { steps: [] },
     '18-23': { steps: [] },
     common: {
@@ -145,35 +142,36 @@ export const useMissions = (examId?: string) => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // examId가 없으면 로딩 종료 후 에러 처리 (또는 빈 상태)
-    if (!examId) {
-      console.warn('⚠️ No examId provided to useMissions');
-      setIsLoading(false);
-      setError('검사 ID를 찾을 수 없습니다.');
-      return;
-    }
+
+    // ✅ childId 또는 selectedChildId 확인 (프로필 선택 시 selectedChildId로 저장됨)
+    const childId = localStorage.getItem('selectedChildId');
+
+
 
     const fetchAllData = async () => {
       try {
         setIsLoading(true); // 로딩 시작 명시
         setError(null);
+        if (!childId) throw new Error("Child Check Failed");
 
-        // 실제 API 호출 (단일 요청)
-        const responseData = await fetchExamProgress(examId);
+        // ✅ 실제 API 호출 (getExamInfo 사용)
+        const examInfo = await getExamInfo(childId as string);
 
-        const { under18, videoTasks } = responseData.data;
+        const { under18, videoTasks, status } = examInfo;
 
         // 1. 월령 그룹 결정
         const ageGroupKey = under18 ? '12-17' : '18-23';
         setIsUnder18(under18);
         setExamStatus(status); // ✅ exam 상태 저장
 
-        // 2. 서버 데이터 + UI 메타 데이터 + 월령별 상세 가이드 병합
-        const mergedMissions: Mission[] = videoTasks.map((task) => {
-          const uiMeta = MISSION_UI_META[task.videoType] || {};
-          const detailMeta = MISSION_DETAIL_BY_AGE[task.videoType] || {};
+        // 2. 서버 데이터 매핑
+        const mergedMissions: Mission[] = videoTasks.map((task: ServerVideoTask) => {
+          // 서버 타입(POSE_IMITATION 등)을 그대로 UI 타입으로 사용
+          const uiVideoType = task.videoType;
 
-          // 월령별 상세 데이터 매핑
+          const uiMeta = MISSION_UI_META[uiVideoType] || {};
+          const detailMeta = MISSION_DETAIL_BY_AGE[uiVideoType] || {};
+
           let ageSpecificDetail = detailMeta[ageGroupKey] || {};
           if (detailMeta.common) {
             ageSpecificDetail = { ...ageSpecificDetail, ...detailMeta.common };
@@ -190,17 +188,44 @@ export const useMissions = (examId?: string) => {
             ...task,
             ...uiMeta,
             detail: ageSpecificDetail,
-            type: task.videoType,
+            type: resolvedVideoType,
+            videoType: resolvedVideoType,
+            originalVideoType: task.videoType
           } as Mission;
         });
+
+        // 정렬 순서 정의
+        const order = ['POSE_IMITATION', 'SPEECH_IMITATION', 'NAME_FACING', 'NAME_NON_FACING'];
+        mergedMissions.sort((a, b) => order.indexOf(a.originalVideoType || '') - order.indexOf(b.originalVideoType || ''));
 
         setMissions(mergedMissions);
 
       } catch (err: any) {
         console.error("데이터 조회 중 오류 발생:", err);
-        const errorMessage = err?.response?.data?.message || err.message || '알 수 없는 오류가 발생했습니다.';
+        setError("데이터를 불러오는 중 오류가 발생했습니다.");
+        setMissions([]);
+
+        // 에러 메시지 안전하게 추출
+        let errorMessage = "데이터를 불러오는 중 오류가 발생했습니다.";
+
+        if (err && typeof err === 'object') {
+          // AxiosError의 경우
+          if ('response' in err && err.response && typeof err.response === 'object') {
+            const response = err.response as any;
+            errorMessage = response.data?.message || response.statusText || errorMessage;
+          }
+          // 일반 Error 객체의 경우
+          else if ('message' in err && typeof err.message === 'string') {
+            errorMessage = err.message;
+          }
+        }
+        // 문자열 에러인 경우
+        else if (typeof err === 'string') {
+          errorMessage = err;
+        }
+
         setError(errorMessage);
-        // 에러 상황에서 필요한 경우 추가 처리 (예: 상위 컴포넌트에 알림 등)
+        setMissions([]);
       } finally {
         setIsLoading(false);
       }

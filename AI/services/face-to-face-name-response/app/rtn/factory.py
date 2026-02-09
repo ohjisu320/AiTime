@@ -5,7 +5,6 @@ from app.rtn.config import (
     ContactConfig,
     EmotionConfig,
     FaceDetConfig,
-    FaceMeshConfig,
     GazeSmoothConfig,
     ROIConfig,
     RoleAssignConfig,
@@ -13,7 +12,6 @@ from app.rtn.config import (
     VADConfig,
 )
 from app.rtn.pipeline.video_analyzer import VideoAnalyzer
-from app.rtn.settings import RTNConfig
 from app.rtn.types import FrameBGR
 
 
@@ -42,8 +40,8 @@ def build_analyzer(
     )
     # face mesh:
     # - 얼굴 검출 신뢰도 임계값(conf)은 downstream(트래킹/역할/ROI) 안정성에 관여
-    # - model_selection은 MediaPipe FaceDetection 옵션(거리/정확도 트레이드오프)
-    #   -> cfg.face_det.model_selection 값으로 제어
+    # - model_selection=0/1은 mediapipe 옵션(거리/정확도 트레이드오프)
+    #   -> 0은 2meter, 1은 5meter
     face_cfg = FaceDetConfig(min_conf=conf)
 
     # SORT/트래킹:
@@ -85,8 +83,6 @@ def build_analyzer(
     return VideoAnalyzer(
         vad_cfg=vad_cfg,
         face_cfg=face_cfg,
-        face_mesh_cfg=FaceMeshConfig(),
-        crop_cfg=CropConfig(),
         track_cfg=track_cfg,
         role_cfg=role_cfg,
         roi_cfg=roi_cfg,
@@ -95,29 +91,5 @@ def build_analyzer(
         analysis_cfg=analysis_cfg,
         emotion_cfg=emotion_cfg,
         conf_th=conf,
-        debug_publish=debug_publish,
-    )
-
-
-def build_analyzer_from_cfg(
-    cfg: RTNConfig,
-    *,
-    debug_publish: Callable[[FrameBGR], None] | None = None,
-    conf_th: float | None = None,
-) -> VideoAnalyzer:
-    th = float(conf_th) if conf_th is not None else float(cfg.face_det.min_conf)
-
-    return VideoAnalyzer(
-        vad_cfg=cfg.vad,
-        face_cfg=cfg.face_det,
-        face_mesh_cfg=cfg.face_mesh,
-        crop_cfg=cfg.crop,
-        track_cfg=cfg.track,
-        role_cfg=cfg.role,
-        roi_cfg=cfg.roi,
-        gaze_cfg=cfg.gaze,
-        contact_cfg=cfg.contact,
-        analysis_cfg=cfg.analysis,
-        conf_th=th,
         debug_publish=debug_publish,
     )

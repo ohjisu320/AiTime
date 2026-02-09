@@ -1,6 +1,6 @@
 package com.ssafy.aitime.domain.invite.entity;
 
-import com.ssafy.aitime.common.entity.BaseEntity;
+import com.ssafy.aitime.common.entity.AuditableEntity;
 import com.ssafy.aitime.domain.hospital.entity.HospitalStaff;
 import com.ssafy.aitime.domain.invite.entity.enums.InviteCodeStatus;
 import jakarta.persistence.*;
@@ -48,9 +48,6 @@ public class InviteCode extends AuditableEntity {
     @Column(name = "scheduled_at", nullable = false)
     private LocalDateTime scheduledAt;
 
-    @Column(name = "expired_at", nullable = false)
-    private LocalDateTime expiredAt;
-
     @Enumerated(EnumType.STRING)
     @Column(name = "invite_code_status", nullable = false, length = 20)
     private InviteCodeStatus inviteCodeStatus;
@@ -58,22 +55,9 @@ public class InviteCode extends AuditableEntity {
     @Column(name = "doctor_id", columnDefinition = "BINARY(16)")
     private UUID doctorId;
 
-    @PrePersist
-    void onCreate() {
-        LocalDateTime now = LocalDateTime.now();
-        if (createdAt == null) createdAt = now;
-        if (updatedAt == null) updatedAt = now;
-        if (inviteCodeStatus == null) inviteCodeStatus = InviteCodeStatus.ISSUED;
-    }
-
-    @PreUpdate
-    void onUpdate() {
-        updatedAt = LocalDateTime.now();
-    }
-
     @Builder
     private InviteCode(String inviteCode, HospitalStaff hospitalStaff, String childName, LocalDate childBirthdate,
-                       String parentPhone, LocalDateTime scheduledAt, LocalDateTime expiredAt, InviteCodeStatus inviteCodeStatus,
+                       String parentPhone, LocalDateTime scheduledAt, InviteCodeStatus inviteCodeStatus,
                        UUID doctorId) {
         this.inviteCode = inviteCode;
         this.hospitalStaff = hospitalStaff;
@@ -81,7 +65,6 @@ public class InviteCode extends AuditableEntity {
         this.childBirthdate = childBirthdate;
         this.parentPhone = parentPhone;
         this.scheduledAt = scheduledAt;
-        this.expiredAt = expiredAt;
         this.inviteCodeStatus = (inviteCodeStatus == null) ? InviteCodeStatus.ISSUED : inviteCodeStatus;
         this.doctorId = doctorId;
     }

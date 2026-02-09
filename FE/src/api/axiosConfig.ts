@@ -22,9 +22,6 @@ api.interceptors.request.use(
         const token = localStorage.getItem('accessToken');
         if (token && config.headers) {
             config.headers.Authorization = `Bearer ${token}`;
-            console.log(`🔑 [Auth] Token attached: ${token.slice(0, 10)}...`);
-        } else {
-            console.warn(`⚠️ [Auth] No Access Token found in localStorage!`);
         }
         console.log(`🚀 [Axios Request] ${config.method?.toUpperCase()} ${config.url}`, config.data ? config.data : "");
         return config;
@@ -42,6 +39,9 @@ interface QueueItem {
     resolve: (value?: unknown) => void;
     reject: (reason?: unknown) => void;
 }
+
+// API 응답 타입 정의 (명세에 맞게)
+
 
 let isRefreshing = false;
 let failedQueue: QueueItem[] = [];
@@ -128,12 +128,15 @@ api.interceptors.response.use(
             isRefreshing = true;
 
             try {
-                const refreshEndpoint = getRefreshEndpoint();
-                console.log(`🔄 Attempting to refresh access token via ${refreshEndpoint}...`);
+                console.log('🔄 Refreshing access token...');
 
                 // refreshToken은 cookie로 자동 전송됨 (withCredentials: true)
-                const response = await axios.post<ApiResponse<RefreshResponse>>(
-                    `${import.meta.env.VITE_API_BASE_URL}${refreshEndpoint}`,
+                const refreshEndpoint = getRefreshEndpoint();
+                const baseUrl = import.meta.env.VITE_API_BASE_URL;
+                console.log(`🔄 [Refresh Debug] BaseURL: ${baseUrl}, Endpoint: ${refreshEndpoint}`);
+
+                const response = await axios.post<ApiResponse<{ accessToken: string }>>(
+                    `${baseUrl}${refreshEndpoint}`,
                     {},
                     { withCredentials: true }
                 );

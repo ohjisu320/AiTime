@@ -16,6 +16,10 @@ public interface ChildService {
     ChildInfoResponse addChild(UUID userId, ChildCreateRequest request);
     List<ChildInfoResponse> getChildList(UUID userId);
     ChildDeleteResponse deleteChild(UUID userId, UUID childId);
-
     ChildHomeResponse getChildHomeInfo(UUID userId, UUID childId);
+    List<HospitalResponseDto> getLinkedHospitals(UUID userId, UUID childId);
+
+    ExamStartResponse childStartExam(UUID userId, UUID childId, Boolean videoConsent);
+    ChildAgeInfoResponse validateAndGetChildAgeInfo(UUID userId, UUID childId);
+    List<Child> getChildrenByIds(List<UUID> childIds);
 }
