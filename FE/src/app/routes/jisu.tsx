@@ -4,14 +4,27 @@ import MobileLayout from '@/components/layout/MobileLayout';
 import GlobalErrorPage from '@/components/common/GlobalErrorPage';
 
 // Lazy Loading을 사용하여 성능을 최적화
-// 동적 임포트 실패 시 자동으로 페이지를 새로고침하여 최신 청크를 로드
-const retryImport = (importFn: () => Promise<any>) => {
-  return importFn().catch((error) => {
-    console.error('Chunk loading failed, reloading page...', error);
-    window.location.reload();
-    // 리로드 후 fallback을 반환 (실제로는 리로드되므로 실행되지 않음)
-    return { default: () => <div>Loading...</div> };
-  });
+// 동적 임포트 실패 시 자동으로 페이지를 새로고침하여 최신 청크를 로드 (무한 루프 방지)
+const retryImport = async (importFn: () => Promise<any>) => {
+  try {
+    return await importFn();
+  } catch (error: any) {
+    console.error('Chunk loading failed:', error);
+
+    // 이미 리로드했는지 확인
+    const isReloaded = sessionStorage.getItem('chunk_reload');
+
+    if (!isReloaded) {
+      console.log('Reloading page to fetch new chunks...');
+      sessionStorage.setItem('chunk_reload', 'true');
+      window.location.reload();
+      return new Promise(() => { }); // 리로드 중이므로 대기
+    }
+
+    // 이미 리로드했는데도 에러가 나면 에러 전파 (무한 루프 방지)
+    sessionStorage.removeItem('chunk_reload'); // 다음 시도를 위해 초기화
+    throw error;
+  }
 };
 
 const ConsentPage = lazy(() => retryImport(() => import('@/features/exam/pages/ConsentPage')));
