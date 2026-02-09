@@ -134,6 +134,7 @@ const ExamGuideVideoPage: React.FC = () => {
           confirmVariant="rose"
           closeOnConfirm={false}
           hideCloseButton={true}
+          disableKeyboardOffset={true}
         />
       )}
     </>

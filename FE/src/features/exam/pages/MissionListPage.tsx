@@ -193,6 +193,7 @@ const MissionListPage: React.FC = () => {
           }
         }}
         onClose={() => !isSubmitting && setSubmitModalOpen(false)}
+        disableKeyboardOffset={true}
       />
     </div>
   );

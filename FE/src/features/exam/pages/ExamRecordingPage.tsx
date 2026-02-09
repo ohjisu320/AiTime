@@ -151,6 +151,7 @@ const ExamRecordingPage: React.FC<ExamRecordingPageProps> = ({ missionId: propMi
           </div>
         }
         confirmText="확인"
+        disableKeyboardOffset={true}
       />
 
       {/* 스크리닝 성공 확인 모달 */}
@@ -161,6 +162,7 @@ const ExamRecordingPage: React.FC<ExamRecordingPageProps> = ({ missionId: propMi
         title="테스트 통과!"
         description="위치와 소음도 측정이 완료되었습니다. 이제 검사가 가능합니다."
         confirmText="검사 시작하기"
+        disableKeyboardOffset={true}
       />
 
       {/* 뒤로가기/이탈 방지 모달 */}
@@ -175,6 +177,7 @@ const ExamRecordingPage: React.FC<ExamRecordingPageProps> = ({ missionId: propMi
           confirmVariant="rose"
           closeOnConfirm={false}
           hideCloseButton={true}
+          disableKeyboardOffset={true}
         />
       )}
     </>
