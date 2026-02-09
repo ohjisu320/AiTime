@@ -1,11 +1,15 @@
 # Makefile
 # 사용:
-#   make <svc> <action>
+#   make init             # 초기 설정 (네트워크 + 볼륨 생성)
+#   make volumes          # 볼륨만 생성
+#   make network          # 네트워크만 생성
+#   make <svc> <action>   # 서비스 제어
 # 예:
+#   make init
 #   make cmn start
 #   make fe up
 #   make be down
-#   make ai1 dlog   # => docker logs -f <ai1 compose의 첫 컨테이너>
+#   make ai1 dlog         # => docker logs -f <ai1 compose의 첫 컨테이너>
 #
 # action:
 #   start : docker-compose up -d --build
@@ -14,6 +18,23 @@
 #   dlog  : docker logs -f <container>
 
 DC := docker-compose
+
+# 초기 설정 타겟
+.PHONY: init volumes network
+init: network volumes
+	@echo "✅ 초기 설정 완료 (네트워크 + 볼륨)"
+
+volumes:
+	@echo "📦 Docker 볼륨 생성 중..."
+	@docker volume create mysql_data || true
+	@docker volume create redis_data || true
+	@docker volume create jenkins_home || true
+	@echo "✅ 볼륨 생성 완료"
+
+network:
+	@echo "🌐 Docker 네트워크 생성 중..."
+	@docker network create cmn-network || true
+	@echo "✅ 네트워크 생성 완료"
 
 # 서비스별 compose 파일 매핑
 CMN_FILE       := docker-compose.yml
@@ -76,4 +97,3 @@ _run:
 		echo "Unknown action: $(ACTION) (use start|up|down|dlog)"; \
 		exit 1; \
 	fi
-
