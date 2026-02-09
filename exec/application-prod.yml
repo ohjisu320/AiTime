@@ -1,0 +1,69 @@
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${DB_HOST:mysql}:${DB_PORT:3306}/${DB_NAME:aitime}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&c   haracterEncoding=UTF-8
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+      minimum-idle: ${DB_POOL_MIN_IDLE:5}
+      connection-timeout: ${DB_CONNECTION_TIMEOUT:30000}
+
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO}
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: false
+        use_sql_comments: false
+    open-in-view: false
+
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: ${REDIS_TIMEOUT:2s}
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST:rabbitmq}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME}
+    password: ${RABBITMQ_PASSWORD}
+    listener:
+      simple:
+        acknowledge-mode: auto
+        prefetch: 1
+
+# 프로덕션 쿠키 설정
+cookie:
+  refresh-token:
+    secure: true       # HTTPS만 허용
+    same-site: Lax     # Strict 또는 Lax (프론트가 다른 도메인이면 None 필요)
+
+minio:
+  endpoint: ${MINIO_ENDPOINT}
+  access-key: ${MINIO_ACCESS_KEY}
+  secret-key: ${MINIO_SECRET_KEY}
+
+server:
+  forward-headers-strategy: framework
+  tomcat:
+    max-connections: ${SERVER_MAX_CONNECTIONS:8192}
+    threads:
+      max: ${SERVER_MAX_THREADS:200}
+      min-spare: ${SERVER_MIN_THREADS:10}
+
+logging:
+  level:
+    root: ${LOG_LEVEL:info}
+    com.ssafy.aitime: ${APP_LOG_LEVEL:info}
+    org.hibernate.SQL: ${SQL_LOG_LEVEL:warn}
+    org.hibernate.orm.jdbc.bind: ${SQL_BIND_LOG_LEVEL:warn}
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
