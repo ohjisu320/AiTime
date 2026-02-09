@@ -9,3 +9,5 @@ torchaudio
 soundfile
 praat-parselmouth
 onnxruntime
+opencv-python-headless
+pillow
