@@ -30,9 +30,12 @@ const ExamRecordingPage: React.FC<ExamRecordingPageProps> = ({ missionId: propMi
   // 다음 태스크로 이동
   const handleGoToNextTask = useCallback(() => {
     setIsProceeding(true);
-    navigate(`/exam/task/${currentMissionId}`, {
-      state: { verified: true }
-    });
+    // 모달을 통한 이동 시 blocker를 우회하기 위해 setTimeout 사용
+    setTimeout(() => {
+      navigate(`/exam/task/${currentMissionId}`, {
+        state: { verified: true }
+      });
+    }, 0);
   }, [navigate, currentMissionId]);
 
   // LiveKit 스크리닝 훅
@@ -80,9 +83,9 @@ const ExamRecordingPage: React.FC<ExamRecordingPageProps> = ({ missionId: propMi
   }, [childId, startScreening, stopScreening, currentMissionId]);
 
   // 상태 변경 로그
-  useEffect(() => {
-    console.log(`📊 [ExamRecordingPage] Status: ${status}, Stream: ${videoStream ? 'Active' : 'Null'}, Aligned: ${isAligned}, Volume: ${volume}`);
-  }, [status, videoStream, isAligned, volume]);
+  // useEffect(() => {
+  // console.log(`📊 [ExamRecordingPage] Status: ${status}, Stream: ${videoStream ? 'Active' : 'Null'}, Aligned: ${isAligned}, Volume: ${volume}`);
+  // }, [status, videoStream, isAligned, volume]);
 
   // 준비 완료 여부 (한 번 true 되면 유지 - 깜빡임 방지)
   const [isReady, setIsReady] = useState(false);
