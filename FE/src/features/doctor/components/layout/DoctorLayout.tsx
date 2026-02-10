@@ -15,6 +15,9 @@ export default function DoctorLayout({ panels }: DoctorLayoutProps) {
         global: {
             tabEnableClose: false,
             tabEnableRename: false,
+            tabEnableDrag: false,
+            tabSetMinWidth: 200,
+            tabSetMinHeight: 120,
             splitterSize: 6,
             splitterExtra: 4,
         },
@@ -23,42 +26,46 @@ export default function DoctorLayout({ panels }: DoctorLayoutProps) {
             type: "row", // 전체 가로 배치
             weight: 100,
             children: [
-                // 1. 환자 대기열 (신규, 가장 왼쪽)
+                // 1. 좌측 컬럼 (대기열 + 환자정보 + 세션목록) — 세로 리사이즈 가능
                 {
-                    type: "tabset",
-                    weight: 15,
+                    type: "row",
+                    weight: 25,
                     children: [
-                        { type: "tab", name: "환자 대기열", component: "waiting-list" }
+                        {
+                            type: "tabset",
+                            weight: 34,
+                            children: [
+                                { type: "tab", name: "환자 대기열", component: "waiting-list" }
+                            ]
+                        },
+                        {
+                            type: "tabset",
+                            weight: 33,
+                            children: [
+                                { type: "tab", name: "환자 정보", component: "patient-detail" }
+                            ]
+                        },
+                        {
+                            type: "tabset",
+                            weight: 33,
+                            children: [
+                                { type: "tab", name: "영상 목록", component: "session-list" }
+                            ]
+                        }
                     ]
                 },
-                // 2. 환자 정보
+                // 2. 중앙 영상 분석
                 {
                     type: "tabset",
-                    weight: 15,
-                    children: [
-                        { type: "tab", name: "환자 정보", component: "patient-detail" }
-                    ]
-                },
-                // 3. 세션 목록
-                {
-                    type: "tabset",
-                    weight: 15,
-                    children: [
-                        { type: "tab", name: "영상 목록", component: "session-list" }
-                    ]
-                },
-                // 4. 중앙 분석 (비디오)
-                {
-                    type: "tabset",
-                    weight: 30,
+                    weight: 40,
                     children: [
                         { type: "tab", name: "영상 분석", component: "central-analysis" }
                     ]
                 },
-                // 5. 우측 컬럼 (상: 트렌드 / 하: AI 진단)
+                // 3. 우측 컬럼 (트렌드 + AI 진단) — 세로 리사이즈 가능
                 {
-                    type: "column",
-                    weight: 25,
+                    type: "row",
+                    weight: 35,
                     children: [
                         {
                             type: "tabset",
