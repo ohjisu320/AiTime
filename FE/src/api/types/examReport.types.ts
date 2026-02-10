@@ -17,6 +17,9 @@ export interface PoseTimestamp {
     childStartTime: number;
     childEndTime: number;
     trialIndex: number;
+    // Backend compatibility
+    startS?: number;
+    endS?: number | null;
 }
 
 // 2-2. 발화 모방 (Task 2) & 대면 호명 (Task 3) - 단순 구간
@@ -24,6 +27,9 @@ export interface SimpleTimestamp {
     trialStartS: number;
     trialEndS: number;
     trialIndex: number;
+    // Backend compatibility
+    startS?: number;
+    endS?: number | null;
 }
 
 // 2-3. 비대면 호명 (Task 4) - 자극(Trigger)과 호명(Voice) 구간 분리
@@ -33,6 +39,9 @@ export interface NonFacingTimestamp {
     voiceStartS: number;
     voiceEndS: number;
     trialIndex: number;
+    // Backend compatibility
+    startS?: number;
+    endS?: number | null;
 }
 
 // 3. 통합 타임스탬프 타입 (Union Type)
