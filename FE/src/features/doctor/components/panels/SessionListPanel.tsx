@@ -10,21 +10,51 @@ interface Props {
 
 const MIN_SESSION_COUNT = 5;
 
-/** TrendChartPanel의 buildPaddedData와 동일한 패턴으로 세션 리스트를 최소 5개로 패딩 */
+/** 날짜를 YYYY-MM-DD 형식으로 포맷 */
+function formatDate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/** TrendChartPanel의 buildPaddedData와 동일한 패턴으로 세션 리스트를 최소 5개로 패딩 (3개월 단위, 최신순 정렬) */
 function buildPaddedSessionList(list: ExamVideoListItem[]): ExamVideoListItem[] {
   const currentLength = list.length;
-  if (currentLength >= MIN_SESSION_COUNT) return list;
+
+  // 최신순 정렬 (날짜 내림차순)
+  const sorted = [...list].sort((a, b) => b.examDate.localeCompare(a.examDate));
+
+  if (currentLength >= MIN_SESSION_COUNT) return sorted;
 
   const prependCount = MIN_SESSION_COUNT - currentLength;
 
-  const dummies: ExamVideoListItem[] = Array.from({ length: prependCount }, (_, idx) => ({
-    examId: `__dummy_${idx}`,
-    examDate: `${idx + 1}차`,
-    examStatus: "-",
-    videos: [],
-  }));
+  // 기준 날짜: 가장 오래된 실제 세션의 날짜, 없으면 오늘
+  const baseDate = sorted.length > 0
+    ? new Date(sorted[sorted.length - 1].examDate)
+    : new Date();
 
-  return [...dummies, ...list];
+  // 더미 비디오 목록 (클릭 가능하게 보이는 4종)
+  const dummyVideos = [
+    { videoId: "__dv_pose", videoType: "POSE_IMITATION" as const },
+    { videoId: "__dv_speech", videoType: "SPEECH_IMITATION" as const },
+    { videoId: "__dv_facing", videoType: "NAME_FACING" as const },
+    { videoId: "__dv_nonfacing", videoType: "NAME_NON_FACING" as const },
+  ];
+
+  const dummies: ExamVideoListItem[] = Array.from({ length: prependCount }, (_, idx) => {
+    const d = new Date(baseDate);
+    d.setMonth(d.getMonth() - 3 * (prependCount - idx)); // 3개월 단위로 과거
+    return {
+      examId: `__dummy_${idx}`,
+      examDate: formatDate(d),
+      examStatus: "완료",
+      videos: dummyVideos,
+    };
+  });
+
+  // 더미(과거) + 실제 데이터 합친 후 최신순 정렬
+  return [...dummies, ...sorted].sort((a, b) => b.examDate.localeCompare(a.examDate));
 }
 
 export default function SessionListPanel({ examVideoList, onSelectVideo, currentVideoExamId }: Props) {
