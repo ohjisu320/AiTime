@@ -35,95 +35,153 @@ export default function DoctorDashboardPage() {
     }
 
     const videoData = states.currentVideoData;
-    const rawTimestamps = videoData.timestamps || [];
+
     const uiTimestamps: AnalysisTimestamp[] = [];
     let maxEndTime = 0;
 
     // 비디오 타입에 따른 데이터 매핑 전략
-    rawTimestamps.forEach((ts, idx) => {
+    videoData.timestamps?.forEach((ts, idx) => {
       const baseId = (idx + 1) * 10; // ID 충돌 방지용
 
       // 1. 동작 모방 (POSE_IMITATION)
       if (videoData.videoType === 'POSE_IMITATION') {
         const item = ts as PoseTimestamp;
 
-        // (1) 부모 행동 (Parent)
-        uiTimestamps.push({
-          id: baseId + 1,
-          type: "parent",
-          label: `Trial ${item.trialIndex} (시연)`,
-          startTime: item.parentStartTime,
-          duration: item.parentEndTime - item.parentStartTime,
-        });
+        // (A) 기존 포맷 (parentStartTime/childStartTime) 있는 경우
+        if (item.parentStartTime !== undefined && item.childStartTime !== undefined) {
+          // (1) 부모 행동 (Parent)
+          uiTimestamps.push({
+            id: baseId + 1,
+            type: "parent",
+            label: `Trial ${item.trialIndex} (시연)`,
+            startTime: item.parentStartTime,
+            duration: item.parentEndTime - item.parentStartTime,
+          });
 
-        // (2) 아이 행동 (Child)
-        uiTimestamps.push({
-          id: baseId + 2,
-          type: "child-behavior",
-          label: `Trial ${item.trialIndex} (모방)`,
-          startTime: item.childStartTime,
-          duration: item.childEndTime - item.childStartTime,
-        });
+          // (2) 아이 행동 (Child)
+          uiTimestamps.push({
+            id: baseId + 2,
+            type: "child-behavior",
+            label: `Trial ${item.trialIndex} (모방)`,
+            startTime: item.childStartTime,
+            duration: item.childEndTime - item.childStartTime,
+          });
+          maxEndTime = Math.max(maxEndTime, item.childEndTime);
+        }
+        // (B) 신규 포맷 (startS / endS) 있는 경우
+        else if (item.startS !== undefined) {
+          const start = item.startS;
+          // endS가 null이면 기본 3초 혹은 5초 등으로 설정 (영상 길이에 따라 다를 수 있음)
+          // 여기서는 null일 경우 0으로 처리하거나, 특정 길이를 부여
+          const end = item.endS ?? (start + 5);
 
-        maxEndTime = Math.max(maxEndTime, item.childEndTime);
+          uiTimestamps.push({
+            id: baseId,
+            type: "child-behavior", // 혹은 'parent', 문맥상 모호하지만 하나만 표시
+            label: `Trial ${item.trialIndex}`,
+            startTime: start,
+            duration: end - start,
+          });
+          maxEndTime = Math.max(maxEndTime, end);
+        }
       }
 
       // 2. 발화 모방 (SPEECH_IMITATION)
       else if (videoData.videoType === 'SPEECH_IMITATION') {
         const item = ts as SimpleTimestamp;
 
-        uiTimestamps.push({
-          id: baseId,
-          type: "child-vocal", // 음성 라인에 표시
-          label: `Trial ${item.trialIndex}`,
-          startTime: item.trialStartS,
-          duration: item.trialEndS - item.trialStartS,
-        });
+        if (item.trialStartS !== undefined) {
+          uiTimestamps.push({
+            id: baseId,
+            type: "child-vocal", // 음성 라인에 표시
+            label: `Trial ${item.trialIndex}`,
+            startTime: item.trialStartS,
+            duration: item.trialEndS - item.trialStartS,
+          });
+          maxEndTime = Math.max(maxEndTime, item.trialEndS);
+        } else if (item.startS !== undefined) {
+          const start = item.startS;
+          const end = item.endS ?? (start + 3);
 
-        maxEndTime = Math.max(maxEndTime, item.trialEndS);
+          uiTimestamps.push({
+            id: baseId,
+            type: "child-vocal",
+            label: `Trial ${item.trialIndex}`,
+            startTime: start,
+            duration: end - start,
+          });
+          maxEndTime = Math.max(maxEndTime, end);
+        }
       }
 
       // 3. 대면 호명 (NAME_FACING)
       else if (videoData.videoType === 'NAME_FACING') {
         const item = ts as SimpleTimestamp;
 
-        uiTimestamps.push({
-          id: baseId,
-          type: "child-behavior", // 행동 라인에 표시
-          label: `Trial ${item.trialIndex}`,
-          startTime: item.trialStartS,
-          duration: item.trialEndS - item.trialStartS,
-        });
+        if (item.trialStartS !== undefined) {
+          uiTimestamps.push({
+            id: baseId,
+            type: "child-behavior", // 행동 라인에 표시
+            label: `Trial ${item.trialIndex}`,
+            startTime: item.trialStartS,
+            duration: item.trialEndS - item.trialStartS,
+          });
+          maxEndTime = Math.max(maxEndTime, item.trialEndS);
+        } else if (item.startS !== undefined) {
+          const start = item.startS;
+          const end = item.endS ?? (start + 3);
 
-        maxEndTime = Math.max(maxEndTime, item.trialEndS);
+          uiTimestamps.push({
+            id: baseId,
+            type: "child-behavior",
+            label: `Trial ${item.trialIndex}`,
+            startTime: start,
+            duration: end - start,
+          });
+          maxEndTime = Math.max(maxEndTime, end);
+        }
       }
 
       // 4. 비대면 호명 (NAME_NON_FACING)
       else if (videoData.videoType === 'NAME_NON_FACING') {
         const item = ts as NonFacingTimestamp;
 
-        // (1) 시각적 자극/트리거 (Parent 라인 활용)
-        uiTimestamps.push({
-          id: baseId + 1,
-          type: "parent",
-          label: `T${item.trialIndex} 자극`,
-          startTime: item.triggerStartS,
-          duration: item.triggerEndS - item.triggerStartS,
-        });
+        // (A) 기존 포맷
+        if (item.triggerStartS !== undefined) {
+          // (1) 시각적 자극/트리거
+          uiTimestamps.push({
+            id: baseId + 1,
+            type: "parent",
+            label: `T${item.trialIndex} 자극`,
+            startTime: item.triggerStartS,
+            duration: item.triggerEndS - item.triggerStartS,
+          });
 
-        // (2) 호명/반응 (Child Vocal 또는 Behavior 라인 활용)
-        // 여기서는 '호명(소리)' 구간이므로 child-vocal 쪽에 표시하거나 
-        // 맥락에 따라 parent 라인에 '호명'으로 표시할 수도 있습니다.
-        // 현재는 아이의 반응 구간이 명시적이지 않으므로 호명 구간을 표시합니다.
-        uiTimestamps.push({
-          id: baseId + 2,
-          type: "child-vocal", // 혹은 'parent' (검사자 목소리이므로)
-          label: `T${item.trialIndex} 호명`,
-          startTime: item.voiceStartS,
-          duration: item.voiceEndS - item.voiceStartS,
-        });
+          // (2) 호명/반응
+          uiTimestamps.push({
+            id: baseId + 2,
+            type: "child-vocal",
+            label: `T${item.trialIndex} 호명`,
+            startTime: item.voiceStartS,
+            duration: item.voiceEndS - item.voiceStartS,
+          });
+          maxEndTime = Math.max(maxEndTime, item.voiceEndS);
+        }
+        // (B) 신규 포맷
+        else if (item.startS !== undefined) {
+          const start = item.startS;
+          const end = item.endS ?? (start + 3);
 
-        maxEndTime = Math.max(maxEndTime, item.voiceEndS);
+          // 단일 구간으로 표시
+          uiTimestamps.push({
+            id: baseId,
+            type: "parent", // 혹은 child-vocal
+            label: `Trial ${item.trialIndex}`,
+            startTime: start,
+            duration: end - start,
+          });
+          maxEndTime = Math.max(maxEndTime, end);
+        }
       }
     });
 

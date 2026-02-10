@@ -200,7 +200,7 @@ export const useMissions = (examId?: string) => {
 
         setMissions(mergedMissions);
 
-      } catch (err: any) {
+      } catch (err) {
         console.error("데이터 조회 중 오류 발생:", err);
         setError("데이터를 불러오는 중 오류가 발생했습니다.");
         setMissions([]);
