@@ -19,40 +19,7 @@ interface Props {
   adosGraphs: AdosGraphs | null;
 }
 
-// 발표용 샘플 데이터
-const SAMPLE_ADOS_DATA: AdosGraphs = {
-  xAxis: ["1차", "2차", "3차", "4차", "5차"],
-  graphs: {
-    graph1: {
-      series: {
-        sa: [0.4, 0.8, 1.1, 1.5, 1.8],
-        total: [0.6, 0.9, 1.3, 1.6, 1.9],
-        peer: [0.5, 0.7, 1.0, 1.2, 1.5]
-      }
-    },
-    graph2: {
-      series: {
-        rrb: [1.6, 1.4, 1.2, 1.0, 0.8],
-        flexibility: [1.3, 1.1, 0.9, 1.0, 0.7],
-        total: [1.5, 1.3, 1.1, 1.0, 0.9]
-      }
-    },
-    graph3: {
-      series: {
-        verbal: [0.9, 1.0, 1.1, 1.0, 0.9],
-        nonverbal: [0.6, 0.8, 1.0, 1.4, 1.7],
-        total: [0.8, 0.9, 1.1, 1.3, 1.5]
-      }
-    },
-    graph4: {
-      series: {
-        play: [1.2, 1.0, 1.3, 1.5, 1.8],
-        joint: [0.7, 0.9, 0.8, 1.1, 1.0],
-        total: [1.0, 1.1, 1.2, 1.4, 1.6]
-      }
-    }
-  }
-};
+
 
 const GRAPH_CONFIGS = [
   { key: 'graph1', title: "사회적 정동 (Social Affect)" },
@@ -109,9 +76,16 @@ export default function TrendChartPanel({ adosGraphs }: Props) {
   };
 
   const hasData = Boolean(adosGraphs?.xAxis?.length && adosGraphs?.graphs);
-  const dataSource = hasData && adosGraphs
-    ? buildPaddedData(adosGraphs)
-    : SAMPLE_ADOS_DATA;
+
+  if (!hasData || !adosGraphs) {
+    return (
+      <div className="flex items-center justify-center h-full bg-[#f0f0f0] border border-[#808080] text-gray-500 text-[13px] font-bold">
+        데이터가 없습니다.
+      </div>
+    );
+  }
+
+  const dataSource = buildPaddedData(adosGraphs);
 
   return (
     <div className="flex flex-col gap-[3px] h-full overflow-y-auto custom-scrollbar bg-[#f0f0f0] p-[2px]">

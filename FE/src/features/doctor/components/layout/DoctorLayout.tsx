@@ -23,15 +23,23 @@ export default function DoctorLayout({ panels }: DoctorLayoutProps) {
             type: "row", // 전체 가로 배치
             weight: 100,
             children: [
-                // 1. 환자 정보 (가장 왼쪽)
+                // 1. 환자 대기열 (신규, 가장 왼쪽)
                 {
                     type: "tabset",
-                    weight: 20,
+                    weight: 15,
+                    children: [
+                        { type: "tab", name: "환자 대기열", component: "waiting-list" }
+                    ]
+                },
+                // 2. 환자 정보
+                {
+                    type: "tabset",
+                    weight: 15,
                     children: [
                         { type: "tab", name: "환자 정보", component: "patient-detail" }
                     ]
                 },
-                // 2. 세션 목록
+                // 3. 세션 목록
                 {
                     type: "tabset",
                     weight: 15,
@@ -39,29 +47,29 @@ export default function DoctorLayout({ panels }: DoctorLayoutProps) {
                         { type: "tab", name: "영상 목록", component: "session-list" }
                     ]
                 },
-                // 3. 중앙 분석 (비디오) - 비중을 좀 더 높임
+                // 4. 중앙 분석 (비디오)
                 {
                     type: "tabset",
-                    weight: 40,
+                    weight: 30,
                     children: [
                         { type: "tab", name: "영상 분석", component: "central-analysis" }
                     ]
                 },
-                // 4. 우측 컬럼 (상: 트렌드 / 하: AI 진단) - 세로 배치
+                // 5. 우측 컬럼 (상: 트렌드 / 하: AI 진단)
                 {
-                    type: "column", // 세로 배치 그룹
+                    type: "column",
                     weight: 25,
                     children: [
                         {
                             type: "tabset",
-                            weight: 50, // 높이 비율 50%
+                            weight: 50,
                             children: [
                                 { type: "tab", name: "지표 변화", component: "trend-chart" }
                             ]
                         },
                         {
                             type: "tabset",
-                            weight: 50, // 높이 비율 50%
+                            weight: 50,
                             children: [
                                 { type: "tab", name: "AI 진단", component: "ai-diagnosis" }
                             ]
@@ -100,7 +108,7 @@ export default function DoctorLayout({ panels }: DoctorLayoutProps) {
                     border-color: white #808080 #808080 white !important;
                 }
                 .flexlayout__tabset_header {
-                    background: #d4d0c8 !important;
+                    background: #000080 !important;
                 }
                 .flexlayout__tab_button {
                     font-family: 'Gulim', sans-serif !important;

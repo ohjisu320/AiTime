@@ -10,15 +10,16 @@ import {
 
 interface Props {
   analysisData: VideoAnalysisData;
+  isLoading?: boolean;
   onExpandVideo: (currentTime: number) => void;
 }
 
-
-
 export default function CentralAnalysisPanel({
   analysisData,
+  isLoading,
   onExpandVideo,
 }: Props) {
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [bottomHeight, setBottomHeight] = useState(280);
@@ -97,7 +98,16 @@ export default function CentralAnalysisPanel({
         </div>
 
         <div className="flex-1 bg-black overflow-hidden flex items-center justify-center">
-          {analysisData.videoUrl ? (
+          {isLoading || !analysisData.videoUrl ? (
+            <div className="flex flex-col items-center justify-center gap-2 select-none">
+              <div className="text-[#00ff00] text-[20px] font-bold font-mono tracking-[0.2em] animate-pulse">
+                LOADING...
+              </div>
+              <div className="text-[#00ff00]/60 text-[11px] font-mono tracking-widest">
+                WAITING FOR VIDEO SIGNAL
+              </div>
+            </div>
+          ) : (
             <video
               ref={videoRef}
               src={analysisData.videoUrl} // null이 아닐 때만 src 할당
@@ -106,10 +116,6 @@ export default function CentralAnalysisPanel({
               onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
               onLoadedMetadata={(e) => setRealDuration(e.currentTarget.duration)}
             />
-          ) : (
-            <div className="text-white text-[13px]">
-              🚫 재생할 영상이 없습니다. (타임라인만 확인 가능)
-            </div>
           )}
         </div>
       </WindowsContainer>
@@ -127,9 +133,11 @@ export default function CentralAnalysisPanel({
 
       <div className="flex flex-col gap-[2px] min-h-0 h-full">
         <WindowsContainer className="flex flex-col shrink-0">
-          <div className="text-[13px] font-bold bg-[#000080] text-white px-2 py-0.5 flex justify-between shrink-0 mb-1">
+          <div className="text-[13px] font-bold bg-[#000080] text-white px-2 py-0.5 flex justify-between items-center shrink-0 mb-1">
             <span>영상 타임라인 분석 ({displayDuration.toFixed(1)}s)</span>
-            <span>{Math.floor(currentTime)}s</span>
+            <span className="bg-black text-[#00ff00] px-2 font-mono text-[14px] border border-white/30 tracking-wider">
+              {Math.floor(currentTime)}s
+            </span>
           </div>
 
           <div className="flex flex-col justify-center gap-1.5 bg-[#f0f0f0] border border-gray-400 p-2">

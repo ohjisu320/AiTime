@@ -247,57 +247,43 @@ export default function DoctorDashboardPage() {
       }
     });
 
-    // [추가] 정적 타임스탬프 주입 (NAME_FACING, SPEECH_IMITATION)
-    // 요구사항: 부모 행동에 0, 8, 16, 24, 32초 스태틱 생성 / 설명 없이 검사명(Trial)만 표시
-    if (['NAME_FACING', 'SPEECH_IMITATION'].includes(videoData.videoType)) {
-      const staticTimes = [0, 8, 16, 24, 32];
-      staticTimes.forEach((startTime, idx) => {
-        uiTimestamps.push({
-          id: 90000 + idx, // 고유 ID
-          type: "parent",
-          label: `Trial ${idx + 1}`,
-          detail: undefined, // 설명 제거
-          startTime: startTime,
-          duration: 3, // [수정] 3초 간격으로 표시
-        });
-      });
-      // 전체 길이 보정 (최소 40초 확보)
-      maxEndTime = Math.max(maxEndTime, 40);
-    }
+    // [수정] 정적 타임스탬프 주입 로직 제거 (API 데이터만 사용)
+    // - 사용자 요청: "들어오는 것만 받게 수정"
 
     const totalDuration = Math.max(maxEndTime + 5, 60);
 
     // [동적 타임라인 설정]
     let timelineRows: TimelineRowConfig[] = [];
+    const hasParentData = uiTimestamps.some(ts => ts.type === 'parent');
 
     switch (videoData.videoType) {
       case 'POSE_IMITATION':
         timelineRows = [
-          { key: "parent", label: "부모 행동", color: "bg-gray-500" }, // [수정] 부모 시연 -> 부모 행동
-          { key: "child-behavior", label: "아이 반응", color: "bg-blue-600" }, // [수정] 아이 모방 -> 아이 반응
+          ...(hasParentData ? [{ key: "parent", label: "부모 행동", color: "bg-gray-500" }] : []),
+          { key: "child-behavior", label: "아이 반응", color: "bg-blue-600" },
         ];
         break;
       case 'SPEECH_IMITATION':
         timelineRows = [
-          { key: "parent", label: "부모 행동", color: "bg-gray-500" },
+          ...(hasParentData ? [{ key: "parent", label: "부모 행동", color: "bg-gray-500" }] : []),
           { key: "child-vocal", label: "아이 반응", color: "bg-green-600" },
         ];
         break;
       case 'NAME_FACING':
         timelineRows = [
-          { key: "parent", label: "부모 행동", color: "bg-gray-500" },
+          ...(hasParentData ? [{ key: "parent", label: "부모 행동", color: "bg-gray-500" }] : []),
           { key: "child-behavior", label: "아이 반응", color: "bg-blue-600" },
         ];
         break;
       case 'NAME_NON_FACING':
         timelineRows = [
-          { key: "parent", label: "부모 행동", color: "bg-gray-500" }, // [수정] 자극 제시 -> 부모 행동
-          { key: "child-vocal", label: "아이 반응", color: "bg-green-600" }, // [수정] 호명(청각) (노란색) -> 아이 반응 (녹색) 통일
+          ...(hasParentData ? [{ key: "parent", label: "부모 행동", color: "bg-gray-500" }] : []),
+          { key: "child-vocal", label: "아이 반응", color: "bg-green-600" },
         ];
         break;
       default:
         timelineRows = [
-          { key: "parent", label: "부모 행동", color: "bg-gray-500" },
+          ...(hasParentData ? [{ key: "parent", label: "부모 행동", color: "bg-gray-500" }] : []),
           { key: "child-vocal", label: "아이 반응", color: "bg-green-600" },
           { key: "child-behavior", label: "아이 행동", color: "bg-blue-600" },
         ];
@@ -325,10 +311,14 @@ export default function DoctorDashboardPage() {
       <main className="flex-1 overflow-hidden bg-[#808080] p-[2px]">
         <DoctorLayout
           panels={{
+            "waiting-list": (
+              <WaitingListSidebar
+                onSelectPatient={actions.selectPatient}
+              />
+            ),
             "patient-detail": (
               <PatientDetailPanel
                 patient={states.selectedPatient}
-                toggleSidebar={actions.toggleSidebar}
               />
             ),
             "session-list": (
@@ -341,6 +331,7 @@ export default function DoctorDashboardPage() {
             "central-analysis": (
               <CentralAnalysisPanel
                 analysisData={analysisData}
+                isLoading={states.isExamReportLoading}
                 onExpandVideo={(currentTime) => {
                   setVideoStartTime(currentTime);
                   actions.setVideoModalOpen(true);
@@ -378,14 +369,6 @@ export default function DoctorDashboardPage() {
           adosDetail={states.currentAdosDetail}
           examId={latestExamId}
           onSave={handleAdosSave}
-        />
-      )}
-
-      {states.isSidebarOpen && (
-        <WaitingListSidebar
-          isOpen={states.isSidebarOpen}
-          onClose={actions.toggleSidebar}
-          onSelectPatient={actions.selectPatient}
         />
       )}
     </div>
