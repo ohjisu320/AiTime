@@ -2,6 +2,11 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { WindowsContainer, WindowsButton } from "../layout/WindowsLayout";
 import { cn } from "@/lib/utils";
 import type { VideoAnalysisData } from "../../types/doctor";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface Props {
   analysisData: VideoAnalysisData;
@@ -19,6 +24,13 @@ export default function CentralAnalysisPanel({
   const [bottomHeight, setBottomHeight] = useState(280);
   const containerRef = useRef<HTMLDivElement>(null);
   const isDraggingBottom = useRef(false);
+
+  const [realDuration, setRealDuration] = useState(0);
+
+  // 비디오 변경 시 duration 초기화
+  useEffect(() => {
+    setRealDuration(0);
+  }, [analysisData.videoUrl]);
 
   const handleSeek = (time: number) => {
     if (videoRef.current) {
@@ -62,6 +74,9 @@ export default function CentralAnalysisPanel({
     };
   }, [handleMouseMove, handleMouseUp]);
 
+  // 실제 로드된 길이가 있으면 그것을 우선 사용, 없으면 예상 길이 사용
+  const displayDuration = realDuration || analysisData.totalDuration;
+
   return (
     <div
       ref={containerRef}
@@ -82,13 +97,20 @@ export default function CentralAnalysisPanel({
         </div>
 
         <div className="flex-1 bg-black overflow-hidden flex items-center justify-center">
-          <video
-            ref={videoRef}
-            src={analysisData.videoUrl}
-            className="w-full h-full object-contain"
-            controls
-            onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
-          />
+          {analysisData.videoUrl ? (
+            <video
+              ref={videoRef}
+              src={analysisData.videoUrl} // null이 아닐 때만 src 할당
+              className="w-full h-full object-contain"
+              controls
+              onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+              onLoadedMetadata={(e) => setRealDuration(e.currentTarget.duration)}
+            />
+          ) : (
+            <div className="text-white text-[13px]">
+              🚫 재생할 영상이 없습니다. (타임라인만 확인 가능)
+            </div>
+          )}
         </div>
       </WindowsContainer>
 
@@ -106,7 +128,7 @@ export default function CentralAnalysisPanel({
       <div className="flex flex-col gap-[2px] min-h-0 h-full">
         <WindowsContainer className="flex flex-col shrink-0">
           <div className="text-[13px] font-bold bg-[#000080] text-white px-2 py-0.5 flex justify-between shrink-0 mb-1">
-            <span>영상 타임라인 분석 ({analysisData.totalDuration.toFixed(1)}s)</span>
+            <span>영상 타임라인 분석 ({displayDuration.toFixed(1)}s)</span>
             <span>{Math.floor(currentTime)}s</span>
           </div>
 
@@ -119,29 +141,47 @@ export default function CentralAnalysisPanel({
                     .filter((t) => t.type === row.key)
                     .map((t) => {
                       const left =
-                        (t.startTime / analysisData.totalDuration) * 100;
+                        (t.startTime / displayDuration) * 100;
                       const width =
-                        (t.duration / analysisData.totalDuration) * 100;
+                        (t.duration / displayDuration) * 100;
                       return (
-                        <button
-                          key={t.id}
-                          onClick={() => handleSeek(t.startTime)}
-                          className={cn(
-                            "absolute top-0 h-full opacity-80 hover:opacity-100 hover:brightness-110 transition-all border-l border-r border-black/20",
-                            row.color,
-                          )}
-                          style={{
-                            left: `${left}%`,
-                            width: `${Math.max(width, 2)}%`,
-                          }}
-                          title={`${t.label} (${t.startTime}s)`}
-                        />
+                        <Tooltip key={t.id}>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={() => handleSeek(t.startTime)}
+                              className={cn(
+                                "absolute top-0 h-full opacity-80 hover:opacity-100 hover:brightness-110 transition-all border-l border-r border-black/20",
+                                row.color,
+                              )}
+                              style={{
+                                left: `${left}%`,
+                                width: `${Math.max(width, 2)}%`,
+                              }}
+                            />
+                          </TooltipTrigger>
+                          <TooltipContent
+                            className="bg-black/90 text-white border-white text-[12px] max-w-[300px]"
+                            side="top"
+                          >
+                            <div className="flex flex-col gap-1">
+                              <span className="font-bold text-yellow-300">{t.label}</span>
+                              {t.detail && (
+                                <span className="text-gray-200 font-normal leading-tight">
+                                  {t.detail}
+                                </span>
+                              )}
+                              <span className="text-[10px] text-gray-400">
+                                {t.startTime.toFixed(1)}s ~ {(t.startTime + t.duration).toFixed(1)}s
+                              </span>
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
                       );
                     })}
                   <div
                     className="absolute top-0 h-full w-[2px] bg-red-600 z-10 pointer-events-none shadow-[0_0_2px_red]"
                     style={{
-                      left: `${(currentTime / analysisData.totalDuration) * 100
+                      left: `${(currentTime / displayDuration) * 100
                         }%`,
                     }}
                   />
@@ -150,8 +190,8 @@ export default function CentralAnalysisPanel({
             ))}
             <div className="flex justify-between pl-[70px] text-[11px] text-gray-500 px-1 mt-0.5 select-none">
               <span>0s</span>
-              <span>{Math.floor(analysisData.totalDuration / 2)}s</span>
-              <span>{Math.floor(analysisData.totalDuration)}s</span>
+              <span>{Math.floor(displayDuration / 2)}s</span>
+              <span>{Math.floor(displayDuration)}s</span>
             </div>
           </div>
         </WindowsContainer>
