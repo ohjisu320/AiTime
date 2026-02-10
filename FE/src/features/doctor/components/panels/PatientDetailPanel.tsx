@@ -1,64 +1,30 @@
-import { useNavigate } from "react-router-dom";
-import { logoutHospitalStaff } from "@/features/desk/api/hospitalStaffApi";
+
 import type { PatientDetailFull } from "../../types/doctor";
 
 interface Props {
   patient: PatientDetailFull | null;
-  toggleSidebar: () => void;
 }
 
-export default function PatientDetailPanel({ patient, toggleSidebar }: Props) {
-  const navigate = useNavigate();
+export default function PatientDetailPanel({ patient }: Props) {
 
-  const handleLogout = async () => {
-    try {
-      await logoutHospitalStaff();
-    } catch (error) {
-      console.error("로그아웃 API 실패:", error);
-    } finally {
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
-      localStorage.removeItem("user");
-      navigate("/login");
-    }
-  };
 
   if (!patient) {
     return (
       <div className="flex flex-col h-full bg-[#f7f7f7] border-r border-[#808080] font-['Gulim'] text-[13px]">
-        <div className="bg-[#000080] p-[3px] flex justify-start shrink-0">
-          <button
-            onClick={toggleSidebar}
-            className="bg-[#d4d0c8] text-black px-4 py-1 border-2 border-white border-r-[#404040] border-b-[#404040] active:border-t-[#404040] active:border-l-[#404040] text-[12px] font-bold cursor-pointer"
-          >
-            ▶ 열기
-          </button>
-        </div>
+        {/* 상단 여백 보정 (버튼 제거됨) */}
+        {/* <div className="bg-[#000080] p-[3px] flex justify-start shrink-0 h-[28px]" />  <- 필요하다면 디자인 유지, 아니면 제거 */}
+
         <div className="flex-1 p-4 flex items-center justify-center text-gray-500 text-[14px]">
           환자를 선택해주세요
         </div>
-        <div className="p-3 border-t border-[#808080] shrink-0 mt-auto bg-[#f0f0f0]">
-          <button
-            onClick={handleLogout}
-            className="w-full bg-[#d4d0c8] border-2 border-white border-r-[#404040] border-b-[#404040] active:border-t-[#404040] active:border-l-[#404040] text-[#ff0000] font-bold py-2.5 cursor-pointer text-center hover:bg-[#e0e0e0] transition-colors text-[13px]"
-          >
-            로그아웃 (LOGOUT)
-          </button>
-        </div>
+
       </div>
     );
   }
 
   return (
     <div className="flex flex-col h-full bg-[#f7f7f7] border-r border-[#808080] font-['Gulim'] text-[13px]">
-      <div className="bg-[#000080] p-[3px] flex justify-start shrink-0">
-        <button
-          onClick={toggleSidebar}
-          className="bg-[#d4d0c8] text-black px-4 py-1 border-2 border-white border-r-[#404040] border-b-[#404040] active:border-t-[#404040] active:border-l-[#404040] text-[12px] font-bold cursor-pointer"
-        >
-          ▶ 열기
-        </button>
-      </div>
+      {/* 버튼 영역 제거 */}
 
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-6">
         <div className="flex flex-col gap-2">
@@ -128,14 +94,7 @@ export default function PatientDetailPanel({ patient, toggleSidebar }: Props) {
         </div>
       </div>
 
-      <div className="p-3 border-t border-[#808080] shrink-0 mt-auto bg-[#f0f0f0]">
-        <button
-          onClick={handleLogout}
-          className="w-full bg-[#d4d0c8] border-2 border-white border-r-[#404040] border-b-[#404040] active:border-t-[#404040] active:border-l-[#404040] text-[#ff0000] font-bold py-2.5 cursor-pointer text-center hover:bg-[#e0e0e0] transition-colors text-[13px]"
-        >
-          로그아웃 (LOGOUT)
-        </button>
-      </div>
+
     </div>
   );
 }
