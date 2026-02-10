@@ -11,7 +11,7 @@ export const SCREENING_CONTENT: Record<string, any> = {
     korTitle: "동작 모방",
     description: "손뼉 치기, 만세, 뒷걸음질 동작을 차례로 보여주고 따라 하는지 관찰합니다.",
     variant: 'pink',
-    instructionDuration: 18, // 전체 사이클 시간: 준비 3초 + 실행 15초
+    instructionDuration: 13, // 전체 사이클 시간: 준비 3초 + 실행 15초
     instructions: [
       {
         id: 1,
@@ -45,10 +45,10 @@ export const SCREENING_CONTENT: Record<string, any> = {
     korTitle: "동작 모방",
     description: "점프, 공 차기, 공 던지기 동작을 차례로 보여주고 따라 하는지 관찰합니다.",
     variant: 'pink',
-    instructionDuration: 18, // 전체 사이클 시간: 준비 3초 + 실행 15초
+    instructionDuration: 13, // 전체 사이클 시간: 준비 3초 + 실행 13초
     instructions: [
       {
-        id: 1,
+        id: 1,  
         text: "무릎을 굽혔다가",
         boldText: "양발을 모아",
         suffix: "쿵 소리가 나게 뛰어주세요 (점프)"
