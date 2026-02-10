@@ -1,8 +1,15 @@
 import { useState, useMemo, useCallback, useEffect, type MouseEvent } from "react";
 import { WindowsButton } from "../layout/WindowsLayout";
 import { cn } from "@/lib/utils";
-import type { AdosItemDefinition, AdosAiResult } from "../../types/ados";
+// [수정] MASTER_ADOS_ITEMS를 types/ados에서 가져오도록 변경
 import type { AdosDetail, AdosScores, AdosUpdateRequest } from "@/api/types/examReport.types";
+import {
+  MASTER_ADOS_ITEMS,
+  CODES_PRE_VERBAL,
+  CODES_VERBAL,
+  type AdosItemDefinition,
+  type AdosAiResult
+} from "../../types/ados";
 
 interface Props {
   onClose: () => void;
@@ -27,192 +34,7 @@ const codeKeyToApiKey = (codeKey: string): string => {
   return codeKey.replace("-", "").toLowerCase();
 };
 
-// [Master List]
-const MASTER_ADOS_ITEMS: AdosItemDefinition[] = [
-  // SA: Communication
-  {
-    code: "A-2",
-    label: "목소리를 내는 빈도",
-    category: "SA",
-    subCategory: "Communication",
-    isAiAnalyzed: false,
-  },
-  {
-    code: "A-7",
-    label: "가리키기 (Pointing)",
-    category: "SA",
-    subCategory: "Communication",
-    isAiAnalyzed: false,
-  },
-  {
-    code: "A-8",
-    label: "제스처",
-    category: "SA",
-    subCategory: "Communication",
-    isAiAnalyzed: true,
-    aiSourceTask: "동작모방 과제 분석",
-  },
-  // SA: Interaction
-  {
-    code: "B-1",
-    label: "유별난 눈 맞춤",
-    category: "SA",
-    subCategory: "Interaction",
-    isAiAnalyzed: true,
-    aiSourceTask: "대면호명 과제 분석",
-  },
-  {
-    code: "B-4",
-    label: "타인을 향한 얼굴 표정",
-    category: "SA",
-    subCategory: "Interaction",
-    isAiAnalyzed: true,
-    aiSourceTask: "대면호명 과제 분석",
-  },
-  {
-    code: "B-5",
-    label: "사회적 상호 작용 시도 (통합)",
-    category: "SA",
-    subCategory: "Interaction",
-    isAiAnalyzed: false,
-  },
-  {
-    code: "B-6",
-    label: "공유된 즐거움",
-    category: "SA",
-    subCategory: "Interaction",
-    isAiAnalyzed: true,
-    aiSourceTask: "대면호명/동작모방 TF 종합",
-  },
-  {
-    code: "B-7",
-    label: "이름에 대한 반응",
-    category: "SA",
-    subCategory: "Interaction",
-    isAiAnalyzed: true,
-    aiSourceTask: "비대면호명 과제 분석",
-  },
-  {
-    code: "B-8",
-    label: "무시하기",
-    category: "SA",
-    subCategory: "Interaction",
-    isAiAnalyzed: false,
-  },
-  {
-    code: "B-9",
-    label: "요청하기",
-    category: "SA",
-    subCategory: "Interaction",
-    isAiAnalyzed: false,
-  },
-  {
-    code: "B-12",
-    label: "보여주기",
-    category: "SA",
-    subCategory: "Interaction",
-    isAiAnalyzed: false,
-  },
-  {
-    code: "B-13",
-    label: "합동 주시 자발적 시도",
-    category: "SA",
-    subCategory: "Interaction",
-    isAiAnalyzed: false,
-  },
-  {
-    code: "B-14",
-    label: "합동 주시에 대한 반응",
-    category: "SA",
-    subCategory: "Interaction",
-    isAiAnalyzed: false,
-  },
-  {
-    code: "B-15",
-    label: "사회적 상호 작용 시도 질",
-    category: "SA",
-    subCategory: "Interaction",
-    isAiAnalyzed: false,
-  },
-  {
-    code: "B-16b",
-    label: "상호 작용 시도 양 (부모)",
-    category: "SA",
-    subCategory: "Interaction",
-    isAiAnalyzed: false,
-  },
-  {
-    code: "B-18",
-    label: "전반적인 라포의 질",
-    category: "SA",
-    subCategory: "Interaction",
-    isAiAnalyzed: true,
-    aiSourceTask: "전체 과제 TF 종합",
-  },
-  // RRB
-  {
-    code: "A-3",
-    label: "음성과 언어의 억양",
-    category: "RRB",
-    subCategory: "RRB_General",
-    isAiAnalyzed: true,
-    aiSourceTask: "발화모방 과제 분석",
-  },
-  {
-    code: "D-1",
-    label: "특이한 감각적 흥미",
-    category: "RRB",
-    subCategory: "RRB_General",
-    isAiAnalyzed: false,
-  },
-  {
-    code: "D-2",
-    label: "손과 손가락 움직임/자세",
-    category: "RRB",
-    subCategory: "RRB_General",
-    isAiAnalyzed: false,
-  },
-  {
-    code: "D-5",
-    label: "특이한 반복적 흥미/상동행동",
-    category: "RRB",
-    subCategory: "RRB_General",
-    isAiAnalyzed: false,
-  },
-];
 
-const CODES_PRE_VERBAL = [
-  "A-2",
-  "A-8",
-  "B-1",
-  "B-4",
-  "B-5",
-  "B-6",
-  "B-12",
-  "B-13",
-  "B-14",
-  "B-15",
-  "A-3",
-  "D-1",
-  "D-2",
-  "D-5",
-];
-const CODES_VERBAL = [
-  "A-7",
-  "B-1",
-  "B-4",
-  "B-5",
-  "B-7",
-  "B-8",
-  "B-9",
-  "B-13",
-  "B-15",
-  "B-16b",
-  "B-18",
-  "D-1",
-  "D-2",
-  "D-5",
-];
 
 // Mock AI 결과 (API 연결 전 폴백)
 const MOCK_AI_RESULTS: AdosAiResult = {

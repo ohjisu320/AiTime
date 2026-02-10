@@ -1,4 +1,4 @@
-import React from 'react'; // ReactNode 사용을 위해 추가
+import React, { useState, useEffect } from 'react'; // useState, useEffect 추가
 import {
   Dialog,
   DialogContent,
@@ -20,6 +20,7 @@ interface ConfirmModalProps {
   confirmText?: string; // 👈 ? 추가 (선택 사항)
   confirmVariant?: 'violet' | 'rose' | 'slate';
   hideCloseButton?: boolean; // 👈 닫기 버튼 숨김 옵션 추가
+  disableKeyboardOffset?: boolean; // 👈 키보드 오프셋 비활성화 (검사 페이지 등)
 }
 
 const ConfirmModal = ({
@@ -31,8 +32,53 @@ const ConfirmModal = ({
   confirmText = "확인",
   confirmVariant = 'violet',
   closeOnConfirm = true, // 👈 추가
-  hideCloseButton = false // 👈 닫기 버튼 숨김
-}: ConfirmModalProps & { closeOnConfirm?: boolean }) => {
+  hideCloseButton = false, // 👈 닫기 버튼 숨김
+  disableKeyboardOffset = false // 👈 키보드 오프셋 기능 비활성화 옵션 추가
+}: ConfirmModalProps & { closeOnConfirm?: boolean; disableKeyboardOffset?: boolean }) => {
+  // 모바일 키보드 대응: Visual Viewport API로 키보드 높이 감지
+  const [keyboardOffset, setKeyboardOffset] = useState(0);
+
+  useEffect(() => {
+    // 기능 비활성화 시 실행 안 함
+    if (disableKeyboardOffset) {
+      setKeyboardOffset(0);
+      return;
+    }
+
+    // Visual Viewport API 지원 확인
+    if (typeof window === 'undefined' || !window.visualViewport) return;
+
+    const handleResize = () => {
+      const visualViewport = window.visualViewport;
+      if (!visualViewport) return;
+
+      // 키보드 높이 계산: window.innerHeight - visualViewport.height
+      const keyboardHeight = window.innerHeight - visualViewport.height;
+
+      // 키보드가 150px 이상 올라왔을 때만 모달을 위로 이동
+      if (keyboardHeight > 150) {
+        // 모달을 키보드 높이의 절반만큼 위로 이동
+        setKeyboardOffset(keyboardHeight / 2);
+      } else {
+        setKeyboardOffset(0);
+      }
+    };
+
+    // 초기 체크
+    handleResize();
+
+    // 리사이즈 이벤트 리스너 등록
+    window.visualViewport.addEventListener('resize', handleResize);
+    window.visualViewport.addEventListener('scroll', handleResize);
+
+    return () => {
+      // 클린업
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', handleResize);
+        window.visualViewport.removeEventListener('scroll', handleResize);
+      }
+    };
+  }, [isOpen, disableKeyboardOffset]); // 의존성 추가
 
   const variantStyles = {
     violet: 'bg-[#6366F1] hover:bg-[#4F46E5] shadow-indigo-100',
@@ -50,10 +96,17 @@ const ConfirmModal = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogOverlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" />
 
-      <DialogContent className={cn(
-        "fixed left-[50%] top-[50%] z-50 w-full max-w-[420px] translate-x-[-50%] translate-y-[-50%] rounded-3xl p-8 bg-white shadow-2xl border-none outline-none",
-        confirmVariant === 'rose' && "border-t-8 border-rose-500"
-      )}>
+      <DialogContent
+        className={cn(
+          "fixed left-[50%] top-[50%] z-50 w-full max-w-[420px] translate-x-[-50%] translate-y-[-50%] rounded-3xl p-8 bg-white shadow-2xl border-none outline-none transition-transform duration-200",
+          confirmVariant === 'rose' && "border-t-8 border-rose-500"
+        )}
+        style={
+          disableKeyboardOffset ? undefined : {
+            transform: `translate(-50%, calc(-50% - ${keyboardOffset}px))`
+          }
+        }
+      >
 
         <DialogHeader className="space-y-4 text-center">
           <DialogTitle className={cn("text-2xl font-bold whitespace-pre-wrap", titleStyles[confirmVariant])}>

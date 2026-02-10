@@ -1,0 +1,58 @@
+spring:
+  application:
+    name: aitime
+  profiles:
+    active: ${SPRING_PROFILE:prod}
+  jackson:
+    time-zone: Asia/Seoul
+
+server:
+  port: 8080
+  servlet:
+    context-path: /api/v1
+
+logging:
+  level:
+    root: info
+    org.hibernate.SQL: debug
+    org.hibernate.orm.jdbc.bind: trace
+
+# 쿠키 공통 설정
+cookie:
+  refresh-token:
+    name: refreshToken
+    http-only: true
+    path: /
+    max-age: 1209600  # 14일 (초 단위)
+
+jwt:
+  secret: ${JWT_SECRET}
+  access-token-expiration: ${JWT_ACCESS_EXPIRATION:900000}
+  refresh-token-expiration: ${JWT_REFRESH_EXPIRATION:1209600000}
+
+coolsms:
+  api:
+    key: ${COOLSMS_API_KEY}
+    secret: ${COOLSMS_API_SECRET}
+  from:
+    number: ${COOLSMS_FROM_NUMBER}
+
+minio:
+  bucket-name: ${MINIO_BUCKET_NAME:aitime}
+  region: ${MINIO_REGION:us-east-1}
+  max-file-size: ${MINIO_MAX_FILE_SIZE:524288000}
+  key-expiration-minutes: ${MINIO_KEY_EXPIRATION:60}
+
+livekit:
+  url: ${LIVEKIT_URL}
+  api-key: ${LIVEKIT_API_KEY}
+  api-secret: ${LIVEKIT_API_SECRET}
+
+ai-server:
+  base-url: ${AI_SERVER_URL:http://screening:8000}
+  start-analysis-endpoint: /api/v1/analysis/start
+  timeout: ${AI_SERVER_TIMEOUT:30000}
+
+screening:
+  session-timeout: ${SCREENING_SESSION_TIMEOUT:3600000}
+  max-duration: ${SCREENING_MAX_DURATION:1800000}

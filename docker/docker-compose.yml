@@ -110,7 +110,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - /home/ubuntu:/home/ubuntu:rw
     environment:
-      - JENKINS_OPTS=--prefix=/jenkins -Xms512m -Xmx1024m
+      - JENKINS_OPTS=--prefix=/jenkins
+      - JAVA_OPTS=-Xms512m -Xmx1024m
     networks:
       - cmn-network
     restart: unless-stopped

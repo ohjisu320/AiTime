@@ -1,3 +1,4 @@
+// src/features/doctor/components/layout/DoctorLayout.tsx
 import { useRef, type ReactNode } from "react";
 import { Layout, Model, TabNode, type IJsonModel } from "flexlayout-react";
 import "flexlayout-react/style/light.css";
@@ -19,42 +20,52 @@ export default function DoctorLayout({ panels }: DoctorLayoutProps) {
         },
         borders: [],
         layout: {
-            type: "row",
+            type: "row", // 전체 가로 배치
             weight: 100,
             children: [
-                {
-                    type: "tabset",
-                    weight: 22,
-                    children: [
-                        { type: "tab", name: "환자 정보", component: "patient-detail" }
-                    ]
-                },
-                {
-                    type: "tabset",
-                    weight: 18,
-                    children: [
-                        { type: "tab", name: "세션 목록", component: "session-list" }
-                    ]
-                },
+                // 1. 환자 정보 (가장 왼쪽)
                 {
                     type: "tabset",
                     weight: 20,
                     children: [
-                        { type: "tab", name: "중앙 분석", component: "central-analysis" }
+                        { type: "tab", name: "환자 정보", component: "patient-detail" }
                     ]
                 },
+                // 2. 세션 목록
                 {
                     type: "tabset",
-                    weight: 22,
+                    weight: 15,
                     children: [
-                        { type: "tab", name: "트렌드 차트", component: "trend-chart" }
+                        { type: "tab", name: "영상 목록", component: "session-list" }
                     ]
                 },
+                // 3. 중앙 분석 (비디오) - 비중을 좀 더 높임
                 {
                     type: "tabset",
-                    weight: 18,
+                    weight: 40,
                     children: [
-                        { type: "tab", name: "AI 진단", component: "ai-diagnosis" }
+                        { type: "tab", name: "영상 분석", component: "central-analysis" }
+                    ]
+                },
+                // 4. 우측 컬럼 (상: 트렌드 / 하: AI 진단) - 세로 배치
+                {
+                    type: "column", // 세로 배치 그룹
+                    weight: 25,
+                    children: [
+                        {
+                            type: "tabset",
+                            weight: 50, // 높이 비율 50%
+                            children: [
+                                { type: "tab", name: "지표 변화", component: "trend-chart" }
+                            ]
+                        },
+                        {
+                            type: "tabset",
+                            weight: 50, // 높이 비율 50%
+                            children: [
+                                { type: "tab", name: "AI 진단", component: "ai-diagnosis" }
+                            ]
+                        }
                     ]
                 }
             ]

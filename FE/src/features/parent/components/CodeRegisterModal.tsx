@@ -22,9 +22,10 @@ interface CodeRegisterModalProps {
   description: string;
   confirmText: string;
   isLoading?: boolean; // Add isLoading prop
+  errorMessage?: string | null; // Add errorMessage prop
 }
 
-const CodeRegisterModal = ({ isOpen, onClose, childName, onConfirm, confirmText = "병원 연결하기", isLoading = false }: CodeRegisterModalProps) => {
+const CodeRegisterModal = ({ isOpen, onClose, childName, onConfirm, confirmText = "병원 연결하기", isLoading = false, errorMessage }: CodeRegisterModalProps) => {
   const [inviteCode, setInviteCode] = useState("");
 
   return (
@@ -49,8 +50,13 @@ const CodeRegisterModal = ({ isOpen, onClose, childName, onConfirm, confirmText 
             value={inviteCode}
             onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
             disabled={isLoading}
-            className="h-16 text-center text-xl font-mono tracking-widest rounded-2xl border-2 border-indigo-100 bg-white focus-visible:ring-[#6366F1] disabled:opacity-50"
+            className={`h-16 text-center text-xl font-mono tracking-widest rounded-2xl border-2 ${errorMessage ? 'border-red-500 ring-red-200' : 'border-indigo-100'} bg-white focus-visible:ring-[#6366F1] disabled:opacity-50`}
           />
+          {errorMessage && (
+            <p className="mt-4 text-center text-red-500 font-medium animate-pulse">
+              {errorMessage}
+            </p>
+          )}
         </div>
 
         <DialogFooter>

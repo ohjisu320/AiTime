@@ -14,6 +14,9 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
+      workbox: {
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+      },
       includeAssets: ['favicon.ico', 'favicon.svg', 'apple-touch-icon.png'],
       manifest: {
         name: '아이타임(AiTime)',
@@ -22,7 +25,7 @@ export default defineConfig({
         theme_color: '#6366F1',
         background_color: '#ffffff',
         display: 'standalone',
-        orientation: 'portrait',
+        orientation: 'any',
         start_url: '/',
         scope: '/',
         icons: [
@@ -76,7 +79,19 @@ export default defineConfig({
       },
     },
   },
-  // 1. 개발 서버 설정 (npm run dev)
+  build: {
+    target: 'es2020',
+    minify: 'esbuild',
+    rollupOptions: {
+      output: {
+        chunkFileNames: 'assets/[name]-[hash].js',
+        entryFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash].[ext]',
+        // Vite 자동 청크 분할에 맡김 (manualChunks 제거)
+      },
+    },
+    chunkSizeWarningLimit: 1000,
+  },
   server: {
     proxy: {
       '/api/v1': {
@@ -91,7 +106,7 @@ export default defineConfig({
         },
         configure: (proxy, _options) => {
           proxy.on('proxyReq', (proxyReq, _req, _res) => {
-            proxyReq.setHeader('Origin', 'http://70.12.246.92:8080');
+            proxyReq.setHeader('Origin', 'http://70.12.246.95:8080');
           });
           proxy.on('proxyRes', (proxyRes, _req, _res) => {
             const cookies = proxyRes.headers['set-cookie'];
@@ -105,7 +120,6 @@ export default defineConfig({
       },
     },
   },
-  // 2. 프리뷰 서버 설정 (npm run preview) - 이 부분을 추가하세요!
   preview: {
     proxy: {
       '/api': {

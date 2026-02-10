@@ -1,5 +1,6 @@
 import type { RouteObject } from "react-router-dom";
 import MobileLayout from "@/components/layout/MobileLayout";
+import GlobalErrorPage from "@/components/common/GlobalErrorPage";
 
 
 //부모
@@ -24,6 +25,7 @@ export const hyoseokRoutes: RouteObject[] = [
   // 부모님용 (모바일)
   {
     path: "/parent",
+    errorElement: <GlobalErrorPage />, // ✅ 전역 에러 페이지 추가
     children: [
       // 프로필 선택 페이지 (MobileLayout 외부)
       // 경로: /parent/select-profile
@@ -41,12 +43,13 @@ export const hyoseokRoutes: RouteObject[] = [
       },
     ],
   },
-  
+
   // ▼▼▼ [필수 추가] 자녀별 대시보드 경로 ▼▼▼
   // 이 부분이 있어야 ProfileSelectPage에서 이동 가능합니다.
   {
     path: "/child/:childId",
     element: <MobileLayout />,
+    errorElement: <GlobalErrorPage />, // ✅ 전역 에러 페이지 추가
     children: [
       { index: true, element: <DashboardPage /> }, // /child/{uuid} 로 접속 시 대시보드 뜸
     ],
@@ -57,7 +60,7 @@ export const hyoseokRoutes: RouteObject[] = [
   // 의사용 (데스크탑)
   {
     path: "/doctor",
-  
+    errorElement: <GlobalErrorPage />, // ✅ 전역 에러 페이지 추가
     children: [
       { path: "dashboard", element: <DoctorDashboardPage /> },
 
@@ -67,6 +70,7 @@ export const hyoseokRoutes: RouteObject[] = [
   // 3. 접수처(데스크)용 ( URL: /reception/dashboard)
   {
     path: "/reception",
+    errorElement: <GlobalErrorPage />, // ✅ 전역 에러 페이지 추가
     children: [
       { path: "dashboard", element: <DeskDashboard /> },
     ],

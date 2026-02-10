@@ -104,11 +104,11 @@ class Settings(BaseSettings):
         description="RabbitMQ 최대 재시도 횟수"
     )
     INPUT_QUEUE: str = Field(
-        default="analysis.name_non_facing.request",
+        default="analysis.req.task4",
         description="작업 요청 큐 (TODO: 백엔드 협의 후 확정)"
     )
     OUTPUT_QUEUE: str = Field(
-        default="analysis.name_non_facing.result",
+        default="analysis.resp",
         description="결과 응답 큐 (TODO: 백엔드 협의 후 확정)"
     )
     
@@ -206,7 +206,7 @@ class Settings(BaseSettings):
     # ===== Vision 파라미터 =====
     # YOLO Head Detector
     YOLO_HEAD_MODEL: str = Field(
-        default="yolo_p2layer_jh.pt",
+        default="models/yolo_p2layer_jh.pt",
         description=(
             "YOLO Head-specific 모델 경로\n"
             "  - yolo_p2layer_jh.pt: P2 layer 추가된 커스텀 모델 (뒤통수 등 가린 얼굴 영역에서도 정확도 향상)\n"

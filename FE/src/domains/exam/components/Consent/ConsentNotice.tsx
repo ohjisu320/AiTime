@@ -7,7 +7,7 @@ const ConsentNotice: React.FC = () => (
     <div className="flex flex-col gap-1">
       <p className="text-amber-900 text-sm font-bold">중요 안내</p>
       <p className="text-amber-800 text-sm leading-relaxed">
-        AiTime은 의료 보조 도구입니다. 검사 결과는 반드시 전문의와 상담하여 해석해야 하며, 자가 진단의 목적으로 사용되지 않습니다.
+        AiTime은 12-23개월 영유아와 부모가, 가정 내에서 수행하는 표준화된 4가지 과제를, AI가 채점하여, 소아과 의사의 초기 면담/ 관찰 과정을 대체하는, 디지털 의료기기입니다.
       </p>
     </div>
   </div>

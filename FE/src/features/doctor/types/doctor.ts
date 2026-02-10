@@ -1,117 +1,56 @@
 // src/features/doctor/types/doctor.ts
-/**
- * 의사 기능 타입 정의
- * OpenAPI 명세서 기반 (2026-02-05)
- */
 
-// ===== Enum Types =====
-
-export type VideoType = 'TASK1' | 'TASK2' | 'TASK3' | 'TASK4';
-export type VideoStatus = 'UPLOADED' | 'ANALYZING' | 'FAILED' | 'EMPTY';
-export type ExamStatus = 'IN_PROGRESS' | 'COMPLETED';
-
-// ===== API Response Types =====
-
+// 1. 환자 목록 (대기열)용 DTO
 export interface PatientDto {
   childId: string;
-  // [추가] 병원-환아 매핑 ID (API 응답에 이 필드가 있는지 확인 필요)
-  hospitalChildrenId?: string;
-  userId: string;
+  hospitalChildrenId?: string; // 선택적
+  name: string;       // 화면 표시용 이름 (API의 childName 매핑)
+  childName?: string; // API 원본 필드 대응
+  gender: string;
+  monthlyAge: number; // 화면 표시용 (API의 months 매핑)
+  months?: number;    // API 원본 필드 대응
+  birthdate?: string;
+}
+
+// 2. 환자 상세 정보 (PatientDetailPanel용)
+export interface PatientHistory {
+  category: string;
+  content: string;
+}
+
+export interface PatientDetailFull {
   name: string;
+  gender: "MALE" | "FEMALE";
   monthlyAge: number;
   birthdate: string;
-  gender: 'MALE' | 'FEMALE';
-  latestExamStatus: string;
-}
-
-export interface PatientSearchResponse {
-  childResponses: PatientDto[];
-  total: number;
-}
-
-export interface ApiResponsePatientSearchResponse {
-  code: number;
-  status: string;
-  message: string;
-  data: PatientSearchResponse;
-}
-
-// ===== Dashboard Types (OpenAPI) =====
-
-export interface AnalysisScore {
-  date: string;      // YYYY-MM-DD
-  score: number;
-  examId: string;    // UUID
-}
-
-export interface ExamHistoryItem {
-  examId: string;       // UUID
-  completedAt: string;  // YYYY-MM-DD
-  status: ExamStatus;
-}
-
-export interface DoctorDashboardData {
-  taskType: VideoType;
-  analysisScores: AnalysisScore[];
-  examHistory: ExamHistoryItem[];
-}
-
-export interface VideoByDateItem {
-  videoId: string;      // UUID
-  videoType: VideoType;
-  status: VideoStatus;
-  durationSec?: number | null;
-}
-
-export interface TaskVideoItem {
-  examDate: string;     // YYYY-MM-DD
-  videoId: string;      // UUID
-  status: VideoStatus;
-  analysisResult?: Record<string, unknown> | null;
-}
-
-// ===== Patient Detail Types =====
-
-export interface PatientDetailFull extends PatientDto {
   height: string;
   weight: string;
   caregiver: string;
   medication: string;
   familyHistory: string;
-  history: { category: string; content: string }[];
-  complaints: { category: string; content: string }[];
+  history: PatientHistory[];
+  complaints: PatientHistory[];
 }
 
-// ===== Video Analysis Types =====
-
-export interface TimelineMarker {
-  type: 'parent' | 'child-vocal' | 'child-behavior';
-  label: string;
-  start: number;
-  width: number;
-}
-
-export interface AdosItem {
-  name: string;
-  score: number;
-  checked: boolean;
-}
-
-export interface AdosCategory {
-  title: string;
-  items: AdosItem[];
-}
-
+// 3. UI용 분석 타임스탬프 (CentralAnalysisPanel용)
 export interface AnalysisTimestamp {
   id: number;
-  type: 'parent' | 'child-vocal' | 'child-behavior';
+  type: "parent" | "child-vocal" | "child-behavior"; // 타임라인 색상/위치 결정
   label: string;
   startTime: number;
   duration: number;
+}
+
+// 4. 비디오 분석 데이터 통합 (DoctorDashboard -> CentralAnalysisPanel)
+export interface TimelineRow {
+  key: string;
+  label: string;
+  color: string;
 }
 
 export interface VideoAnalysisData {
   videoUrl: string;
   totalDuration: number;
   timestamps: AnalysisTimestamp[];
+  rows: TimelineRow[]; // 동적 타임라인 행 설정
 }

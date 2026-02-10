@@ -2,9 +2,16 @@ import { Play } from 'lucide-react';
 import type { HeroBannerProps } from '../hooks/useDashboardLogic';
 
 const HeroBanner = ({ title, subtitle, buttonText, status, onPrimaryAction }: HeroBannerProps) => {
+    const handleClick = () => {
+        console.log('🎯 [HeroBanner] Banner clicked!', { status, title, buttonText });
+        console.log('🎯 [HeroBanner] Calling onPrimaryAction...');
+        onPrimaryAction();
+        console.log('🎯 [HeroBanner] onPrimaryAction called successfully');
+    };
+
     return (
         <section
-            onClick={onPrimaryAction}
+            onClick={handleClick}
             data-status={status}
             className="relative w-full h-[180px] sm:h-[200px] md:h-[220px] lg:h-[250px] bg-gradient-to-r from-[#6366F1] to-[#4F46E5] rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden p-6 sm:p-8 md:p-10 lg:p-12 flex items-center gap-4 sm:gap-6 md:gap-8 lg:gap-10 cursor-pointer transition-all hover:brightness-110 active:scale-[0.99]"
         >

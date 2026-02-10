@@ -3,8 +3,7 @@ import type { ExamVideoListItem } from "@/api/types/examReport.types";
 
 interface Props {
   examVideoList: ExamVideoListItem[];
-  onSelectVideo: (videoId: string) => void;
-  // 현재 재생중인 비디오의 examId를 알면 하이라이팅 가능 (선택 사항)
+  onSelectVideo: (examId: string, videoId: string) => void;
   currentVideoExamId?: string;
 }
 
@@ -17,31 +16,35 @@ export default function SessionListPanel({ examVideoList, onSelectVideo, current
           <details
             key={exam.examId}
             className="cursor-pointer group"
-            // 최신 검사이거나 현재 비디오가 속한 검사면 펼쳐두기
             open={exam.examId === currentVideoExamId || examVideoList[0].examId === exam.examId}
           >
-            <summary className="font-bold text-[12px] select-none text-black group-hover:text-blue-900">
-              ▣ {exam.examDate} <span className="text-[10px] font-normal">({exam.examStatus})</span>
+            <summary className="font-bold text-[14px] select-none text-black group-hover:text-blue-900 list-none mb-1">
+              <span className="inline-block w-4 mr-1 text-center group-open:rotate-90 transition-transform">▶</span>
+              ▣ {exam.examDate} <span className="text-[12px] font-normal text-[#666]">({exam.examStatus})</span>
             </summary>
-            <div className="pl-4 mt-2 flex flex-col gap-1.5 text-[11px] text-blue-800 underline">
+
+            <div className="pl-6 mt-1 flex flex-col gap-2 text-[13px] border-l-2 border-gray-300 ml-2 py-1">
               {exam.videos.length > 0 ? (
                 exam.videos.map((video) => (
-                  <span
+                  <button
                     key={video.videoId}
-                    onClick={() => onSelectVideo(video.videoId)}
-                    className="cursor-pointer hover:font-bold hover:text-red-600"
+                    onClick={() => onSelectVideo(exam.examId, video.videoId)}
+                    className="text-left text-blue-800 hover:font-bold hover:text-red-600 hover:bg-blue-50 px-2 py-0.5 rounded cursor-pointer truncate"
                   >
                     ▷ {video.videoType}
-                  </span>
+                  </button>
                 ))
               ) : (
-                <span className="text-gray-400 no-underline">영상 없음</span>
+                <span className="text-gray-400 pl-2">영상 없음</span>
               )}
             </div>
           </details>
         ))}
+
         {examVideoList.length === 0 && (
-          <div className="text-center text-gray-500 mt-10">검사 이력이 없습니다.</div>
+          <div className="text-center text-gray-500 mt-10 text-[14px]">
+            검사 이력이 없습니다.
+          </div>
         )}
       </div>
     </div>

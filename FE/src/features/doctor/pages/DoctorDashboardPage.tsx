@@ -10,61 +10,238 @@ import VideoModal from "../components/modals/VideoModal";
 import AdosModal from "../components/modals/AdosModal";
 import WaitingListSidebar from "../components/panels/WaitingListSidebar";
 import DoctorLayout from "../components/layout/DoctorLayout";
-import type { VideoAnalysisData } from "../types/doctor";
-import type { AdosUpdateRequest } from "@/api/types/examReport.types";
+import type { VideoAnalysisData, AnalysisTimestamp } from "../types/doctor";
+import type { AdosUpdateRequest, PoseTimestamp, SimpleTimestamp, NonFacingTimestamp } from "@/api/types/examReport.types";
 
-// 기본 분석 데이터 (API 데이터 없을 때 폴백)
 const DEFAULT_ANALYSIS: VideoAnalysisData = {
   videoUrl: "",
   totalDuration: 60,
   timestamps: [],
+  rows: [
+    { key: "parent", label: "부모 행동", color: "bg-gray-500" },
+    { key: "child-vocal", label: "아이 음성", color: "bg-green-600" },
+    { key: "child-behavior", label: "아이 행동", color: "bg-blue-600" },
+  ],
 };
 
 export default function DoctorDashboardPage() {
   const { states, actions } = useDoctorDashboard();
   const patientAge = states.selectedPatient?.monthlyAge || 0;
 
-  // [핵심] API로부터 받은 currentVideoData를 VideoAnalysisData 형식으로 변환
+  // [핵심 로직] API 데이터를 UI용 데이터로 변환 (타입별 분기 처리)
   const analysisData: VideoAnalysisData = useMemo(() => {
     if (!states.currentVideoData) {
       return DEFAULT_ANALYSIS;
     }
 
     const videoData = states.currentVideoData;
-    // 비디오 총 길이 계산 (timestamps 기반 추정, 마지막 endS 사용)
-    const maxEndTime = videoData.timestamps.reduce(
-      (max, ts) => Math.max(max, ts.endS),
-      0
-    );
-    const totalDuration = Math.max(maxEndTime + 5, 60); // 최소 60초 또는 마지막 타임스탬프 + 여유
+
+    const uiTimestamps: AnalysisTimestamp[] = [];
+    let maxEndTime = 0;
+
+    // 비디오 타입에 따른 데이터 매핑 전략
+    videoData.timestamps?.forEach((ts, idx) => {
+      const baseId = (idx + 1) * 10; // ID 충돌 방지용
+
+      // 1. 동작 모방 (POSE_IMITATION)
+      if (videoData.videoType === 'POSE_IMITATION') {
+        const item = ts as PoseTimestamp;
+
+        // (A) 기존 포맷 (parentStartTime/childStartTime) 있는 경우
+        if (item.parentStartTime !== undefined && item.childStartTime !== undefined) {
+          // (1) 부모 행동 (Parent)
+          uiTimestamps.push({
+            id: baseId + 1,
+            type: "parent",
+            label: `Trial ${item.trialIndex} (시연)`,
+            startTime: item.parentStartTime,
+            duration: item.parentEndTime - item.parentStartTime,
+          });
+
+          // (2) 아이 행동 (Child)
+          uiTimestamps.push({
+            id: baseId + 2,
+            type: "child-behavior",
+            label: `Trial ${item.trialIndex} (모방)`,
+            startTime: item.childStartTime,
+            duration: item.childEndTime - item.childStartTime,
+          });
+          maxEndTime = Math.max(maxEndTime, item.childEndTime);
+        }
+        // (B) 신규 포맷 (startS / endS) 있는 경우
+        else if (item.startS !== undefined) {
+          const start = item.startS;
+          // endS가 null이면 기본 3초 혹은 5초 등으로 설정 (영상 길이에 따라 다를 수 있음)
+          // 여기서는 null일 경우 0으로 처리하거나, 특정 길이를 부여
+          const end = item.endS ?? (start + 5);
+
+          uiTimestamps.push({
+            id: baseId,
+            type: "child-behavior", // 혹은 'parent', 문맥상 모호하지만 하나만 표시
+            label: `Trial ${item.trialIndex}`,
+            startTime: start,
+            duration: end - start,
+          });
+          maxEndTime = Math.max(maxEndTime, end);
+        }
+      }
+
+      // 2. 발화 모방 (SPEECH_IMITATION)
+      else if (videoData.videoType === 'SPEECH_IMITATION') {
+        const item = ts as SimpleTimestamp;
+
+        if (item.trialStartS !== undefined) {
+          uiTimestamps.push({
+            id: baseId,
+            type: "child-vocal", // 음성 라인에 표시
+            label: `Trial ${item.trialIndex}`,
+            startTime: item.trialStartS,
+            duration: item.trialEndS - item.trialStartS,
+          });
+          maxEndTime = Math.max(maxEndTime, item.trialEndS);
+        } else if (item.startS !== undefined) {
+          const start = item.startS;
+          const end = item.endS ?? (start + 3);
+
+          uiTimestamps.push({
+            id: baseId,
+            type: "child-vocal",
+            label: `Trial ${item.trialIndex}`,
+            startTime: start,
+            duration: end - start,
+          });
+          maxEndTime = Math.max(maxEndTime, end);
+        }
+      }
+
+      // 3. 대면 호명 (NAME_FACING)
+      else if (videoData.videoType === 'NAME_FACING') {
+        const item = ts as SimpleTimestamp;
+
+        if (item.trialStartS !== undefined) {
+          uiTimestamps.push({
+            id: baseId,
+            type: "child-behavior", // 행동 라인에 표시
+            label: `Trial ${item.trialIndex}`,
+            startTime: item.trialStartS,
+            duration: item.trialEndS - item.trialStartS,
+          });
+          maxEndTime = Math.max(maxEndTime, item.trialEndS);
+        } else if (item.startS !== undefined) {
+          const start = item.startS;
+          const end = item.endS ?? (start + 3);
+
+          uiTimestamps.push({
+            id: baseId,
+            type: "child-behavior",
+            label: `Trial ${item.trialIndex}`,
+            startTime: start,
+            duration: end - start,
+          });
+          maxEndTime = Math.max(maxEndTime, end);
+        }
+      }
+
+      // 4. 비대면 호명 (NAME_NON_FACING)
+      else if (videoData.videoType === 'NAME_NON_FACING') {
+        const item = ts as NonFacingTimestamp;
+
+        // (A) 기존 포맷
+        if (item.triggerStartS !== undefined) {
+          // (1) 시각적 자극/트리거
+          uiTimestamps.push({
+            id: baseId + 1,
+            type: "parent",
+            label: `T${item.trialIndex} 자극`,
+            startTime: item.triggerStartS,
+            duration: item.triggerEndS - item.triggerStartS,
+          });
+
+          // (2) 호명/반응
+          uiTimestamps.push({
+            id: baseId + 2,
+            type: "child-vocal",
+            label: `T${item.trialIndex} 호명`,
+            startTime: item.voiceStartS,
+            duration: item.voiceEndS - item.voiceStartS,
+          });
+          maxEndTime = Math.max(maxEndTime, item.voiceEndS);
+        }
+        // (B) 신규 포맷
+        else if (item.startS !== undefined) {
+          const start = item.startS;
+          const end = item.endS ?? (start + 3);
+
+          // 단일 구간으로 표시
+          uiTimestamps.push({
+            id: baseId,
+            type: "parent", // 혹은 child-vocal
+            label: `Trial ${item.trialIndex}`,
+            startTime: start,
+            duration: end - start,
+          });
+          maxEndTime = Math.max(maxEndTime, end);
+        }
+      }
+    });
+
+    const totalDuration = Math.max(maxEndTime + 5, 60);
+
+    // [동적 타임라인 설정] 비디오 타입별 행 구성
+    // keys: "parent" | "child-vocal" | "child-behavior"
+    let timelineRows: { key: string; label: string; color: string }[] = [];
+
+    switch (videoData.videoType) {
+      case 'POSE_IMITATION':
+        timelineRows = [
+          { key: "parent", label: "부모 시연", color: "bg-gray-500" },
+          { key: "child-behavior", label: "아이 모방", color: "bg-blue-600" },
+        ];
+        break;
+      case 'SPEECH_IMITATION':
+        timelineRows = [
+          { key: "child-vocal", label: "아이 발화", color: "bg-green-600" },
+        ];
+        break;
+      case 'NAME_FACING':
+        timelineRows = [
+          { key: "child-behavior", label: "아이 반응", color: "bg-blue-600" },
+        ];
+        break;
+      case 'NAME_NON_FACING':
+        timelineRows = [
+          { key: "parent", label: "자극 제시", color: "bg-gray-500" },
+          { key: "child-vocal", label: "호명(청각)", color: "bg-yellow-600" }, // 구분을 위해 색상 변경
+        ];
+        break;
+      default:
+        // 기본값 (모두 표시)
+        timelineRows = [
+          { key: "parent", label: "부모 행동", color: "bg-gray-500" },
+          { key: "child-vocal", label: "아이 음성", color: "bg-green-600" },
+          { key: "child-behavior", label: "아이 행동", color: "bg-blue-600" },
+        ];
+    }
 
     return {
       videoUrl: videoData.viewUrl,
       totalDuration,
-      timestamps: videoData.timestamps.map((ts, idx) => ({
-        id: idx + 1,
-        type: "child-behavior" as const, // API 타임스탬프를 child-behavior 행에 표시
-        label: `Trial ${ts.trialIndex}`,
-        startTime: ts.startS,
-        duration: ts.endS - ts.startS,
-      })),
+      timestamps: uiTimestamps,
+      rows: timelineRows,
     };
   }, [states.currentVideoData]);
 
-  // [추가] 모달로 전달할 영상 시작 시간 상태
   const [videoStartTime, setVideoStartTime] = useState(0);
 
-  // ADOS 저장 핸들러
   const handleAdosSave = useCallback(async (examId: string, scores: AdosUpdateRequest) => {
     await actions.updateAdos(examId, scores);
   }, [actions]);
 
-  // 최신 examId 가져오기
   const latestExamId = states.currentAdosDetail?.examId ||
     (states.examVideoList.length > 0 ? states.examVideoList[0].examId : undefined);
 
   return (
-    <div className="h-screen w-screen bg-[#808080] flex flex-col overflow-hidden font-['Gulim'] text-[11px]">
+    <div className="h-screen w-screen bg-[#808080] flex flex-col overflow-hidden font-['Gulim'] text-[13px]">
       <main className="flex-1 overflow-hidden bg-[#808080] p-[2px]">
         <DoctorLayout
           panels={{
@@ -74,7 +251,6 @@ export default function DoctorDashboardPage() {
                 toggleSidebar={actions.toggleSidebar}
               />
             ),
-            // [수정됨] SessionListPanel에 필요한 props 전달
             "session-list": (
               <SessionListPanel
                 examVideoList={states.examVideoList}
@@ -91,7 +267,6 @@ export default function DoctorDashboardPage() {
                 }}
               />
             ),
-            // [수정됨] TrendChartPanel에 그래프 데이터 전달
             "trend-chart": (
               <TrendChartPanel
                 adosGraphs={states.adosGraphs}
@@ -108,7 +283,6 @@ export default function DoctorDashboardPage() {
         />
       </main>
 
-      {/* Modals */}
       {states.isVideoModalOpen && (
         <VideoModal
           videoUrl={analysisData.videoUrl}
@@ -132,7 +306,6 @@ export default function DoctorDashboardPage() {
           isOpen={states.isSidebarOpen}
           onClose={actions.toggleSidebar}
           onSelectPatient={actions.selectPatient}
-          waitingList={states.waitingList}
         />
       )}
     </div>

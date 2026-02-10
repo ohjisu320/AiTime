@@ -24,6 +24,8 @@ COPY app/ ./app/
 # YOLO 모델 복사
 COPY *.pt ./
 
+WORKDIR /app/app
+
 # 환경 변수
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
@@ -54,5 +56,5 @@ EXPOSE 8004
 # 기본: Worker 실행 (RabbitMQ Consumer)
 # API 모드: RUN_MODE=api 설정 시 uvicorn 실행
 # ============================================================
-CMD ["sh", "-c", "if [ \"$RUN_MODE\" = 'api' ]; then uvicorn app.main:app --host 0.0.0.0 --port 8004; else python -m app.worker; fi"]
+CMD ["sh", "-c", "if [ \"$RUN_MODE\" = 'api' ]; then uvicorn main:app --host 0.0.0.0 --port 8004; else python -m worker; fi"]
 

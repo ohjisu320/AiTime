@@ -1,8 +1,4 @@
 // src/features/doctor/api/examReportApi.ts
-/**
- * 환아 검사 리포트 API
- * 명세서 기준 구현 (2026-02-05)
- */
 import api from '@/api/axiosConfig';
 import type {
     ExamReportInitialData,
@@ -10,19 +6,12 @@ import type {
     VideoPresignView,
     AdosGraphs,
     AdosDetail,
-    AdosUpdateRequest,
 } from '@/api/types/examReport.types';
 
 export const examReportApi = {
     /**
      * 0) 환아 검사 리포트 초기 데이터 조회 (통합)
      * GET /api/v1/doctor/{hospitalChildrenId}/exam-reports/initial
-     * 
-     * 포함 데이터:
-     * 1. examVideoList - 환아별 검사 목록(검사별 비디오 목록)
-     * 2. latestPoseImitationVideo - 최신 POSE_IMITATION 비디오 presign-view + timestamps
-     * 3. adosGraphs - 날짜별 ADOS 시계열(4개 그래프)
-     * 4. latestAdosDetail - 최신 exam 기준 ADOS 상세
      */
     getExamReportsInitial: async (
         hospitalChildrenId: string,
@@ -51,15 +40,31 @@ export const examReportApi = {
     },
 
     /**
-     * 3) 비디오 상세 + 타임스탬프 조회
-     * GET /api/v1/doctor/videos/{videoId}/presign-view
+     * 3) 비디오 상세 (타임스탬프 X, 일반 조회용)
+     * GET /api/v1/exam/{examId}/videos/{videoId}
      */
-    getVideoPresignView: async (videoId: string): Promise<VideoPresignView> => {
-        console.log(`📡 [API] 비디오 상세 조회: ${videoId}`);
+    getVideoPresignView: async (examId: string, videoId: string): Promise<VideoPresignView> => {
+        console.log(`📡 [API] 비디오 상세 조회: ${videoId} (examId: ${examId})`);
         const { data } = await api.get<{ code: number; message: string; data: VideoPresignView }>(
-            `/doctor/videos/${videoId}/presign-view`
+            `/exam/${examId}/videos/${videoId}`
         );
         console.log('✅ [API] 비디오 상세 조회 완료');
+        return data.data;
+    },
+
+    /**
+     * 3-1) 비디오 상세 + 타임스탬프 (의료진용)
+     * GET /api/v1/exam/{examId}/videos/{videoId}/with-timestamps
+     */
+    getVideoPresignViewWithTimestamps: async (
+        examId: string,
+        videoId: string
+    ): Promise<VideoPresignView> => {
+        console.log(`📡 [API] 비디오(타임스탬프) 조회: ${videoId} (examId: ${examId})`);
+        const { data } = await api.get<{ code: number; message: string; data: VideoPresignView }>(
+            `/exam/${examId}/videos/${videoId}/with-timestamps`
+        );
+        console.log('✅ [API] 비디오(타임스탬프) 조회 완료');
         return data.data;
     },
 
@@ -90,16 +95,11 @@ export const examReportApi = {
     },
 
     /**
-     * 6) 검사(Exam) 기준 ADOS 수정
-     * PUT /api/v1/doctor/exams/{examId}/ados
+     * 6) 검사(Exam) 기준 ADOS 수정 (비활성화 상태)
+     * 현재 스펙 미지원 -> 에러 처리
      */
-    updateAdos: async (examId: string, scores: AdosUpdateRequest): Promise<AdosDetail> => {
-        console.log(`📡 [API] ADOS 수정: ${examId}`);
-        const { data } = await api.put<{ code: number; message: string; data: AdosDetail }>(
-            `/doctor/exams/${examId}/ados`,
-            scores
-        );
-        console.log('✅ [API] ADOS 수정 완료');
-        return data.data;
-    },
+    updateAdos: async (_examId: string, _scores: unknown): Promise<AdosDetail> => {
+        console.warn('updateAdos is not implemented in backend spec.');
+        throw new Error('Not Implemented');
+    }
 };

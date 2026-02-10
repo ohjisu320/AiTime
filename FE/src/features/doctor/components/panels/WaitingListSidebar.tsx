@@ -19,50 +19,35 @@ export default function WaitingListSidebar({
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
   const [reservedDates, setReservedDates] = useState<string[]>([]);
   const [patients, setPatients] = useState<PatientDto[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [isCalendarLoading, setIsCalendarLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // localStorage에서 로그인한 의사 정보 가져오기
   const doctorInfo = useMemo(() => {
     try {
       const userStr = localStorage.getItem("user");
-      if (userStr) {
-        const user = JSON.parse(userStr);
-        return {
-          name: user.name || "알 수 없음",
-          department: "소아청소년과"
-        };
-      }
-    } catch (e) {
-      console.error("의사 정보 파싱 실패:", e);
+      const user = userStr ? JSON.parse(userStr) : null;
+      return {
+        name: user?.name || "알 수 없음",
+        department: "소아청소년과"
+      };
+    } catch {
+      return { name: "알 수 없음", department: "정보 없음" };
     }
-    return { name: "알 수 없음", department: "정보 없음" };
   }, []);
 
-  // 실시간 시계 기능
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
-      const formatted = now
-        .toLocaleString("ko-KR", {
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: false,
-        })
-        .replace(/\./g, "-")
-        .replace(" ", " ");
-      setCurrentTime(formatted);
+      setCurrentTime(now.toLocaleString("ko-KR", {
+        year: "numeric", month: "2-digit", day: "2-digit",
+        hour: "2-digit", minute: "2-digit", hour12: false,
+      }).replace(/\./g, "-").replace(" ", " "));
     };
-
     updateTime();
     const timer = setInterval(updateTime, 1000 * 60);
     return () => clearInterval(timer);
   }, []);
 
-  // 날짜 포맷 헬퍼
   const formatDate = (date: Date): string => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -70,23 +55,20 @@ export default function WaitingListSidebar({
     return `${year}-${month}-${day}`;
   };
 
-  // 월별 캘린더 데이터 로드
   const fetchCalendarData = useCallback(async () => {
     setIsCalendarLoading(true);
     try {
       const year = currentMonth.getFullYear();
       const month = currentMonth.getMonth() + 1;
       const dates = await doctorApi.getReservationCalendar(year, month);
-      setReservedDates(dates);
+      setReservedDates(dates || []);
     } catch (error) {
-      console.error("캘린더 데이터 로드 실패:", error);
-      setReservedDates([]);
+      console.error("캘린더 로드 실패:", error);
     } finally {
       setIsCalendarLoading(false);
     }
   }, [currentMonth]);
 
-  // 선택 날짜 환자 목록 로드
   const fetchPatients = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -95,9 +77,12 @@ export default function WaitingListSidebar({
         page: 0,
         size: 100,
         date: dateStr,
+        year: selectedDate.getFullYear(),
+        month: selectedDate.getMonth() + 1,
+        day: selectedDate.getDate(),
       });
-      if (response.code === 200 && response.data?.childResponses) {
-        setPatients(response.data.childResponses);
+      if (response?.code === 200 && response.data?.data) {
+        setPatients(response.data.data);
       } else {
         setPatients([]);
       }
@@ -109,57 +94,15 @@ export default function WaitingListSidebar({
     }
   }, [selectedDate]);
 
-  // 월 변경 시 캘린더 데이터 로드
   useEffect(() => {
     if (isOpen) {
       fetchCalendarData();
-    }
-  }, [isOpen, fetchCalendarData]);
-
-  // 날짜 변경 시 환자 목록 로드
-  useEffect(() => {
-    if (isOpen) {
       fetchPatients();
     }
-  }, [isOpen, selectedDate, fetchPatients]);
+  }, [isOpen, fetchCalendarData, fetchPatients]);
 
-  // 환자 클릭 핸들러
-  const handlePatientClick = (patient: PatientDto) => {
-    onSelectPatient(patient);
-    onClose();
-  };
-
-  // 달력 헬퍼 함수들
-  const getDaysInMonth = (date: Date) => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    const startDayOfWeek = firstDay.getDay();
-    return { daysInMonth, startDayOfWeek };
-  };
-
-  const isReservedDate = (day: number) => {
-    const dateStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    return reservedDates.includes(dateStr);
-  };
-
-  const isSelectedDate = (day: number) => {
-    return (
-      selectedDate.getFullYear() === currentMonth.getFullYear() &&
-      selectedDate.getMonth() === currentMonth.getMonth() &&
-      selectedDate.getDate() === day
-    );
-  };
-
-  const isToday = (day: number) => {
-    const today = new Date();
-    return (
-      today.getFullYear() === currentMonth.getFullYear() &&
-      today.getMonth() === currentMonth.getMonth() &&
-      today.getDate() === day
-    );
+  const changeMonth = (delta: number) => {
+    setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + delta, 1));
   };
 
   const handleDayClick = (day: number) => {
@@ -167,8 +110,12 @@ export default function WaitingListSidebar({
     setSelectedDate(newDate);
   };
 
-  const changeMonth = (delta: number) => {
-    setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + delta, 1));
+  const getDaysInMonth = (date: Date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    return { daysInMonth: lastDay.getDate(), startDayOfWeek: firstDay.getDay() };
   };
 
   const { daysInMonth, startDayOfWeek } = getDaysInMonth(currentMonth);
@@ -178,146 +125,127 @@ export default function WaitingListSidebar({
 
   return (
     <>
-      {/* 배경 오버레이 */}
       <div className="fixed inset-0 bg-black/50 z-[1500]" onClick={onClose} />
 
-      {/* 사이드바 본체 */}
-      <div
-        className={cn(
-          "fixed left-0 top-0 h-full w-[320px] bg-[#d4d0c8] border-r-2 border-white z-[2000] transition-transform font-['Gulim'] text-[11px]",
-          isOpen ? "translate-x-0" : "-translate-x-full"
-        )}
-      >
+      <div className={cn(
+        // [수정] 너비 320 -> 350px, 기본 폰트 13px
+        "fixed left-0 top-0 h-full w-[350px] bg-[#d4d0c8] border-r-2 border-white z-[2000] transition-transform font-['Gulim'] text-[13px] shadow-2xl",
+        isOpen ? "translate-x-0" : "-translate-x-full"
+      )}>
         <div className="flex flex-col h-full">
-          {/* 1. 타이틀 바 */}
+
           <div className="bg-[#000080] p-[4px] flex items-center justify-between text-white shrink-0">
-            <span className="font-bold">▣ 환자 예약 관리</span>
+            <span className="font-bold pl-1 text-[13px]">▣ 환자 예약 관리</span>
             <button
               onClick={onClose}
-              className="w-[18px] h-[18px] bg-[#d4d0c8] border-2 border-white border-r-[#404040] border-b-[#404040] text-black text-[11px] leading-none flex items-center justify-center cursor-pointer"
+              className="w-[20px] h-[20px] bg-[#d4d0c8] border-2 border-white border-r-[#404040] border-b-[#404040] text-black text-[12px] leading-none flex items-center justify-center cursor-pointer active:border-t-[#404040] active:border-l-[#404040]"
             >
               ✕
             </button>
           </div>
 
-          <div className="flex-1 flex flex-col p-[10px] overflow-hidden">
-            {/* 2. 의사 정보 */}
-            <div className="bg-white border-2 border-[#808080] border-r-white border-b-white p-[8px] mb-[10px]">
-              <div className="font-bold text-[#000080] mb-[3px]">
-                [담당의 정보]
-              </div>
-              <div>성명: {doctorInfo.name} 전문의</div>
-              <div>소속: {doctorInfo.department}</div>
+          <div className="flex-1 flex flex-col p-[10px] overflow-hidden gap-2">
+
+            <div className="bg-white border-2 border-[#808080] border-r-white border-b-white p-[8px]">
+              <div className="font-bold text-[#000080] mb-[4px] border-b border-gray-200 pb-1">[담당의 정보]</div>
+              <div className="leading-snug">성명: {doctorInfo.name}</div>
+              <div className="leading-snug">소속: {doctorInfo.department}</div>
             </div>
 
-            {/* 3. Windows 98 스타일 달력 */}
-            <div className="bg-white border-2 border-[#808080] border-r-white border-b-white mb-[10px] shrink-0">
-              {/* 달력 헤더 */}
-              <div className="bg-[#000080] text-white p-[4px] flex items-center justify-between">
-                <button
-                  onClick={() => changeMonth(-1)}
-                  className="w-[20px] h-[16px] bg-[#d4d0c8] border border-white border-r-[#404040] border-b-[#404040] text-black text-[10px] flex items-center justify-center"
-                >
-                  ◀
-                </button>
-                <span className="font-bold">
-                  {currentMonth.getFullYear()}년 {currentMonth.getMonth() + 1}월
-                </span>
-                <button
-                  onClick={() => changeMonth(1)}
-                  className="w-[20px] h-[16px] bg-[#d4d0c8] border border-white border-r-[#404040] border-b-[#404040] text-black text-[10px] flex items-center justify-center"
-                >
-                  ▶
-                </button>
+            <div className="bg-white border-2 border-[#808080] border-r-white border-b-white relative min-h-[220px]">
+              {isCalendarLoading && (
+                <div className="absolute inset-0 z-10 bg-white/80 flex items-center justify-center">
+                  <span className="text-blue-800 font-bold animate-pulse">Loading...</span>
+                </div>
+              )}
+
+              <div className="bg-[#000080] text-white p-[4px] flex items-center justify-between mb-1">
+                <button onClick={() => changeMonth(-1)} className="w-[24px] bg-[#d4d0c8] text-black text-[12px] border border-white border-r-[#404040] border-b-[#404040] active:border-inset hover:bg-gray-200">◀</button>
+                <span className="font-bold text-[13px]">{currentMonth.getFullYear()}년 {currentMonth.getMonth() + 1}월</span>
+                <button onClick={() => changeMonth(1)} className="w-[24px] bg-[#d4d0c8] text-black text-[12px] border border-white border-r-[#404040] border-b-[#404040] active:border-inset hover:bg-gray-200">▶</button>
               </div>
 
-              {/* 요일 헤더 */}
-              <div className="grid grid-cols-7 border-b border-[#808080]">
+              <div className="grid grid-cols-7 border-b border-[#ececec] mb-1">
                 {weekDays.map((day, i) => (
-                  <div
-                    key={day}
-                    className={cn(
-                      "text-center py-[2px] font-bold text-[10px]",
-                      i === 0 && "text-red-600",
-                      i === 6 && "text-blue-600"
-                    )}
-                  >
-                    {day}
-                  </div>
+                  <div key={day} className={cn(
+                    "text-center py-[2px] font-bold text-[12px]",
+                    i === 0 && "text-red-600",
+                    i === 6 && "text-blue-600"
+                  )}>{day}</div>
                 ))}
               </div>
 
-              {/* 달력 본체 */}
               <div className="grid grid-cols-7">
-                {/* 빈 칸 */}
                 {Array.from({ length: startDayOfWeek }).map((_, i) => (
-                  <div key={`empty-${i}`} className="h-[24px]" />
+                  <div key={`empty-${i}`} className="h-[28px]" />
                 ))}
-                {/* 날짜 칸 */}
+
                 {Array.from({ length: daysInMonth }).map((_, i) => {
                   const day = i + 1;
                   const dayOfWeek = (startDayOfWeek + i) % 7;
-                  const reserved = isReservedDate(day);
-                  const selected = isSelectedDate(day);
-                  const today = isToday(day);
+                  const dateStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                  const isReserved = reservedDates.includes(dateStr);
+                  const isSelected = selectedDate.getDate() === day && selectedDate.getMonth() === currentMonth.getMonth();
+                  const isToday = new Date().getDate() === day && new Date().getMonth() === currentMonth.getMonth();
 
                   return (
                     <div
-                      key={day}
+                      key={`day-${day}`}
                       onClick={() => handleDayClick(day)}
                       className={cn(
-                        "h-[24px] flex items-center justify-center cursor-pointer text-[10px] relative",
+                        "h-[28px] flex items-center justify-center cursor-pointer text-[12px] relative border border-transparent",
                         dayOfWeek === 0 && "text-red-600",
                         dayOfWeek === 6 && "text-blue-600",
-                        selected && "bg-[#000080] text-white",
-                        !selected && today && "bg-[#ffffcc]",
-                        !selected && "hover:bg-[#d4d0c8]"
+                        isSelected && "bg-[#000080] text-white hover:bg-[#000080] hover:text-white",
+                        !isSelected && isToday && "bg-[#ffffcc] font-bold ring-1 ring-inset ring-orange-300",
+                        !isSelected && !isToday && "hover:bg-[#d4d0c8] hover:border-[#808080]"
                       )}
                     >
                       {day}
-                      {reserved && !selected && (
-                        <span className="absolute bottom-[2px] w-[4px] h-[4px] bg-red-500 rounded-full" />
+                      {isReserved && !isSelected && (
+                        <span className="absolute bottom-[3px] w-[5px] h-[5px] bg-red-500 rounded-full" />
                       )}
                     </div>
                   );
                 })}
               </div>
-
-              {isCalendarLoading && (
-                <div className="text-center py-[2px] text-[9px] text-gray-500">로딩 중...</div>
-              )}
             </div>
 
-            {/* 4. 선택된 날짜의 환자 목록 */}
-            <div className="flex-1 flex flex-col min-h-0">
-              <div className="font-bold mb-[5px]">
+            <div className="flex-1 flex flex-col min-h-0 bg-white border-2 border-[#808080] border-r-white border-b-white">
+              <div className="bg-[#000080] text-white px-2 py-1 font-bold shrink-0 text-[13px]">
                 ▣ {formatDate(selectedDate)} 예약 환자
               </div>
 
-              <div className="flex-1 bg-white border-2 border-[#808080] border-r-white border-b-white overflow-y-auto mb-[10px]">
+              <div className="flex-1 overflow-y-auto p-1">
                 {isLoading ? (
-                  <div className="p-[5px] text-center text-gray-500">로딩 중...</div>
+                  <div className="p-4 text-center text-gray-500">목록 로딩 중...</div>
                 ) : patients.length === 0 ? (
-                  <div className="p-[5px] text-center text-gray-500">예약 환자 없음</div>
+                  <div className="p-4 text-center text-gray-500 text-[12px]">
+                    예약된 환자가 없습니다.
+                  </div>
                 ) : (
                   patients.map((patient, index) => (
                     <div
                       key={patient.childId}
-                      onClick={() => handlePatientClick(patient)}
-                      className="p-[5px] border-b border-[#ececec] cursor-pointer hover:bg-[#000080] hover:text-white select-none truncate"
+                      onClick={() => { onSelectPatient(patient); onClose(); }}
+                      className="group flex justify-between items-center p-2 border-b border-[#ececec] cursor-pointer hover:bg-[#000080] hover:text-white transition-colors"
                     >
-                      {String(index + 1).padStart(2, "0")}. {patient.name} (
-                      {patient.gender === "MALE" ? "남" : "여"}/{Math.floor(patient.monthlyAge / 12)}세)
+                      <div className="truncate font-bold text-[13px]">
+                        {index + 1}. {patient.childName}
+                      </div>
+                      <div className="text-[12px] text-gray-500 group-hover:text-gray-200">
+                        ({patient.gender === "MALE" ? "남" : "여"}/{patient.months}m)
+                      </div>
                     </div>
                   ))
                 )}
               </div>
-
-              {/* 5. 현재 시각 */}
-              <div className="bg-white border-2 border-[#808080] border-r-white border-b-white p-[5px] text-center shrink-0">
-                현재 시각: {currentTime}
-              </div>
             </div>
+
+            <div className="bg-white border-2 border-[#808080] border-r-white border-b-white p-[4px] text-right text-gray-600 shrink-0 text-[12px]">
+              Current Time: {currentTime}
+            </div>
+
           </div>
         </div>
       </div>
