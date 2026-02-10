@@ -49,7 +49,7 @@ export const useDoctorDashboard = () => {
       setExamVideoList(data.examVideoList || []);
       setAdosGraphs(data.adosGraphs);
       setCurrentAdosDetail(data.latestAdosDetail);
-      setCurrentVideoData(data.latestPoseImitationVideo || null);
+      setCurrentVideoData(data.latestPoseVideo || null);
 
       console.log("✅ [Dashboard] 통합 데이터 로딩 완료");
       setIsExamReportLoading(false); // [Fix] 성공 시 로딩 상태 해제

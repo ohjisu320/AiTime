@@ -124,15 +124,14 @@ export default function DoctorDashboardPage() {
         // 즉, API에 없으니 정적으로 찍으라는 뜻.
 
         if (item.parentStartTime != null && item.childStartTime != null) {
-          // [Fix] != null 로 null과 undefined 모두 체크
           uiTimestamps.push({
             id: baseId + 2,
             type: "child-behavior",
             label: `모방 시도 (T${item.trialIndex})`,
-            startTime: item.childStartTime,
-            duration: item.childEndTime - item.childStartTime,
+            startTime: item.childStartTime!,
+            duration: item.childEndTime! - item.childStartTime!,
           });
-          maxEndTime = Math.max(maxEndTime, item.childEndTime);
+          maxEndTime = Math.max(maxEndTime, item.childEndTime!);
         }
         // [수정] Mock data removal: Removed fallback block using item.startS
       }
@@ -142,7 +141,7 @@ export default function DoctorDashboardPage() {
         const item = ts as SimpleTimestamp;
         const wordLabel = missionContent?.instructions?.[item.trialIndex - 1]?.text?.replace(/[\[\]]/g, "").trim() || `Trial ${item.trialIndex}`;
 
-        if (item.trialStartS !== undefined) {
+        if (item.trialStartS != null) {
           uiTimestamps.push({
             id: baseId,
             type: "child-vocal",
@@ -152,14 +151,13 @@ export default function DoctorDashboardPage() {
           });
           maxEndTime = Math.max(maxEndTime, item.trialEndS);
         }
-        // [수정] Mock data removal: Removed fallback block using item.startS
       }
 
       // 3. 대면 호명 (NAME_FACING)
       else if (videoData.videoType === 'NAME_FACING') {
         const item = ts as SimpleTimestamp;
 
-        if (item.trialStartS !== undefined) {
+        if (item.trialStartS != null) {
           uiTimestamps.push({
             id: baseId,
             type: "child-behavior",
@@ -169,19 +167,23 @@ export default function DoctorDashboardPage() {
           });
           maxEndTime = Math.max(maxEndTime, item.trialEndS);
         }
-        // [수정] Mock data removal: Removed fallback block using item.startS
       }
 
       // 4. 비대면 호명 (NAME_NON_FACING)
       else if (videoData.videoType === 'NAME_NON_FACING') {
         const item = ts as NonFacingTimestamp;
 
-        if (item.triggerStartS !== undefined) {
-          // Parent trigger is handled by static data now
-          // ...
-          // I will comment out Parent mappings from API and rely on Static.
+        // 아이 음성 반응 (voiceStartS/voiceEndS)
+        if (item.voiceStartS != null) {
+          uiTimestamps.push({
+            id: baseId,
+            type: "child-vocal",
+            label: `음성 반응 (T${item.trialIndex})`,
+            startTime: item.voiceStartS,
+            duration: item.voiceEndS - item.voiceStartS,
+          });
+          maxEndTime = Math.max(maxEndTime, item.voiceEndS);
         }
-        // [수정] Mock data removal: Removed generic fallback block using item.startS
       }
     });
 
@@ -227,18 +229,7 @@ export default function DoctorDashboardPage() {
         ];
     }
 
-    // [DEBUG] 타임스탬프 파싱 추적
-    console.log("🔍 [Timeline Debug]", {
-      videoType: videoData.videoType,
-      rawTimestamps: videoData.timestamps,
-      rawTimestampCount: videoData.timestamps?.length || 0,
-      parsedUiTimestamps: uiTimestamps,
-      parsedCount: uiTimestamps.length,
-      viewUrl: videoData.viewUrl ? "✅ 있음" : "❌ 없음",
-      missionKey,
-    });
-
-    // [Fix] startTime이 null/undefined/NaN인 항목 제거 (안전 필터)
+    // startTime이 null/undefined/NaN인 항목 제거 (안전 필터)
     const safeTimestamps = uiTimestamps.filter(t => t.startTime != null && !isNaN(t.startTime));
 
     return {
