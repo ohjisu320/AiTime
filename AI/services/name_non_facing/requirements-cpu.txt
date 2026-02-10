@@ -33,7 +33,7 @@ mediapipe>=0.10.9
 # faster-whisper: OpenAI Whisper의 CTranslate2 최적화 버전 (4배 빠름)
 faster-whisper>=1.0.0
 pyannote.audio>=3.1.0
-huggingface-hub>=0.20.0  # pyannote.audio 인증용
+huggingface-hub>=0.20.0,<1.0.0  # pyannote.audio 인증용
 
 # Audio Processing
 librosa>=0.10.0
