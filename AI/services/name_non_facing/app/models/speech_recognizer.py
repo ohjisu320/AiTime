@@ -41,6 +41,7 @@ faster-whisper 사용 이유:
 | small        | 244M       | ~2GB  | ~6x       | 균형              |
 | medium       | 769M       | ~5GB  | ~2x       | 고품질            |
 | large-v3     | 1550M      | ~10GB | 1x        | 프로덕션 권장 |
+| large-v3-turbo | 809M       | ~6GB  | ~8x       | 실시간/CPU 최적   |
 """
 
 from dataclasses import dataclass, field
