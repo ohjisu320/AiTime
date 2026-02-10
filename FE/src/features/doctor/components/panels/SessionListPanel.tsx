@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { SectionHeader } from "../layout/WindowsLayout";
 import type { ExamVideoListItem } from "@/api/types/examReport.types";
 
@@ -7,58 +8,116 @@ interface Props {
   currentVideoExamId?: string;
 }
 
+const MIN_SESSION_COUNT = 5;
+
+/** 날짜를 YYYY-MM-DD 형식으로 포맷 */
+function formatDate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/** TrendChartPanel의 buildPaddedData와 동일한 패턴으로 세션 리스트를 최소 5개로 패딩 (3개월 단위, 최신순 정렬) */
+function buildPaddedSessionList(list: ExamVideoListItem[]): ExamVideoListItem[] {
+  // 실제 데이터가 없으면 (사람 미선택) 패딩하지 않음
+  if (list.length === 0) return [];
+
+  const currentLength = list.length;
+
+  // 최신순 정렬 (날짜 내림차순)
+  const sorted = [...list].sort((a, b) => b.examDate.localeCompare(a.examDate));
+
+  if (currentLength >= MIN_SESSION_COUNT) return sorted;
+
+  const prependCount = MIN_SESSION_COUNT - currentLength;
+
+  // 기준 날짜: 가장 오래된 실제 세션의 날짜, 없으면 오늘
+  const baseDate = sorted.length > 0
+    ? new Date(sorted[sorted.length - 1].examDate)
+    : new Date();
+
+  // 더미 비디오 목록 (클릭 가능하게 보이는 4종)
+  const dummyVideos = [
+    { videoId: "__dv_pose", videoType: "POSE_IMITATION" as const },
+    { videoId: "__dv_speech", videoType: "SPEECH_IMITATION" as const },
+    { videoId: "__dv_facing", videoType: "NAME_FACING" as const },
+    { videoId: "__dv_nonfacing", videoType: "NAME_NON_FACING" as const },
+  ];
+
+  const dummies: ExamVideoListItem[] = Array.from({ length: prependCount }, (_, idx) => {
+    const d = new Date(baseDate);
+    d.setMonth(d.getMonth() - 3 * (prependCount - idx)); // 3개월 단위로 과거
+    return {
+      examId: `__dummy_${idx}`,
+      examDate: formatDate(d),
+      examStatus: "완료",
+      videos: dummyVideos,
+    };
+  });
+
+  // 더미(과거) + 실제 데이터 합친 후 최신순 정렬
+  return [...dummies, ...sorted].sort((a, b) => b.examDate.localeCompare(a.examDate));
+}
+
 export default function SessionListPanel({ examVideoList, onSelectVideo, currentVideoExamId }: Props) {
+  const paddedList = useMemo(() => buildPaddedSessionList(examVideoList), [examVideoList]);
+
   return (
     <div className="p-2 h-full bg-white border border-[#808080] font-['Gulim'] overflow-y-auto">
       <SectionHeader title="세션별 영상 목록" />
       <div className="flex flex-col gap-4 mt-2 px-1">
-        {examVideoList.map((exam) => (
-          <details
-            key={exam.examId}
-            className="cursor-pointer group"
-            open={exam.examId === currentVideoExamId || examVideoList[0].examId === exam.examId}
-          >
-            <summary className="font-bold text-[14px] select-none text-black group-hover:text-blue-900 list-none mb-1">
-              <span className="inline-block w-4 mr-1 text-center group-open:rotate-90 transition-transform">▶</span>
-              ▣ {exam.examDate} <span className="text-[12px] font-normal text-[#666]">({exam.examStatus})</span>
-            </summary>
+        {paddedList.map((exam) => {
+          const isDummy = exam.examId.startsWith("__dummy_");
 
-            <div className="pl-6 mt-1 flex flex-col gap-2 text-[13px] border-l-2 border-gray-300 ml-2 py-1">
-              {exam.videos.length > 0 ? (
-                // Video Sorting: Pose -> Speech -> Facing -> Non-Facing
-                exam.videos
-                  .sort((a, b) => {
-                    const order: Record<string, number> = {
-                      "POSE_IMITATION": 1,
-                      "SPEECH_IMITATION": 2,
-                      "NAME_FACING": 3,
-                      "NAME_NON_FACING": 4
-                    };
-                    return (order[a.videoType] || 99) - (order[b.videoType] || 99);
-                  })
-                  .map((video) => {
-                    let typeLabel: string = video.videoType;
-                    if (video.videoType === "POSE_IMITATION") typeLabel = "동작 모방";
-                    else if (video.videoType === "SPEECH_IMITATION") typeLabel = "발화 모방";
-                    else if (video.videoType === "NAME_FACING") typeLabel = "대면 호명반응";
-                    else if (video.videoType === "NAME_NON_FACING") typeLabel = "비대면 호명반응";
+          return (
+            <details
+              key={exam.examId}
+              className={`group cursor-pointer ${isDummy ? "opacity-40" : ""}`}
+              open={!isDummy && (exam.examId === currentVideoExamId || examVideoList[0]?.examId === exam.examId)}
+            >
+              <summary className="font-bold text-[14px] select-none text-black group-hover:text-blue-900 list-none mb-1">
+                <span className="inline-block w-4 mr-1 text-center group-open:rotate-90 transition-transform">▶</span>
+                ▣ {exam.examDate} <span className="text-[12px] font-normal text-[#666]">({exam.examStatus})</span>
+              </summary>
 
-                    return (
-                      <button
-                        key={video.videoId}
-                        onClick={() => onSelectVideo(exam.examId, video.videoId)}
-                        className="text-left text-blue-800 hover:font-bold hover:text-red-600 hover:bg-blue-50 px-2 py-0.5 rounded cursor-pointer truncate"
-                      >
-                        ▷ {typeLabel}
-                      </button>
-                    );
-                  })
-              ) : (
-                <span className="text-gray-400 pl-2">영상 없음</span>
-              )}
-            </div>
-          </details>
-        ))}
+              <div className="pl-6 mt-1 flex flex-col gap-2 text-[13px] border-l-2 border-gray-300 ml-2 py-1">
+                {exam.videos.length > 0 ? (
+                  // Video Sorting: Pose -> Speech -> Facing -> Non-Facing
+                  exam.videos
+                    .sort((a, b) => {
+                      const order: Record<string, number> = {
+                        "POSE_IMITATION": 1,
+                        "SPEECH_IMITATION": 2,
+                        "NAME_FACING": 3,
+                        "NAME_NON_FACING": 4
+                      };
+                      return (order[a.videoType] || 99) - (order[b.videoType] || 99);
+                    })
+                    .map((video) => {
+                      let typeLabel: string = video.videoType;
+                      if (video.videoType === "POSE_IMITATION") typeLabel = "동작 모방";
+                      else if (video.videoType === "SPEECH_IMITATION") typeLabel = "발화 모방";
+                      else if (video.videoType === "NAME_FACING") typeLabel = "대면 호명반응";
+                      else if (video.videoType === "NAME_NON_FACING") typeLabel = "비대면 호명반응";
+
+                      return (
+                        <button
+                          key={video.videoId}
+                          onClick={() => onSelectVideo(exam.examId, video.videoId)}
+                          className="text-left text-blue-800 hover:font-bold hover:text-red-600 hover:bg-blue-50 px-2 py-0.5 rounded cursor-pointer truncate"
+                        >
+                          ▷ {typeLabel}
+                        </button>
+                      );
+                    })
+                ) : (
+                  <span className="text-gray-400 pl-2">영상 없음</span>
+                )}
+              </div>
+            </details>
+          );
+        })}
 
         {examVideoList.length === 0 && (
           <div className="text-center text-gray-500 mt-10 text-[14px]">
