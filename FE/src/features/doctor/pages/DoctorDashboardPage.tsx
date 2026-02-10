@@ -10,8 +10,11 @@ import VideoModal from "../components/modals/VideoModal";
 import AdosModal from "../components/modals/AdosModal";
 import WaitingListSidebar from "../components/panels/WaitingListSidebar";
 import DoctorLayout from "../components/layout/DoctorLayout";
-import type { VideoAnalysisData, AnalysisTimestamp } from "../types/doctor";
+import type { VideoAnalysisData, AnalysisTimestamp, TimelineRowConfig } from "../types/doctor";
 import type { AdosUpdateRequest, PoseTimestamp, SimpleTimestamp, NonFacingTimestamp } from "@/api/types/examReport.types";
+
+// [추가] 미션 데이터 import (경로가 맞는지 확인해주세요)
+import { SCREENING_CONTENT } from "@/domains/exam/constants/missionData";
 
 const DEFAULT_ANALYSIS: VideoAnalysisData = {
   videoUrl: "",
@@ -28,32 +31,85 @@ export default function DoctorDashboardPage() {
   const { states, actions } = useDoctorDashboard();
   const patientAge = states.selectedPatient?.monthlyAge || 0;
 
-  // [핵심 로직] API 데이터를 UI용 데이터로 변환 (타입별 분기 처리)
+  // [핵심 로직] API 데이터를 UI용 데이터로 변환 (타입별 분기 + 미션 데이터 매핑)
   const analysisData: VideoAnalysisData = useMemo(() => {
     if (!states.currentVideoData) {
       return DEFAULT_ANALYSIS;
     }
 
     const videoData = states.currentVideoData;
-
     const uiTimestamps: AnalysisTimestamp[] = [];
     let maxEndTime = 0;
 
+    // 1. 현재 비디오 타입과 환아 월령에 맞는 미션 데이터 키 찾기
+    // (12~17개월 vs 18~23개월 구분 로직)
+    const isUnder18 = patientAge < 18; // 12-17개월
+    let missionKey = "";
+
+    switch (videoData.videoType) {
+      case "POSE_IMITATION":
+        missionKey = isUnder18 ? "POSE_IMITATION_12M" : "POSE_IMITATION_18M";
+        break;
+      case "SPEECH_IMITATION":
+        missionKey = isUnder18 ? "SPEECH_IMITATION_12M" : "SPEECH_IMITATION_18M";
+        break;
+      case "NAME_NON_FACING":
+        missionKey = "NAME_NON_FACING";
+        break;
+      case "NAME_FACING":
+        missionKey = "NAME_FACING";
+        break;
+    }
+
+    // 미션 데이터 가져오기
+    const missionContent = SCREENING_CONTENT[missionKey];
+
+    // [헬퍼 함수] Trial Index로 구체적인 행동 이름 가져오기
+    const getActionLabel = (index: number, type: "parent" | "child", defaultLabel: string) => {
+      if (!missionContent || !missionContent.instructions) return defaultLabel;
+
+      // index는 1부터 시작하므로 -1
+      const instruction = missionContent.instructions[index - 1];
+      if (!instruction) return defaultLabel;
+
+      // 부모 행동일 경우 미션 지침(suffix 등)을 사용하여 구체화
+      if (type === "parent") {
+        // 예: "정확하게 박수를 쳐주세요" -> "박수 치기" 처럼 간단히 보여주거나 원본 사용
+        // 여기서는 suffix나 boldText를 조합해서 보여줌
+        return `${instruction.boldText || ""} ${instruction.suffix || ""}`.trim();
+      }
+
+      // 아이 행동일 경우
+      return `${defaultLabel} (Trial ${index})`;
+    };
+
+    // [헬퍼 함수] 툴팁용 상세 설명 가져오기
+    const getActionDetail = (index: number) => {
+      if (!missionContent || !missionContent.instructions) return undefined;
+      const instruction = missionContent.instructions[index - 1];
+      if (!instruction) return undefined;
+
+      // 전체 문장 조합 (text + boldText + suffix)
+      return `${instruction.text || ""} ${instruction.boldText || ""} ${instruction.suffix || ""}`.trim();
+    };
+
+
     // 비디오 타입에 따른 데이터 매핑 전략
     videoData.timestamps?.forEach((ts, idx) => {
-      const baseId = (idx + 1) * 10; // ID 충돌 방지용
+      const baseId = (idx + 1) * 10;
 
       // 1. 동작 모방 (POSE_IMITATION)
       if (videoData.videoType === 'POSE_IMITATION') {
         const item = ts as PoseTimestamp;
 
-        // (A) 기존 포맷 (parentStartTime/childStartTime) 있는 경우
+        // (A) 기존 포맷
         if (item.parentStartTime !== undefined && item.childStartTime !== undefined) {
-          // (1) 부모 행동 (Parent)
+          // (1) 부모 행동 (Parent) - 구체적 행동 명시
           uiTimestamps.push({
             id: baseId + 1,
             type: "parent",
-            label: `Trial ${item.trialIndex} (시연)`,
+            label: getActionLabel(item.trialIndex, "parent", `시연 ${item.trialIndex}`),
+            detail: getActionDetail(item.trialIndex), // [추가] 상세 설명
             startTime: item.parentStartTime,
             duration: item.parentEndTime - item.parentStartTime,
           });
@@ -62,23 +118,21 @@ export default function DoctorDashboardPage() {
           uiTimestamps.push({
             id: baseId + 2,
             type: "child-behavior",
-            label: `Trial ${item.trialIndex} (모방)`,
+            label: `모방 시도 (T${item.trialIndex})`,
             startTime: item.childStartTime,
             duration: item.childEndTime - item.childStartTime,
           });
           maxEndTime = Math.max(maxEndTime, item.childEndTime);
         }
-        // (B) 신규 포맷 (startS / endS) 있는 경우
+        // (B) 신규 포맷 (startS only)
         else if (item.startS !== undefined) {
           const start = item.startS;
-          // endS가 null이면 기본 3초 혹은 5초 등으로 설정 (영상 길이에 따라 다를 수 있음)
-          // 여기서는 null일 경우 0으로 처리하거나, 특정 길이를 부여
           const end = item.endS ?? (start + 5);
-
           uiTimestamps.push({
             id: baseId,
-            type: "child-behavior", // 혹은 'parent', 문맥상 모호하지만 하나만 표시
-            label: `Trial ${item.trialIndex}`,
+            type: "child-behavior",
+            label: getActionLabel(item.trialIndex, "parent", `Trial ${item.trialIndex}`), // 단일 라인이면 부모 행동명 표시
+            detail: getActionDetail(item.trialIndex), // [추가]
             startTime: start,
             duration: end - start,
           });
@@ -89,12 +143,14 @@ export default function DoctorDashboardPage() {
       // 2. 발화 모방 (SPEECH_IMITATION)
       else if (videoData.videoType === 'SPEECH_IMITATION') {
         const item = ts as SimpleTimestamp;
+        // 발화 단어 가져오기 (예: "엄마", "맘마")
+        const wordLabel = missionContent?.instructions?.[item.trialIndex - 1]?.text?.replace(/[\[\]]/g, "").trim() || `Trial ${item.trialIndex}`;
 
         if (item.trialStartS !== undefined) {
           uiTimestamps.push({
             id: baseId,
-            type: "child-vocal", // 음성 라인에 표시
-            label: `Trial ${item.trialIndex}`,
+            type: "child-vocal",
+            label: `발화: ${wordLabel}`,
             startTime: item.trialStartS,
             duration: item.trialEndS - item.trialStartS,
           });
@@ -102,11 +158,11 @@ export default function DoctorDashboardPage() {
         } else if (item.startS !== undefined) {
           const start = item.startS;
           const end = item.endS ?? (start + 3);
-
           uiTimestamps.push({
             id: baseId,
             type: "child-vocal",
-            label: `Trial ${item.trialIndex}`,
+            label: `발화: ${wordLabel}`,
+            detail: getActionDetail(item.trialIndex), // [추가]
             startTime: start,
             duration: end - start,
           });
@@ -117,12 +173,14 @@ export default function DoctorDashboardPage() {
       // 3. 대면 호명 (NAME_FACING)
       else if (videoData.videoType === 'NAME_FACING') {
         const item = ts as SimpleTimestamp;
+        // 대면 호명은 instructions가 "이름 부르기" 등으로 단순함
+        const label = getActionLabel(item.trialIndex, "parent", `호명 ${item.trialIndex}`);
 
         if (item.trialStartS !== undefined) {
           uiTimestamps.push({
             id: baseId,
-            type: "child-behavior", // 행동 라인에 표시
-            label: `Trial ${item.trialIndex}`,
+            type: "child-behavior",
+            label: label,
             startTime: item.trialStartS,
             duration: item.trialEndS - item.trialStartS,
           });
@@ -130,11 +188,11 @@ export default function DoctorDashboardPage() {
         } else if (item.startS !== undefined) {
           const start = item.startS;
           const end = item.endS ?? (start + 3);
-
           uiTimestamps.push({
             id: baseId,
             type: "child-behavior",
-            label: `Trial ${item.trialIndex}`,
+            label: label,
+            detail: getActionDetail(item.trialIndex), // [추가]
             startTime: start,
             duration: end - start,
           });
@@ -148,20 +206,25 @@ export default function DoctorDashboardPage() {
 
         // (A) 기존 포맷
         if (item.triggerStartS !== undefined) {
-          // (1) 시각적 자극/트리거
+          // (1) 시각적 자극/트리거 (Parent 라인)
           uiTimestamps.push({
             id: baseId + 1,
             type: "parent",
-            label: `T${item.trialIndex} 자극`,
+            label: `자극 제시 (장난감)`,
+            detail: "아이가 오른쪽을 바라볼 수 있게 우측 방향에 장난감이나 주의를 끄는 물건을 배치해 주세요.", // 비대면 자극은 고정 문구
             startTime: item.triggerStartS,
             duration: item.triggerEndS - item.triggerStartS,
           });
 
-          // (2) 호명/반응
+          // (2) 호명 (Voice)
+          // 호명 멘트 가져오기 (예: "평소 목소리로", "크고 높은 톤으로")
+          const voiceLabel = getActionLabel(item.trialIndex, "parent", `호명 ${item.trialIndex}`);
+
           uiTimestamps.push({
             id: baseId + 2,
-            type: "child-vocal",
-            label: `T${item.trialIndex} 호명`,
+            type: "child-vocal", // 타임라인 색상 구분을 위해 vocal 라인 사용
+            label: voiceLabel,
+            detail: getActionDetail(item.trialIndex), // [추가]
             startTime: item.voiceStartS,
             duration: item.voiceEndS - item.voiceStartS,
           });
@@ -171,12 +234,11 @@ export default function DoctorDashboardPage() {
         else if (item.startS !== undefined) {
           const start = item.startS;
           const end = item.endS ?? (start + 3);
-
-          // 단일 구간으로 표시
           uiTimestamps.push({
             id: baseId,
-            type: "parent", // 혹은 child-vocal
-            label: `Trial ${item.trialIndex}`,
+            type: "parent",
+            label: getActionLabel(item.trialIndex, "parent", `Trial ${item.trialIndex}`),
+            detail: getActionDetail(item.trialIndex), // [추가]
             startTime: start,
             duration: end - start,
           });
@@ -185,51 +247,69 @@ export default function DoctorDashboardPage() {
       }
     });
 
+    // [추가] 정적 타임스탬프 주입 (NAME_FACING, SPEECH_IMITATION)
+    // 요구사항: 부모 행동에 0, 8, 16, 24, 32초 스태틱 생성 / 설명 없이 검사명(Trial)만 표시
+    if (['NAME_FACING', 'SPEECH_IMITATION'].includes(videoData.videoType)) {
+      const staticTimes = [0, 8, 16, 24, 32];
+      staticTimes.forEach((startTime, idx) => {
+        uiTimestamps.push({
+          id: 90000 + idx, // 고유 ID
+          type: "parent",
+          label: `Trial ${idx + 1}`,
+          detail: undefined, // 설명 제거
+          startTime: startTime,
+          duration: 3, // [수정] 3초 간격으로 표시
+        });
+      });
+      // 전체 길이 보정 (최소 40초 확보)
+      maxEndTime = Math.max(maxEndTime, 40);
+    }
+
     const totalDuration = Math.max(maxEndTime + 5, 60);
 
-    // [동적 타임라인 설정] 비디오 타입별 행 구성
-    // keys: "parent" | "child-vocal" | "child-behavior"
-    let timelineRows: { key: string; label: string; color: string }[] = [];
+    // [동적 타임라인 설정]
+    let timelineRows: TimelineRowConfig[] = [];
 
     switch (videoData.videoType) {
       case 'POSE_IMITATION':
         timelineRows = [
-          { key: "parent", label: "부모 시연", color: "bg-gray-500" },
-          { key: "child-behavior", label: "아이 모방", color: "bg-blue-600" },
+          { key: "parent", label: "부모 행동", color: "bg-gray-500" }, // [수정] 부모 시연 -> 부모 행동
+          { key: "child-behavior", label: "아이 반응", color: "bg-blue-600" }, // [수정] 아이 모방 -> 아이 반응
         ];
         break;
       case 'SPEECH_IMITATION':
         timelineRows = [
-          { key: "child-vocal", label: "아이 발화", color: "bg-green-600" },
+          { key: "parent", label: "부모 행동", color: "bg-gray-500" },
+          { key: "child-vocal", label: "아이 반응", color: "bg-green-600" },
         ];
         break;
       case 'NAME_FACING':
         timelineRows = [
+          { key: "parent", label: "부모 행동", color: "bg-gray-500" },
           { key: "child-behavior", label: "아이 반응", color: "bg-blue-600" },
         ];
         break;
       case 'NAME_NON_FACING':
         timelineRows = [
-          { key: "parent", label: "자극 제시", color: "bg-gray-500" },
-          { key: "child-vocal", label: "호명(청각)", color: "bg-yellow-600" }, // 구분을 위해 색상 변경
+          { key: "parent", label: "부모 행동", color: "bg-gray-500" }, // [수정] 자극 제시 -> 부모 행동
+          { key: "child-vocal", label: "아이 반응", color: "bg-green-600" }, // [수정] 호명(청각) (노란색) -> 아이 반응 (녹색) 통일
         ];
         break;
       default:
-        // 기본값 (모두 표시)
         timelineRows = [
           { key: "parent", label: "부모 행동", color: "bg-gray-500" },
-          { key: "child-vocal", label: "아이 음성", color: "bg-green-600" },
+          { key: "child-vocal", label: "아이 반응", color: "bg-green-600" },
           { key: "child-behavior", label: "아이 행동", color: "bg-blue-600" },
         ];
     }
 
     return {
-      videoUrl: videoData.viewUrl,
+      videoUrl: videoData.viewUrl || null,
       totalDuration,
       timestamps: uiTimestamps,
       rows: timelineRows,
     };
-  }, [states.currentVideoData]);
+  }, [states.currentVideoData, patientAge]); // patientAge 의존성 추가
 
   const [videoStartTime, setVideoStartTime] = useState(0);
 
