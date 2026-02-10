@@ -9,6 +9,7 @@ export const SCREENING_CONTENT: Record<string, any> = {
     step: "01",
     engTitle: "Action Imitation (12-17m)",
     korTitle: "동작 모방",
+    listTitle: "[12-17개월] 1. 손뼉 -> 2. 만세 -> 3. 뒷걸음질",
     description: "손뼉 치기, 만세, 뒷걸음질 동작을 차례로 보여주고 따라 하는지 관찰합니다.",
     variant: 'pink',
     instructionDuration: 13, // 전체 사이클 시간: 준비 3초 + 실행 15초
@@ -143,7 +144,7 @@ export const SCREENING_CONTENT: Record<string, any> = {
     step: "03",
     engTitle: "Name Response (Offline)",
     korTitle: "비대면 호명 반응",
-    listTitle: "비대면 호명 반응 (평소 -> 큰소리 -> 애칭)",
+    listTitle: "1-2(평소) -> 3-4(큰소리) -> 5-6(애칭)",
     description: "보호자와 아이는 나란히\n카메라 앞 정면에 위치해 주세요.\n\n아이가 오른쪽을 바라볼 수 있게\n우측 방향에 장난감이나\n주의를 끄는 물건을 배치해 주세요.\n\n보호자와 아이 모두\n화면에 나와야 합니다.",
     variant: 'violet',
     countdown: 10,
@@ -168,7 +169,7 @@ export const SCREENING_CONTENT: Record<string, any> = {
     step: "04",
     engTitle: "Name Response (Visual)",
     korTitle: "대면 호명 반응",
-    listTitle: "대면 호명 반응 (호명시도1 -> 호명시도2 -> 호명시도3)",
+    listTitle: "1(시도) -> 2(재시도) -> 3(재시도)",
     description: "마주 본 상태에서 이름을 불렀을 때 눈을 맞추는지 확인합니다.",
     variant: 'emerald',
     instructionDuration: 8, // 전체 사이클 시간: 준비 3초 + 실행 5초
