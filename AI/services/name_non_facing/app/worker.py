@@ -11,6 +11,8 @@ Reference:
     - pika: https://pika.readthedocs.io/en/stable/
 """
 
+import threading
+import queue
 import base64
 import contextlib
 import json
@@ -72,12 +74,13 @@ class NameNonFacingWorker:
         body: bytes
     ) -> None:
         """
-        메시지 처리 콜백
+        메시지 처리 콜백 (Threaded Implementation)
         
         1. 메시지 파싱
         2. 비디오 로드
-        3. 파이프라인 실행
-        4. 결과 발행
+        3. 파이프라인 실행 (별도 스레드)
+        4. Heartbeat 유지 (메인 스레드)
+        5. 결과 발행
         """
         start_time = time.time()
         task = json.loads(body)
@@ -94,46 +97,78 @@ class NameNonFacingWorker:
         logger.info("=" * 60)
         
         tmp_path: Optional[str] = None
-        result_message: Dict[str, Any] = {}
+        result_queue = queue.Queue()
         
         try:
             # 오케스트레이터 초기화 (최초 1회)
             self._init_orchestrator()
             
-            # 비디오 로드
+            # 비디오 로드 (IO 바운드 작업이지만 짧으므로 메인 스레드에서 처리)
             video_path = self._load_video(task)
             tmp_path = video_path if video_path != task.get("video_path") else None
             
-            # 파이프라인 실행
-            pipeline_result = self.orchestrator.run(
-                video_path=video_path,
-                child_name=child_name,
-                request_id=exam_id
-            )
+            # 작업 스레드 함수 정의
+            def run_pipeline_thread():
+                try:
+                    logger.info("🧵 작업 스레드 시작...")
+                    pipeline_result = self.orchestrator.run(
+                        video_path=video_path,
+                        child_name=child_name,
+                        request_id=exam_id
+                    )
+                    result_queue.put({"status": "success", "data": pipeline_result})
+                except Exception as e:
+                    logger.exception("❌ 작업 스레드 예외 발생")
+                    result_queue.put({"status": "error", "error": e})
+                finally:
+                    logger.info("🧵 작업 스레드 종료")
+
+            # 스레드 시작 (Daemon=True: 메인 프로세스 종료 시 함께 종료)
+            worker_thread = threading.Thread(target=run_pipeline_thread, daemon=True)
+            worker_thread.start()
             
-            # 성공 응답 생성 (BE 스펙: camelCase, status="SUCCESS")
-            result_message = {
-                "examId": exam_id,
-                "videoId": video_id,
-                "videoType": "NAME_NON_FACING",
-                "analyzedAt": datetime.now().isoformat(),
-                "status": "SUCCESS",
-                "metrics": pipeline_result.get("metrics"),
-                "ADOS": pipeline_result.get("ADOS"),
-            }
+            # 스레드가 살아있는 동안 Heartbeat 유지
+            while worker_thread.is_alive():
+                # process_data_events를 호출하여 Pika가 소켓 이벤트를 처리하고 Heartbeat를 보내도록 함
+                self.rabbitmq.connection.process_data_events(time_limit=1)
+                
+                # 짧게 대기하여 CPU 과점 방지 (Pika sleep 권장)
+                # sleep 내부에서도 process_data_events가 호출될 수 있음
+                self.rabbitmq.connection.sleep(1.0)
             
-            # 결과 요약 로깅
-            per_trial = pipeline_result.get("metrics", {}).get("per_trial", [])
-            success_count = sum(1 for t in per_trial if t.get("success"))
-            elapsed_ms = (time.time() - start_time) * 1000
-            logger.info(
-                f"✅ 작업 완료: examId={exam_id}, "
-                f"success={success_count}/{len(per_trial)}, "
-                f"time={elapsed_ms:.0f}ms"
-            )
+            # 스레드 종료 대기 및 결과 수신
+            worker_thread.join()
+            thread_result = result_queue.get_nowait()
+            
+            if thread_result["status"] == "success":
+                pipeline_result = thread_result["data"]
+                
+                # 성공 응답 생성
+                result_message = {
+                    "examId": exam_id,
+                    "videoId": video_id,
+                    "videoType": "NAME_NON_FACING",
+                    "analyzedAt": datetime.now().isoformat(),
+                    "status": "SUCCESS",
+                    "metrics": pipeline_result.get("metrics"),
+                    "ADOS": pipeline_result.get("ADOS"),
+                }
+                
+                # 결과 요약 로깅
+                per_trial = pipeline_result.get("metrics", {}).get("per_trial", [])
+                success_count = sum(1 for t in per_trial if t.get("success"))
+                elapsed_ms = (time.time() - start_time) * 1000
+                logger.info(
+                    f"✅ 작업 완료: examId={exam_id}, "
+                    f"success={success_count}/{len(per_trial)}, "
+                    f"time={elapsed_ms:.0f}ms"
+                )
+            else:
+                # 스레드 내부 예외 재발생
+                raise thread_result["error"]
             
         except Exception as e:
-            # 실패 응답 생성 (BE 스펙: camelCase, status="FAILED")
+            # 실패 응답 생성
             result_message = {
                 "examId": exam_id,
                 "videoId": video_id,
@@ -143,7 +178,6 @@ class NameNonFacingWorker:
                 "metrics": None,
                 "ADOS": None,
             }
-            
             logger.exception(f"❌ 작업 실패: exam_id={exam_id}")
             
         finally:
@@ -153,10 +187,10 @@ class NameNonFacingWorker:
                     os.remove(tmp_path)
                     logger.debug(f"📥 임시 파일 삭제: {tmp_path}")
         
-        # 결과 발행
+        # 결과 발행 (메인 스레드에서 안전하게 수행)
         self.rabbitmq.publish(self.settings.OUTPUT_QUEUE, result_message)
         
-        # ACK 전송 (메시지 처리 완료)
+        # ACK 전송
         ch.basic_ack(delivery_tag=method.delivery_tag)
     
     def _load_video(self, task: dict) -> str:
