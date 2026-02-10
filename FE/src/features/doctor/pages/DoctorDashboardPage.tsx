@@ -123,8 +123,8 @@ export default function DoctorDashboardPage() {
         // 요구사항: "부모 행동에 대한 타임스탬프를 안찍고 있어... SCREENING_CONTENT에 내용을 추가해서 담아주면 좋겠어"
         // 즉, API에 없으니 정적으로 찍으라는 뜻.
 
-        if (item.parentStartTime !== undefined && item.childStartTime !== undefined) {
-          // (API에 부모 데이터가 있더라도 정적 데이터가 더 정확하다면 정적 사용. 여기서는 아이 데이터만 추가)
+        if (item.parentStartTime != null && item.childStartTime != null) {
+          // [Fix] != null 로 null과 undefined 모두 체크
           uiTimestamps.push({
             id: baseId + 2,
             type: "child-behavior",
@@ -238,10 +238,13 @@ export default function DoctorDashboardPage() {
       missionKey,
     });
 
+    // [Fix] startTime이 null/undefined/NaN인 항목 제거 (안전 필터)
+    const safeTimestamps = uiTimestamps.filter(t => t.startTime != null && !isNaN(t.startTime));
+
     return {
       videoUrl: videoData.viewUrl || null,
       totalDuration,
-      timestamps: uiTimestamps,
+      timestamps: safeTimestamps,
       rows: timelineRows,
     };
   }, [states.currentVideoData, patientAge]); // patientAge 의존성 추가
