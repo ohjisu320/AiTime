@@ -148,6 +148,21 @@ class SpeakerDiarizer(BaseModel):
         try:
             logger.debug("📦 HuggingFace 및 pyannote 라이브러리 import 중...")
             from huggingface_hub import login
+            import huggingface_hub
+            
+            # [Monkeypatch] pyannote가 구버전 인자(use_auth_token)를 보내서 발생하는 에러 해결
+            # huggingface_hub 0.20.0+에서 use_auth_token이 삭제되고 token으로 변경됨
+            # 하지만 pyannote.audio 3.x는 여전히 use_auth_token을 사용함
+            original_hf_hub_download = huggingface_hub.hf_hub_download
+
+            def patched_hf_hub_download(*args, **kwargs):
+                # use_auth_token이 있으면 token으로 이름 변경
+                if 'use_auth_token' in kwargs:
+                    kwargs['token'] = kwargs.pop('use_auth_token')
+                return original_hf_hub_download(*args, **kwargs)
+
+            huggingface_hub.hf_hub_download = patched_hf_hub_download
+            
             from pyannote.audio import Pipeline
             logger.debug("✅ 라이브러리 import 완료")
             
@@ -184,8 +199,7 @@ class SpeakerDiarizer(BaseModel):
             try:
                 logger.debug("🔧 Pipeline.from_pretrained() 호출 중...")
                 self._model = Pipeline.from_pretrained(
-                    "pyannote/speaker-diarization-3.1",
-                    token=self._settings.DIARIZATION_USE_AUTH_TOKEN
+                    "pyannote/speaker-diarization-3.1"
                 )
                 logger.debug("✅ Pipeline.from_pretrained() 완료")
             except Exception as load_error:
