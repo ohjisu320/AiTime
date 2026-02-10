@@ -20,6 +20,9 @@ function formatDate(d: Date): string {
 
 /** TrendChartPanel의 buildPaddedData와 동일한 패턴으로 세션 리스트를 최소 5개로 패딩 (3개월 단위, 최신순 정렬) */
 function buildPaddedSessionList(list: ExamVideoListItem[]): ExamVideoListItem[] {
+  // 실제 데이터가 없으면 (사람 미선택) 패딩하지 않음
+  if (list.length === 0) return [];
+
   const currentLength = list.length;
 
   // 최신순 정렬 (날짜 내림차순)
@@ -70,7 +73,7 @@ export default function SessionListPanel({ examVideoList, onSelectVideo, current
           return (
             <details
               key={exam.examId}
-              className={`group ${isDummy ? "pointer-events-none opacity-40" : "cursor-pointer"}`}
+              className={`group cursor-pointer ${isDummy ? "opacity-40" : ""}`}
               open={!isDummy && (exam.examId === currentVideoExamId || examVideoList[0]?.examId === exam.examId)}
             >
               <summary className="font-bold text-[14px] select-none text-black group-hover:text-blue-900 list-none mb-1">
