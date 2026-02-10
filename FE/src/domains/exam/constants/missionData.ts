@@ -48,7 +48,7 @@ export const SCREENING_CONTENT: Record<string, any> = {
     instructionDuration: 13, // 전체 사이클 시간: 준비 3초 + 실행 13초
     instructions: [
       {
-        id: 1,  
+        id: 1,
         text: "무릎을 굽혔다가",
         boldText: "양발을 모아",
         suffix: "쿵 소리가 나게 뛰어주세요 (점프)"
@@ -124,7 +124,7 @@ export const SCREENING_CONTENT: Record<string, any> = {
     description: "보호자와 아이는 나란히\n카메라 앞 정면에 위치해 주세요.\n\n아이가 오른쪽을 바라볼 수 있게\n우측 방향에 장난감이나\n주의를 끄는 물건을 배치해 주세요.\n\n보호자와 아이 모두\n화면에 나와야 합니다.",
     variant: 'violet',
     countdown: 10,
-    instructionDuration: 11, // 전체 사이클 시간: 준비 3초 + 실행 8초
+    instructionDuration: 8, // 전체 사이클 시간: 준비 3초 + 실행 8초
     instructions: [
       { id: 1, text: "시야 밖(등 뒤)에서", boldText: "평소 목소리로", suffix: "이름을 불러주세요" },
       { id: 2, text: "한번 더", boldText: "평소 목소리로", suffix: "한 번 더 불러주세요" },
