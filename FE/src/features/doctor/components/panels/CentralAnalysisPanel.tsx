@@ -203,12 +203,12 @@ export default function CentralAnalysisPanel({
           {(analysisData.rows || []).map((row) => (
             <div key={row.key} className="flex items-center text-[12px] h-6 shrink-0">
               <span className="w-[70px] font-bold shrink-0 text-right pr-2">{row.label}</span>
-              <div className="flex-1 h-5 bg-white border border-[#999] relative">
+              <div className="flex-1 h-5 bg-white border border-[#999] relative overflow-hidden">
                 {analysisData.timestamps
                   .filter((t) => t.type === row.key)
                   .map((t) => {
                     const durationToUse = displayDuration > 0 ? displayDuration : 1;
-                    const left = (t.startTime / durationToUse) * 100;
+                    const left = Math.min((t.startTime / durationToUse) * 100, 100);
                     const width = (t.duration / durationToUse) * 100;
                     return (
                       <button
@@ -224,7 +224,7 @@ export default function CentralAnalysisPanel({
                         })}
                         onMouseLeave={() => setHoveredTimelineItem(null)}
                         className={cn(
-                          "absolute top-0 h-full opacity-80 hover:opacity-100 hover:brightness-110 transition-all", // Removed border-black/20
+                          "absolute top-0 h-full opacity-80 hover:opacity-100 hover:brightness-110 transition-all border border-black/30",
                           row.color,
                           // [Added] Highlight if selected (Use shadow/ring instead of border)
                           selectedTimelineItem?.startTime === t.startTime && "brightness-150 z-10 shadow-[0_0_0_2px_white] shadow-white"

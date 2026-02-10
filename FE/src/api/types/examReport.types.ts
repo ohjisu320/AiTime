@@ -14,12 +14,9 @@ export type VideoType =
 export interface PoseTimestamp {
     parentStartTime: number;
     parentEndTime: number;
-    childStartTime: number;
-    childEndTime: number;
+    childStartTime: number | null;  // API에서 null 반환 가능 (아이 미반응 시)
+    childEndTime: number | null;    // API에서 null 반환 가능
     trialIndex: number;
-    // Backend compatibility
-    startS?: number;
-    endS?: number | null;
 }
 
 // 2-2. 발화 모방 (Task 2) & 대면 호명 (Task 3) - 단순 구간
@@ -27,9 +24,6 @@ export interface SimpleTimestamp {
     trialStartS: number;
     trialEndS: number;
     trialIndex: number;
-    // Backend compatibility
-    startS?: number;
-    endS?: number | null;
 }
 
 // 2-3. 비대면 호명 (Task 4) - 자극(Trigger)과 호명(Voice) 구간 분리
@@ -39,9 +33,6 @@ export interface NonFacingTimestamp {
     voiceStartS: number;
     voiceEndS: number;
     trialIndex: number;
-    // Backend compatibility
-    startS?: number;
-    endS?: number | null;
 }
 
 // 3. 통합 타임스탬프 타입 (Union Type)
@@ -98,7 +89,7 @@ export interface AdosDetail {
 // 6. 초기 리포트 통합 데이터 (대시보드 진입용)
 export interface ExamReportInitialData {
     examVideoList: ExamVideoListItem[];
-    latestPoseImitationVideo: VideoPresignView | null;
+    latestPoseVideo: VideoPresignView | null;  // API 명세 기준 필드명
     adosGraphs: AdosGraphs | null;
     latestAdosDetail: AdosDetail | null;
 }
