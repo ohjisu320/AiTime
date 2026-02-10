@@ -48,6 +48,7 @@ from typing import List
 import logging
 import re
 
+import torch
 import numpy as np
 
 from app.config import get_settings
@@ -171,6 +172,17 @@ class SpeechRecognizer(BaseModel):
         device = self._settings.WHISPER_DEVICE
         compute_type = self._settings.WHISPER_COMPUTE_TYPE
         
+        # [Robustness] 하드웨어 호환성 사전 체크
+        # 사용자 편의를 위해 환경에 맞지 않는 설정은 자동으로 조정(Graceful Degradation)
+        if not torch.cuda.is_available() or device == "cpu":
+            if device != "cpu":
+                logger.warning(f"⚠️ CUDA 미탐지. Device를 {device} -> cpu 로 변경합니다.")
+                device = "cpu"
+            
+            if compute_type == "float16":
+                logger.warning("⚠️ CPU 환경 최적화를 위해 compute_type을 float16 -> int8로 자동 전환합니다.")
+                compute_type = "int8"
+        
         try:
             self._model = WhisperModel(
                 model_size_or_path=model_size,
@@ -178,8 +190,9 @@ class SpeechRecognizer(BaseModel):
                 compute_type=compute_type,
             )
         except Exception as e:
-            # CUDA 라이브러리 문제 시 CPU로 fallback
-            if "cublas" in str(e).lower() or "cuda" in str(e).lower():
+            # CUDA 라이브러리 문제 또는 float16 지원 문제 시 CPU로 fallback
+            error_msg = str(e).lower()
+            if "cublas" in error_msg or "cuda" in error_msg or "float16" in error_msg:
                 logger.warning(f" CUDA 라이브러리 오류, CPU 모드로 전환: {e}")
                 device = "cpu"
                 compute_type = "int8"
@@ -251,7 +264,8 @@ class SpeechRecognizer(BaseModel):
                 vad_filter=True,  # 내장 VAD 필터 사용
             )
         except Exception as e:
-            if ("cublas" in str(e).lower() or "cuda" in str(e).lower()) and \
+            error_msg = str(e).lower()
+            if ("cublas" in error_msg or "cuda" in error_msg or "float16" in error_msg) and \
                hasattr(self, "_current_device") and self._current_device != "cpu":
                 # CUDA 실행 에러 → CPU 모드로 재로드 및 재시도
                 logger.warning(
@@ -309,7 +323,8 @@ class SpeechRecognizer(BaseModel):
                 segments.append(segment)
                 full_text_parts.append(seg.text.strip())
         except Exception as e:
-            if ("cublas" in str(e).lower() or "cuda" in str(e).lower()) and \
+            error_msg = str(e).lower()
+            if ("cublas" in error_msg or "cuda" in error_msg or "float16" in error_msg) and \
                hasattr(self, "_current_device") and self._current_device != "cpu":
                 # Generator iteration 중 CUDA 에러 → CPU로 재시도
                 logger.warning(
