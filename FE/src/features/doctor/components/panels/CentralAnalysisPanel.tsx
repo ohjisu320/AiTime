@@ -23,17 +23,12 @@ export default function CentralAnalysisPanel({
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const [currentTime, setCurrentTime] = useState(0);
-  // [Removed] Resizing logic state and handlers
-
-
-  const [realDuration, setRealDuration] = useState(0);
 
   // [Added] Guide Overlay State
   const [showGuide, setShowGuide] = useState(false);
 
-  // 비디오 변경 시 duration 초기화
+  // 비디오 변경 시 가이드 초기화
   useEffect(() => {
-    setRealDuration(0);
     setShowGuide(false);
   }, [analysisData.videoUrl]);
 
@@ -49,8 +44,8 @@ export default function CentralAnalysisPanel({
     onExpandVideo(time);
   };
 
-  // 실제 로드된 길이가 있으면 그것을 우선 사용, 없으면 예상 길이 사용
-  const displayDuration = realDuration || analysisData.totalDuration;
+  // 타임라인 표시 길이 (50초 고정)
+  const displayDuration = 50;
 
   // [Added] Helper to get timestamps for the current mission
   const getGuideTimestamps = () => {
@@ -151,7 +146,6 @@ export default function CentralAnalysisPanel({
                 className="w-full h-full object-contain"
                 controls
                 onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
-                onLoadedMetadata={(e) => setRealDuration(e.currentTarget.duration)}
               />
 
               {/* [Added] Guide Overlay */}
