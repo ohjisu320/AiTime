@@ -2,12 +2,6 @@ import { useState, useRef, useEffect } from "react";
 import { WindowsContainer, WindowsButton } from "../layout/WindowsLayout";
 import { cn } from "@/lib/utils";
 import type { VideoAnalysisData } from "../../types/doctor";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-
 // ... existing imports
 // import { PARENT_INTERACTION_TIMESTAMPS } from "@/domains/exam/constants/missionData";
 
@@ -72,6 +66,50 @@ export default function CentralAnalysisPanel({
 
   const guideSteps = getGuideTimestamps();
 
+  // [Added] State for hovered timeline item
+  const [hoveredTimelineItem, setHoveredTimelineItem] = useState<{
+    label: string;
+    detail?: string;
+    startTime: number;
+    duration: number;
+  } | null>(null);
+
+  // [Added] State for selected timeline item (persists on click)
+  const [selectedTimelineItem, setSelectedTimelineItem] = useState<{
+    label: string;
+    detail?: string;
+    startTime: number;
+    duration: number;
+  } | null>(null);
+
+  // [Added] Handler for timeline item click
+  const handleTimelineItemClick = (t: any) => {
+    handleSeek(t.startTime);
+    setSelectedTimelineItem({
+      label: t.label,
+      detail: t.detail,
+      startTime: t.startTime,
+      duration: t.duration
+    });
+  };
+
+  // [Modified] Calculate active step based on hover > selected > current time
+  // Moved here to access state variables
+  const effectiveTime = hoveredTimelineItem?.startTime ?? selectedTimelineItem?.startTime ?? currentTime;
+  let activeStep = guideSteps.find((step: any, idx: number) => {
+    const startAt = step.instruction.startAt;
+    const nextStart = guideSteps[idx + 1] ? guideSteps[idx + 1].instruction.startAt : 9999;
+    return effectiveTime >= startAt && effectiveTime < nextStart;
+  });
+
+  // [Added] Fallback: If no step matches exactly (e.g. child response is slightly after), find the most recent previous step
+  if (!activeStep && guideSteps.length > 0) {
+    activeStep = guideSteps.reduce((prev: any, curr: any) => {
+      if (curr.instruction.startAt <= effectiveTime) return curr;
+      return prev;
+    }, null);
+  }
+
   return (
     <div className="flex flex-col h-full gap-[4px] min-h-[680px] overflow-hidden p-[2px]">
 
@@ -124,10 +162,8 @@ export default function CentralAnalysisPanel({
                   </h4>
                   <div className="flex flex-col gap-2 text-[11px]">
                     {guideSteps.map((step: any, idx: number) => {
-                      // [Fix] item.time -> step.instruction.startAt
                       const currentStart = step.instruction.startAt;
                       const nextStart = guideSteps[idx + 1] ? guideSteps[idx + 1].instruction.startAt : 9999;
-
                       const isActive = currentTime >= currentStart && currentTime < nextStart;
 
                       return (
@@ -136,7 +172,10 @@ export default function CentralAnalysisPanel({
                             {currentStart}s
                           </span>
                           <div className="flex flex-col leading-tight">
-                            <span>
+                            {step.instruction.title && (
+                              <span className="font-bold text-[#ffff00] mb-0.5">{step.instruction.title}</span>
+                            )}
+                            <span className="text-gray-300">
                               {step.instruction.text} <span className="text-[#00ffff]">{step.instruction.boldText}</span> {step.instruction.suffix}
                             </span>
                           </div>
@@ -154,7 +193,6 @@ export default function CentralAnalysisPanel({
       {/* 2. Timeline Section */}
       <WindowsContainer className="flex-1 flex flex-col shrink-0 min-h-0">
         <div className="text-[13px] font-bold bg-[#000080] text-white px-2 py-0.5 flex justify-between items-center shrink-0 mb-1">
-          {/* Duration이 0이거나 유효하지 않으면 숨김 */}
           <span>영상 타임라인 분석 {displayDuration > 0 ? `(${displayDuration.toFixed(1)}s)` : ""}</span>
           <span className="bg-black text-[#00ff00] px-2 font-mono text-[14px] border border-white/30 tracking-wider">
             {Math.floor(currentTime)}s
@@ -169,50 +207,39 @@ export default function CentralAnalysisPanel({
                 {analysisData.timestamps
                   .filter((t) => t.type === row.key)
                   .map((t) => {
-                    const durationToUse = displayDuration > 0 ? displayDuration : 1; // 0 나누기 방지
-                    const left =
-                      (t.startTime / durationToUse) * 100;
-                    const width =
-                      (t.duration / durationToUse) * 100;
+                    const durationToUse = displayDuration > 0 ? displayDuration : 1;
+                    const left = (t.startTime / durationToUse) * 100;
+                    const width = (t.duration / durationToUse) * 100;
                     return (
-                      <Tooltip key={t.id}>
-                        <TooltipTrigger asChild>
-                          <button
-                            onClick={() => handleSeek(t.startTime)}
-                            className={cn(
-                              "absolute top-0 h-full opacity-80 hover:opacity-100 hover:brightness-110 transition-all border-l border-r border-black/20",
-                              row.color,
-                            )}
-                            style={{
-                              left: `${left}%`,
-                              width: `${Math.max(width, 2)}%`,
-                            }}
-                          />
-                        </TooltipTrigger>
-                        <TooltipContent
-                          className="bg-black/90 text-white border-white text-[12px] max-w-[300px]"
-                          side="top"
-                        >
-                          <div className="flex flex-col gap-1">
-                            <span className="font-bold text-yellow-300">{t.label}</span>
-                            {t.detail && (
-                              <span className="text-gray-200 font-normal leading-tight">
-                                {t.detail}
-                              </span>
-                            )}
-                            <span className="text-[10px] text-gray-400">
-                              {t.startTime.toFixed(1)}s ~ {(t.startTime + t.duration).toFixed(1)}s
-                            </span>
-                          </div>
-                        </TooltipContent>
-                      </Tooltip>
+                      <button
+                        key={t.id}
+                        // [Modified] Click sets selection & seeks
+                        onClick={() => handleTimelineItemClick(t)}
+                        // [Added] Hover handlers for Mission Guide
+                        onMouseEnter={() => setHoveredTimelineItem({
+                          label: t.label,
+                          detail: t.detail,
+                          startTime: t.startTime,
+                          duration: t.duration
+                        })}
+                        onMouseLeave={() => setHoveredTimelineItem(null)}
+                        className={cn(
+                          "absolute top-0 h-full opacity-80 hover:opacity-100 hover:brightness-110 transition-all", // Removed border-black/20
+                          row.color,
+                          // [Added] Highlight if selected (Use shadow/ring instead of border)
+                          selectedTimelineItem?.startTime === t.startTime && "brightness-150 z-10 shadow-[0_0_0_2px_white] shadow-white"
+                        )}
+                        style={{
+                          left: `${left}%`,
+                          width: `${Math.max(width, 2)}%`,
+                        }}
+                      />
                     );
                   })}
                 <div
                   className="absolute top-0 h-full w-[2px] bg-red-600 z-10 pointer-events-none shadow-[0_0_2px_red]"
                   style={{
-                    left: `${(currentTime / (displayDuration > 0 ? displayDuration : 1)) * 100
-                      }%`,
+                    left: `${(currentTime / (displayDuration > 0 ? displayDuration : 1)) * 100}%`,
                   }}
                 />
               </div>
@@ -229,6 +256,7 @@ export default function CentralAnalysisPanel({
       {/* 3. Mission Guide Section */}
       <WindowsContainer className="flex-1 flex flex-col shrink-0 min-h-0 overflow-hidden">
         <div className="text-[13px] font-bold bg-[#000080] text-white px-2 py-0.5 mb-1 flex justify-between items-center shrink-0">
+          {/* [Reverted] Fixed Header Title based on user request */}
           <span>{missionContent?.korTitle || "검사 가이드"}</span>
           <span className="text-[11px] font-normal text-gray-300">
             {missionContent?.engTitle}
@@ -236,16 +264,29 @@ export default function CentralAnalysisPanel({
         </div>
         <div className="flex-1 overflow-y-auto bg-white border border-[#808080] p-2 text-[13px] leading-relaxed flex items-center justify-center text-center">
           {(() => {
+            // Priority: Hovered > Selected > Active > Empty
+
+            const displayItem = hoveredTimelineItem || selectedTimelineItem;
+
+            if (displayItem) {
+              return (
+                <div className="flex flex-col items-center gap-2 animate-in fade-in zoom-in duration-300">
+                  <span className={cn(
+                    "font-mono text-[11px] text-white px-2 py-0.5 rounded-full mb-1",
+                    hoveredTimelineItem ? "bg-purple-700" : "bg-blue-700" // Different color for selected vs hovered
+                  )}>
+                    {displayItem.startTime}s ~ {(displayItem.startTime + displayItem.duration).toFixed(0)}s
+                  </span>
+                  <div className="text-[15px] font-bold text-gray-800 leading-snug break-keep">
+                    {displayItem.detail || displayItem.label}
+                  </div>
+                </div>
+              );
+            }
+
             if (guideSteps.length === 0) {
               return <div className="text-gray-400">등록된 가이드 데이터가 없습니다.</div>;
             }
-
-            // Find active step
-            const activeStep = guideSteps.find((step: any, idx: number) => {
-              const startAt = step.instruction.startAt;
-              const nextStart = guideSteps[idx + 1] ? guideSteps[idx + 1].instruction.startAt : 9999;
-              return currentTime >= startAt && currentTime < nextStart;
-            });
 
             if (!activeStep) {
               return (
@@ -262,6 +303,7 @@ export default function CentralAnalysisPanel({
               <div className="flex flex-col items-center gap-2 animate-in fade-in zoom-in duration-300">
                 <span className="font-mono text-[11px] bg-black text-[#00ff00] px-2 py-0.5 rounded-full mb-1">
                   STEP {instruction.id} ({instruction.startAt}s ~)
+                  {instruction.title && ` - ${instruction.title}`}
                 </span>
                 <div className="text-[15px] font-bold text-gray-800 leading-snug break-keep">
                   {instruction.text}{" "}
