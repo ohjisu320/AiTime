@@ -1,0 +1,34 @@
+# 빌드 스테이지
+FROM node:24.11.1-alpine AS builder
+
+WORKDIR /app
+
+# 의존성 설치
+COPY package.json package-lock.json* ./
+
+# ✅ 재현성 + 속도 (lock 없으면 npm install로 교체)
+RUN npm ci
+
+# 소스 복사 및 빌드
+COPY . .
+
+# 🔥 빌드 시 환경 고정
+ENV NODE_ENV=production
+RUN npm run build
+
+# 프로덕션 스테이지
+FROM node:24.11.1-alpine
+WORKDIR /app
+
+# serve 설치
+RUN npm install -g serve
+
+# 빌드 결과물 복사
+COPY --from=builder /app/dist ./dist
+
+# non-root 유저로 실행
+USER node
+EXPOSE 3000
+
+# preview 서버로 실행
+CMD ["serve", "-s", "dist", "-l", "3000"]

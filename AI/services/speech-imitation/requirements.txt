@@ -1,0 +1,13 @@
+pydantic
+pydantic-settings
+pika
+librosa
+requests
+numpy
+torch
+torchaudio
+soundfile
+praat-parselmouth
+onnxruntime
+opencv-python-headless
+pillow

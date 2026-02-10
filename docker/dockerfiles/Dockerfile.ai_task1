@@ -1,0 +1,41 @@
+# CPU 환경용 Dockerfile (경량 Python 이미지)
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# 시스템 패키지 설치 (OpenCV 의존성)
+RUN apt-get update && apt-get install -y \
+    libgl1 \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# 의존성 설치 (CPU 버전)
+COPY requirements-cpu.txt .
+RUN pip install --no-cache-dir -r requirements-cpu.txt
+
+# 앱 복사
+COPY app/ ./app/
+
+# 환경 변수
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
+ENV DEVICE=cpu
+
+# RabbitMQ 환경 변수 (docker-compose에서 오버라이드 가능)
+ENV RABBITMQ_HOST=rabbitmq
+ENV RABBITMQ_PORT=5672
+ENV RABBITMQ_USER=guest
+ENV RABBITMQ_PASSWORD=guest
+ENV TASK_QUEUE=analysis.req.task1
+ENV RESULT_QUEUE=analysis.resp
+
+# Health check용 포트 (선택적)
+EXPOSE 8001
+
+# 기본 명령어: Worker 실행
+CMD ["python", "-m", "app.worker"]
+

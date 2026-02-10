@@ -16,6 +16,10 @@ __pycache__/
 # C extensions
 *.so
 
+# PyTorch model files
+*.pt
+*.pth
+
 # Distribution / packaging
 .Python
 build/
@@ -605,5 +609,14 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+
+# face-to-face-name-response
+AI/services/face-to-face-name-response/clips
+
+# preflight
+AI/services/screening/artifacts/*
+
+# speech-imitation
+AI/services/speech-imitation/debug_output
 
 # End of https://www.toptal.com/developers/gitignore/api/python,macos,react,java,windows,intellij,flask,node

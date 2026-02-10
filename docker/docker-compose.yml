@@ -1,0 +1,133 @@
+services:
+  # Database
+  mysql:
+    image: mysql:8.0.44
+    container_name: mysql
+    ports:
+      - "127.0.0.1:3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-aitime}
+      TZ: ${TZ:-Asia/Seoul}
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --innodb-buffer-pool-size=256M
+      --max-connections=100
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cmn-network
+    restart: unless-stopped
+    mem_limit: 600m
+    mem_reservation: 400m
+    memswap_limit: 600m
+
+  # Cache
+  redis:
+    image: redis:latest
+    container_name: redis
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis_data:/data
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "100mb", "--maxmemory-policy", "allkeys-lru"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - cmn-network
+    restart: unless-stopped
+    mem_limit: 128m
+    mem_reservation: 64m
+    memswap_limit: 128m
+
+  # Message Queue
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "127.0.0.1:5672:5672"
+      - "0.0.0.0:8099:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
+      RABBITMQ_MANAGEMENT_PATH_PREFIX: /rabbitmq
+    volumes:
+    - /home/ubuntu/src/S14P11A501/docker/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+    networks:
+      - cmn-network
+    restart: unless-stopped
+    mem_limit: 256m
+    mem_reservation: 150m
+    memswap_limit: 256m
+
+  # Object Storage
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_API_CORS_ALLOW_ORIGIN: ${MINIO_CORS_ORIGIN}
+    volumes:
+      - /home/ubuntu/minio:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - cmn-network
+    restart: unless-stopped
+    mem_limit: 256m
+    mem_reservation: 100m
+    memswap_limit: 256m
+
+  # CI/CD
+  jenkins:
+    build:
+      context: ./dockerfiles
+      dockerfile: Dockerfile.jenkins
+    container_name: jenkins
+    user: root
+    ports:
+      - "127.0.0.1:8088:8080"
+      - "127.0.0.1:50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /home/ubuntu:/home/ubuntu:rw
+    environment:
+      - JENKINS_OPTS=--prefix=/jenkins
+      - JAVA_OPTS=-Xms512m -Xmx1024m
+    networks:
+      - cmn-network
+    restart: unless-stopped
+    mem_limit: 1536m
+    mem_reservation: 1g
+    memswap_limit: 1536m
+
+networks:
+  cmn-network:
+    external: true
+    driver: bridge
+
+volumes:
+  mysql_data:
+    external: true
+  redis_data:
+    external: true
+  jenkins_home:
+    external: true

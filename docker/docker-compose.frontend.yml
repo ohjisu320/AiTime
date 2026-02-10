@@ -1,0 +1,35 @@
+services:
+  nodejs:
+    build:
+      context: ../FE                                                            # dockerfile 기준 상대 경로
+      dockerfile: ../docker/dockerfiles/Dockerfile.frontend     # FE 기준 상대 경로
+    container_name: nodejs
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      NODE_ENV: production
+      TZ: ${TZ:-Asia/Seoul}
+      NODE_OPTIONS: --max-old-space-size=200
+    networks:
+      - cmn-network
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://127.0.0.1:3000',r=>process.exit(r.statusCode>=200&&r.statusCode<500?0:1)).on('error',()=>process.exit(1))"
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+    mem_limit: 256m
+    mem_reservation: 100m
+    memswap_limit: 256m
+
+networks:
+  cmn-network:
+    external: true
+    name: cmn-network

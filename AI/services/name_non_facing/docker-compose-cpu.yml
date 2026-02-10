@@ -1,0 +1,103 @@
+# =============================================================================
+# CPU 환경용 docker-compose (GPU 없는 서버)
+# =============================================================================
+# 사용법: docker-compose -f docker-compose-cpu.yml up -d
+# =============================================================================
+
+version: "3.8"
+
+services:
+  # ==========================================================================
+  # RabbitMQ 메시지 브로커
+  # ==========================================================================
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: nnf-rabbitmq
+    ports:
+      - "5672:5672"   # AMQP
+      - "15672:15672" # Management UI (http://localhost:15672)
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - nnf-network
+
+  # ==========================================================================
+  # Name Non-Facing Worker (CPU) - 메인 서비스
+  # ==========================================================================
+  name-non-facing-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile-cpu
+    container_name: nnf-worker
+    restart: unless-stopped
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    env_file:
+      - .env.prod
+    environment:
+      # RabbitMQ 연결 설정
+      RABBITMQ_HOST: rabbitmq
+      
+      # 디바이스 설정 (CPU)
+      DEVICE: cpu
+      WHISPER_DEVICE: cpu
+      DIARIZATION_DEVICE: cpu
+      SIXDREPNET_DEVICE: cpu
+    volumes:
+      # 영상 파일 공유 (필요시)
+      - ./sample_video:/app/sample_video:ro
+      # 모델 캐시 (다운로드 시간 단축)
+      - huggingface_cache:/root/.cache/huggingface
+      - torch_cache:/root/.cache/torch
+    # GPU 관련 설정 없음
+    networks:
+      - nnf-network
+
+  # ==========================================================================
+  # Health Check API (선택적 - 모니터링/상태 확인용)
+  # ==========================================================================
+  name-non-facing-api:
+    build:
+      context: .
+      dockerfile: Dockerfile-cpu
+    container_name: nnf-api
+    restart: unless-stopped
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      # API 모드로 실행
+      RUN_MODE: api
+      
+      # RabbitMQ 연결 설정 (상태 확인용)
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: guest
+      RABBITMQ_PASSWORD: guest
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - nnf-network
+
+networks:
+  nnf-network:
+    driver: bridge
+
+volumes:
+  rabbitmq_data:
+  huggingface_cache:
+  torch_cache:
