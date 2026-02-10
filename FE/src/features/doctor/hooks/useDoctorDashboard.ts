@@ -52,6 +52,7 @@ export const useDoctorDashboard = () => {
       setCurrentVideoData(data.latestPoseImitationVideo || null);
 
       console.log("✅ [Dashboard] 통합 데이터 로딩 완료");
+      setIsExamReportLoading(false); // [Fix] 성공 시 로딩 상태 해제
       return; // 여기서 종료
     } catch (error: any) {
       console.warn("⚠️ [Dashboard] 통합 API 실패 (S3 에러 등). 개별 API로 복구 시도합니다.", error);
