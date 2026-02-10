@@ -320,7 +320,8 @@ export default function CentralAnalysisPanel({
       {/* 3. Mission Guide Section */}
       <WindowsContainer style={sectionStyle(2)} className="flex flex-col overflow-hidden">
         <div className="text-[13px] font-bold bg-[#000080] text-white px-2 py-0.5 mb-1 flex justify-between items-center shrink-0">
-          <span>{missionContent?.korTitle || "검사 가이드"}</span>
+          {/* [Reverted] Fixed Header Title based on user request */}
+          <span>{missionContent?.listTitle || missionContent?.korTitle || "검사 가이드"}</span>
           <span className="text-[11px] font-normal text-gray-300">
             {missionContent?.engTitle}
           </span>
@@ -362,11 +363,7 @@ export default function CentralAnalysisPanel({
 
             return (
               <div className="flex flex-col items-center gap-2 animate-in fade-in zoom-in duration-300">
-                <span className="font-mono text-[11px] bg-black text-[#00ff00] px-2 py-0.5 rounded-full mb-1">
-                  STEP {instruction.id} ({instruction.startAt}s ~)
-                  {instruction.title && ` - ${instruction.title}`}
-                </span>
-                <div className="text-[15px] font-bold text-gray-800 leading-snug break-keep">
+                <div className="text-[17px] font-bold text-gray-800 leading-snug break-keep mt-2">
                   {instruction.text}{" "}
                   <span className="text-blue-600 underline decoration-blue-400 underline-offset-4 decoration-2">
                     {instruction.boldText}
