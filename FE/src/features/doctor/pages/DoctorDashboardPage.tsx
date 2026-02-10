@@ -227,6 +227,17 @@ export default function DoctorDashboardPage() {
         ];
     }
 
+    // [DEBUG] 타임스탬프 파싱 추적
+    console.log("🔍 [Timeline Debug]", {
+      videoType: videoData.videoType,
+      rawTimestamps: videoData.timestamps,
+      rawTimestampCount: videoData.timestamps?.length || 0,
+      parsedUiTimestamps: uiTimestamps,
+      parsedCount: uiTimestamps.length,
+      viewUrl: videoData.viewUrl ? "✅ 있음" : "❌ 없음",
+      missionKey,
+    });
+
     return {
       videoUrl: videoData.viewUrl || null,
       totalDuration,
