@@ -14,7 +14,6 @@ import { MASTER_ADOS_ITEMS, CODES_PRE_VERBAL, CODES_VERBAL } from "../types/ados
 
 export const useDoctorDashboard = () => {
   // --- UI 상태 ---
-  const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isVideoModalOpen, setVideoModalOpen] = useState(false);
   const [isAdosModalOpen, setAdosModalOpen] = useState(false);
 
@@ -207,8 +206,6 @@ export const useDoctorDashboard = () => {
     } else {
       console.warn("⚠️ 유효하지 않은 ID입니다.");
     }
-
-    setSidebarOpen(false);
   }, [loadExamReportInitialData]);
 
   /**
@@ -249,11 +246,8 @@ export const useDoctorDashboard = () => {
     fetchWaitingList();
   }, [selectPatient]);
 
-  const toggleSidebar = () => setSidebarOpen((prev) => !prev);
-
   return {
     states: {
-      isSidebarOpen,
       isVideoModalOpen,
       isAdosModalOpen,
       selectedPatient,
@@ -267,7 +261,6 @@ export const useDoctorDashboard = () => {
       isExamReportLoading,
     },
     actions: {
-      toggleSidebar,
       setVideoModalOpen,
       setAdosModalOpen,
       selectPatient,
