@@ -134,18 +134,7 @@ export default function DoctorDashboardPage() {
           });
           maxEndTime = Math.max(maxEndTime, item.childEndTime);
         }
-        else if (item.startS !== undefined) {
-          const start = item.startS;
-          const end = item.endS ?? (start + 5);
-          uiTimestamps.push({
-            id: baseId,
-            type: "child-behavior",
-            label: `모방 시도 (T${item.trialIndex})`, // 아이 행동 라벨로 변경
-            startTime: start,
-            duration: end - start,
-          });
-          maxEndTime = Math.max(maxEndTime, end);
-        }
+        // [수정] Mock data removal: Removed fallback block using item.startS
       }
 
       // 2. 발화 모방 (SPEECH_IMITATION)
@@ -162,18 +151,8 @@ export default function DoctorDashboardPage() {
             duration: item.trialEndS - item.trialStartS,
           });
           maxEndTime = Math.max(maxEndTime, item.trialEndS);
-        } else if (item.startS !== undefined) {
-          const start = item.startS;
-          const end = item.endS ?? (start + 3);
-          uiTimestamps.push({
-            id: baseId,
-            type: "child-vocal",
-            label: `발화: ${wordLabel}`,
-            startTime: start,
-            duration: end - start,
-          });
-          maxEndTime = Math.max(maxEndTime, end);
         }
+        // [수정] Mock data removal: Removed fallback block using item.startS
       }
 
       // 3. 대면 호명 (NAME_FACING)
@@ -189,18 +168,8 @@ export default function DoctorDashboardPage() {
             duration: item.trialEndS - item.trialStartS,
           });
           maxEndTime = Math.max(maxEndTime, item.trialEndS);
-        } else if (item.startS !== undefined) {
-          const start = item.startS;
-          const end = item.endS ?? (start + 3);
-          uiTimestamps.push({
-            id: baseId,
-            type: "child-behavior",
-            label: "눈맞춤 확인",
-            startTime: start,
-            duration: end - start,
-          });
-          maxEndTime = Math.max(maxEndTime, end);
         }
+        // [수정] Mock data removal: Removed fallback block using item.startS
       }
 
       // 4. 비대면 호명 (NAME_NON_FACING)
@@ -209,41 +178,10 @@ export default function DoctorDashboardPage() {
 
         if (item.triggerStartS !== undefined) {
           // Parent trigger is handled by static data now
-          // Only Voice (Child response? or Parent Voice? NAME_NON_FACING has voiceStartS which is usually parent calling name)
-          // Wait, NAME_NON_FACING:
-          // 1. Trigger (Toy) -> Parent
-          // 2. Voice (Calling Name) -> Parent
-          // Child response is usually not in this specific timestamp structure? 
-          // Usually it tracks if child turned head.
-          // However, if the API returns "voiceStartS", it's likely the parent calling.
-          // Since we populate parent from static, we might duplicate if we add it here.
-          // But static data assumes fixed timing. API data reflects actual video timing.
-          // If we stick to static for parent, we should ignore API parent data.
-          // But what about Child response?
-          // The NonFacingTimestamp usually implies: trigger (parent), voice (parent), faceVisible/eyeContact (child).
-          // If the current types only have parent actions, then child actions might be missing or in a different field.
-          // Assuming we only visualize what we have. API data for NonFacing seems to track Parent actions mostly?
-          // "voiceStartS" -> Parent calling.
-          // If user wants to enforce static parent timestamps, we should omit API-based parent timestamps.
-          // Let's assume API tracks user input or analysis result.
-          // If the user says "API doesn't print timestamps", maybe they mean the API is empty or we shouldn't rely on it for Parent.
+          // ...
           // I will comment out Parent mappings from API and rely on Static.
         }
-        else if (item.startS !== undefined) {
-          // Generic fallback
-          const start = item.startS;
-          const end = item.endS ?? (start + 3);
-          // Assume Child Response if undefined? Or just omit if it overlaps.
-          // Let's assume this is child response for now to have something on Child row.
-          uiTimestamps.push({
-            id: baseId,
-            type: "child-vocal", // Or behavior
-            label: `반응 감지`,
-            startTime: start,
-            duration: end - start,
-          });
-          maxEndTime = Math.max(maxEndTime, end);
-        }
+        // [수정] Mock data removal: Removed generic fallback block using item.startS
       }
     });
 
