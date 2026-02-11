@@ -55,11 +55,10 @@ services:
     container_name: rabbitmq
     ports:
       - "127.0.0.1:5672:5672"
-      - "0.0.0.0:8099:15672"
+      - "127.0.0.1:8099:15672"
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
-      RABBITMQ_MANAGEMENT_PATH_PREFIX: /rabbitmq
     volumes:
     - /home/ubuntu/aitime/S14P11A501/docker/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
     networks:
