@@ -73,6 +73,9 @@ export default function DoctorDashboardPage() {
 
       // 부모 행동일 경우 미션 지침(suffix 등)을 사용하여 구체화
       if (type === "parent") {
+        // [수정] Use 'title' field if available (e.g., "손뼉", "만세") for concise display
+        if (instruction.title) return instruction.title;
+
         // 예: "정확하게 박수를 쳐주세요" -> "박수 치기" 처럼 간단히 보여주거나 원본 사용
         // 여기서는 suffix나 boldText를 조합해서 보여줌
         return `${instruction.boldText || ""} ${instruction.suffix || ""}`.trim();
@@ -139,7 +142,10 @@ export default function DoctorDashboardPage() {
       // 2. 발화 모방 (SPEECH_IMITATION)
       else if (videoData.videoType === 'SPEECH_IMITATION') {
         const item = ts as SimpleTimestamp;
-        const wordLabel = missionContent?.instructions?.[item.trialIndex - 1]?.text?.replace(/[\[\]]/g, "").trim() || `Trial ${item.trialIndex}`;
+        // [수정] Use missionContent.instructions[id].title if available for shorter label
+        // 'text' has awkward phrasing like '아 소리를'. 'title' is just '아'.
+        const instruction = missionContent?.instructions?.[item.trialIndex - 1];
+        const wordLabel = instruction?.title || `Trial ${item.trialIndex}`;
 
         if (item.trialStartS != null) {
           uiTimestamps.push({
