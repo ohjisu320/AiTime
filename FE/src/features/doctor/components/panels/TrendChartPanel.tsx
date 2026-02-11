@@ -40,9 +40,11 @@ export default function TrendChartPanel({ adosGraphs }: Props) {
 
     if (currentLength >= 5) return source;
 
-    const prependCount = targetLength - currentLength;
+    const padSeries = (values: number[], targetLen: number) => {
+      const currentLen = values.length;
+      if (currentLen >= targetLen) return values;
 
-    const padSeries = (values: number[]) => {
+      const prependCount = targetLen - currentLen;
       const firstActual = values[0] ?? 1;
       const start = clampValue(firstActual - 0.2 * (prependCount + 1));
       const step = (firstActual - start) / (prependCount + 1);
@@ -60,7 +62,7 @@ export default function TrendChartPanel({ adosGraphs }: Props) {
 
       const paddedSeries: Record<string, number[]> = {};
       Object.entries(graph.series).forEach(([label, values]) => {
-        paddedSeries[label] = values.length >= targetLength ? values : padSeries(values);
+        paddedSeries[label] = padSeries(values, targetLength);
       });
 
       acc[key] = { series: paddedSeries } as AdosGraphs['graphs'][keyof AdosGraphs['graphs']];

@@ -175,7 +175,8 @@ export default function WaitingListSidebar({
               const day = i + 1;
               const dayOfWeek = (startDayOfWeek + i) % 7;
               const dateStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-              const isReserved = reservedDates.includes(dateStr);
+              // [수정] 평일(월~금)은 무조건 예약된 것으로 간주 (0: 일요일, 6: 토요일)
+              const isReserved = reservedDates.includes(dateStr) || (dayOfWeek !== 0 && dayOfWeek !== 6);
               const isSelected = selectedDate.getDate() === day && selectedDate.getMonth() === currentMonth.getMonth();
               const isToday = new Date().getDate() === day && new Date().getMonth() === currentMonth.getMonth();
 
