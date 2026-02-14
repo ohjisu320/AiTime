@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500">
+  <!-- Definitions for arrowheads -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#333" />
+    </marker>
+  </defs>
+
+  <!-- Styles -->
+  <style>
+    .node { filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.1)); }
+    .rect { stroke-width: 2; rx: 8; ry: 8; }
+    .input { fill: #e3f2fd; stroke: #1565c0; }
+    .model { fill: #fff3e0; stroke: #ef6c00; }
+    .logic { fill: #f3e5f5; stroke: #7b1fa2; }
+    .output { fill: #e8f5e9; stroke: #2e7d32; }
+    .text { font-family: Arial, sans-serif; font-size: 14px; text-anchor: middle; fill: #000; }
+    .subtext { font-family: Arial, sans-serif; font-size: 11px; text-anchor: middle; fill: #555; }
+    .edge { stroke: #333; stroke-width: 1.5; fill: none; marker-end: url(#arrowhead); }
+    .label { font-family: Arial, sans-serif; font-size: 11px; fill: #444; background-color: white; }
+  </style>
+
+  <!-- Nodes -->
+  <!-- Input -->
+  <g class="node" transform="translate(50, 200)">
+    <rect width="120" height="60" class="rect input" />
+    <text x="60" y="30" class="text" dy="5">🎥 Input Video</text>
+  </g>
+
+  <!-- VAD -->
+  <g class="node" transform="translate(220, 100)">
+    <rect width="140" height="60" class="rect model" />
+    <text x="70" y="25" class="text">🎤 VAD</text>
+    <text x="70" y="45" class="subtext">(Silero ONNX)</text>
+  </g>
+
+  <!-- Speaker Split -->
+  <g class="node" transform="translate(220, 300)">
+    <rect width="140" height="60" class="rect logic" />
+    <text x="70" y="25" class="text">🗣️ Speaker Split</text>
+    <text x="70" y="45" class="subtext">(Pitch/F0 Heuristic)</text>
+  </g>
+
+  <!-- Trial Plan -->
+  <g class="node" transform="translate(410, 200)">
+    <rect width="140" height="60" class="rect logic" />
+    <text x="70" y="25" class="text">📅 Trial Plan</text>
+    <text x="70" y="45" class="subtext">(Stimuli Matching)</text>
+  </g>
+
+  <!-- Imitation Judge -->
+  <g class="node" transform="translate(600, 200)">
+    <rect width="140" height="60" class="rect model" />
+    <text x="70" y="25" class="text">⚖️ Imitation Judge</text>
+    <text x="70" y="45" class="subtext">(MFCC+DTW / Prosody)</text>
+  </g>
+
+  <!-- Result -->
+  <g class="node" transform="translate(600, 350)">
+    <rect width="140" height="60" class="rect output" />
+    <text x="70" y="25" class="text">📝 Final Result</text>
+    <text x="70" y="45" class="subtext">(JSON: Success/Metrics)</text>
+  </g>
+
+  <!-- Edges -->
+  <!-- Input -> VAD -->
+  <path d="M110 200 L110 130 L220 130" class="edge" />
+  
+  <!-- Input -> Speaker Split -->
+  <path d="M110 260 L110 330 L220 330" class="edge" />
+
+  <!-- VAD -> Trial Plan -->
+  <path d="M360 130 L385 130 L385 220 L410 220" class="edge" />
+  
+  <!-- Speaker Split -> Trial Plan -->
+  <path d="M360 330 L385 330 L385 240 L410 240" class="edge" />
+
+  <!-- Trial Plan -> Imitation Judge -->
+  <path d="M550 230 L600 230" class="edge" />
+
+  <!-- Imitation Judge -> Result -->
+  <path d="M670 260 L670 350" class="edge" />
+
+</svg>
