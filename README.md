@@ -334,8 +334,8 @@ UI/UX / FE
 
 <td align="center" width="200">
 
-<a href="https://github.com/USERNAME3">
-<img src="https://avatars.githubusercontent.com/USERNAME3" width="120" style="border-radius: 50%;" />
+<a href="https://github.com/najung-h">
+<img src="https://avatars.githubusercontent.com/najung-h" width="120" style="border-radius: 50%;" />
 </a>
 
 <br/>
@@ -344,7 +344,7 @@ UI/UX / FE
 AI
 
 <br/>
-<a href="https://github.com/USERNAME3">GitHub →</a>
+<a href="https://github.com/najung-h">GitHub →</a>
 
 </td>
 
