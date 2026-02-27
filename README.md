@@ -46,7 +46,7 @@ AITIME은 그 관찰 과정을
 
 # 🧠 System Architecture
 
-<img src="./docs/architecture.png" width="100%" />
+<img src="./docs/architecture.png" width="80%" />
 
 <details>
   <summary><b>📌 Mermaid로 자세히 보기 (Click)</b></summary>
@@ -155,103 +155,103 @@ flowchart TD
 
 ## 1. 로그인
 
-<img src="./docs/gif/로그인.gif" width="100%" />
+<img src="./docs/gif/로그인.gif" width="80%" />
 
 ---
 
 ## 2. 자녀 선택
 
-<img src="./docs/gif/자녀초기화면.gif" width="100%" />
+<img src="./docs/gif/자녀초기화면.gif" width="80%" />
 
 ---
 
 ## 3. 자녀 추가
 
-<img src="./docs/gif/자녀추가.gif" width="100%" />
+<img src="./docs/gif/자녀추가.gif" width="80%" />
 
 ---
 
 ## 4. 자녀 초대코드 등록
 
-<img src="./docs/gif/자녀초대코드등록.gif" width="100%" />
+<img src="./docs/gif/자녀초대코드등록.gif" width="80%" />
 
 ---
 
 ## 5. 검사 사전 동의
 
-<img src="./docs/gif/검사사전동의.gif" width="100%" />
+<img src="./docs/gif/검사사전동의.gif" width="80%" />
 
 ---
 
 ## 6. 동작 모방
 
-<img src="./docs/gif/동작모방.gif" width="100%" />
+<img src="./docs/gif/동작모방.gif" width="80%" />
 
 ---
 
 ## 7. 발화 모방
 
-<img src="./docs/gif/발화모방.gif" width="100%" />
+<img src="./docs/gif/발화모방.gif" width="80%" />
 
 ---
 
 ## 8. 대면 호명
 
-<img src="./docs/gif/대면호명.gif" width="100%" />
+<img src="./docs/gif/대면호명.gif" width="80%" />
 
 ---
 
 ## 9. 비대면 호명
 
-<img src="./docs/gif/비대면호명.gif" width="100%" />
+<img src="./docs/gif/비대면호명.gif" width="80%" />
 
 ---
 
 ## 10. 검사 영상 조회
 
-<img src="./docs/gif/검사영상조회.gif" width="100%" />
+<img src="./docs/gif/검사영상조회.gif" width="80%" />
 
 ---
 
 ## 11. 검사 제출
 
-<img src="./docs/gif/검사제출.gif" width="100%" />
+<img src="./docs/gif/검사제출.gif" width="80%" />
 
 ---
 
 ## 12. 의사 환자 조회
 
-<img src="./docs/gif/의사환자조회.gif" width="100%" />
+<img src="./docs/gif/의사환자조회.gif" width="80%" />
 
 ---
 
 ## 13. 의사 차트 확인
 
-<img src="./docs/gif/의사 차트 확인.gif" width="100%" />
+<img src="./docs/gif/의사 차트 확인.gif" width="80%" />
 
 ---
 
 ## 14. 타임스탬프 선택
 
-<img src="./docs/gif/타임스탬프 선택.gif" width="100%" />
+<img src="./docs/gif/타임스탬프 선택.gif" width="80%" />
 
 ---
 
 ## 15. 진단 결과 추가
 
-<img src="./docs/gif/진료추가.gif" width="100%" />
+<img src="./docs/gif/진료추가.gif" width="80%" />
 
 ---
 
 ## 16. 접수처 로그인
 
-<img src="./docs/gif/접수처로그인.gif" width="100%" />
+<img src="./docs/gif/접수처로그인.gif" width="80%" />
 
 ---
 
 ## 17. 접수처 초대코드 발급
 
-<img src="./docs/gif/초대코드발급.gif" width="100%" />
+<img src="./docs/gif/초대코드발급.gif" width="80%" />
 
 <br/>
 
