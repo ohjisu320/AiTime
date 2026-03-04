@@ -7,7 +7,7 @@ import { getExamInfo } from '@/domains/exam/api/examApi';
 import ExamBaseLayout from '@/domains/exam/components/layout/ExamBaseLayout';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import { FullScreenOverlayText } from '@/components/common/FullScreenOverlayText';
-import { SCREENING_CONTENT, CLIENT_TO_SERVER_VIDEO_TYPE_MAP } from '@/domains/exam/constants/missionDataTest';
+import { SCREENING_CONTENT, CLIENT_TO_SERVER_VIDEO_TYPE_MAP } from '@/domains/exam/constants/missionData';
 import Swal from 'sweetalert2';
 import ConfirmModal from '@/components/common/ConfirmModal';
 
