@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   fetchChildHomeInfo,
-  type ChildHomeData,
+  type ChildHomeResponse,
   TEST_CHILD_ID,
 } from '../api/dashboardApi';
 

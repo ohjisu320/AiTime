@@ -10,12 +10,17 @@ Reference:
     - 12-Factor App Config: https://12factor.net/config
 """
 
+from pathlib import Path
 from enum import Enum
 from functools import lru_cache # 캐싱
 from typing import Optional
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+# 프로젝트 기본 경로 (app/ 디렉토리)
+BASE_DIR = Path(__file__).resolve().parent
 
 
 class ReactionMode(str, Enum):
@@ -41,6 +46,7 @@ class WhisperModelSize(str, Enum):
     | medium    | 769 M      | ~5 GB  | ~2x            |
     | large     | 1550 M     | ~10 GB | 1x             |
     | large-v3  | 1550 M     | ~10 GB | 1x             |
+    | large-v3-turbo | 809 M | ~6 GB  | ~8x            |
     """
     TINY = "tiny"
     BASE = "base"
@@ -48,6 +54,7 @@ class WhisperModelSize(str, Enum):
     MEDIUM = "medium"
     LARGE = "large"
     LARGE_V3 = "large-v3"
+    LARGE_V3_TURBO = "large-v3-turbo"
 
 
 class Settings(BaseSettings):
@@ -169,7 +176,7 @@ class Settings(BaseSettings):
     # ===== Whisper 설정 =====
     # Reference: https://github.com/openai/whisper
     WHISPER_MODEL_SIZE: WhisperModelSize = Field(
-        default=WhisperModelSize.LARGE_V3,
+        default=WhisperModelSize.LARGE_V3_TURBO,
         description="Whisper 모델 크기"
     )
     WHISPER_LANGUAGE: str = Field(
@@ -206,7 +213,7 @@ class Settings(BaseSettings):
     # ===== Vision 파라미터 =====
     # YOLO Head Detector
     YOLO_HEAD_MODEL: str = Field(
-        default="models/yolo_p2layer_jh.pt",
+        default=str(BASE_DIR / "models" / "yolo_p2layer_jh.pt"),
         description=(
             "YOLO Head-specific 모델 경로\n"
             "  - yolo_p2layer_jh.pt: P2 layer 추가된 커스텀 모델 (뒤통수 등 가린 얼굴 영역에서도 정확도 향상)\n"

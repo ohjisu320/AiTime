@@ -30,6 +30,6 @@ public record PresignedViewUrlWithTimestampsResponse(
         LocalDateTime expiresAt,
 
         @JsonProperty("timestamps")
-        List<TimestampInfo> timestamps
+        List<?> timestamps  // Object 타입으로 변경하여 다양한 타입 지원
 ) {
 }

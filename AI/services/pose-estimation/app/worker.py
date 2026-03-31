@@ -95,7 +95,11 @@ class PoseWorker:
         _properties: pika.spec.BasicProperties,
         body: bytes,
     ) -> None:
-        """메시지 처리 콜백"""
+        """메시지 처리 콜백 (Threaded for Heartbeats)"""
+        import threading
+        import queue
+        import time
+
         task = json.loads(body)
 
         # === BE → AI 필드 파싱 (camelCase) ===
@@ -108,48 +112,127 @@ class PoseWorker:
         logger.info("작업 수신: examId=%s, videoType=%s", exam_id, video_type)
 
         tmp_path = None
+        result_queue = queue.Queue()
 
+        def analyze_wrapper():
+            """별도 스레드에서 실행될 분석 로직"""
+            try:
+                # 비디오 로드
+                video_path = self._load_video(task)
+                # 로컬 경로인 경우 삭제하지 않음 (Wrapper 안에서 처리하거나, 메인에서 처리)
+                # 여기서는 경로만 리턴하고 메인에서 cleanup 하는게 안전하지만,
+                # 예외 발생 시 cleanup을 위해 try-finally 구조가 필요함.
+                # 편의상 로드된 경로는 큐에 넣기 어렵으므로(복잡도 증가),
+                # self._load_video는 메인 스레드에서 호출하는게 낫지만, 다운로드 시간도 길어질 수 있음.
+                # 따라서 다운로드+분석을 모두 스레드에서 함.
+                
+                nonlocal tmp_path
+                # 주의: tmp_path는 메인 스레드 변수이므로 쓰기 시 조심해야 하나,
+                # 메인 스레드는 읽기만 하고(cleanup 시), 워커 스레드가 씀.
+                # 하지만 로직 단순화를 위해 여기서 로컬 변수로 쓰고, 결과에 포함시켜 리턴하는게 나음.
+                pass
+            except Exception:
+                pass
+
+        # 실제 작업 함수 (복잡한 로직을 내부 함수로 분리)
+        def target_function():
+            _tmp_path = None
+            try:
+                # 1. 비디오 로드 (다운로드 포함)
+                video_path = self._load_video(task)
+                if "video_path" not in task:
+                    _tmp_path = video_path
+
+                # 2. 필수 필드 검증 & 동작 세트 결정
+                if age_months is None:
+                    raise KeyError("ageMonths")
+                action_list = get_action_set_by_age(age_months)
+
+                logger.info("pose_imitation 분석 시작: %s (%d개월)", child_name, age_months)
+                logger.info("동작 세트: %s", action_list)
+                # 3. 분석 수행
+                _result = self.analyzer.analyze_multi_trial(
+                    video_path=video_path,
+                    action_list=action_list,
+                    age_months=age_months
+                )
+                
+                # 성공 결과 큐에 넣기
+                result_queue.put({"status": "success", "data": _result, "tmp_path": _tmp_path})
+
+            except Exception as e:
+                # 실패 결과 큐에 넣기
+                result_queue.put({"status": "error", "error": e, "tmp_path": _tmp_path})
+
+        # 스레드 시작
+        worker_thread = threading.Thread(target=target_function)
+        worker_thread.start()
+
+        # 타임아웃 설정 (3시간)
+        TIMEOUT_SECONDS = 3 * 60 * 60 
+        start_time = time.time()
+
+        # Heartbeat Loop
+        while worker_thread.is_alive():
+            # RabbitMQ 연결 유지 (Heartbeat 전송)
+            self.connection.process_data_events()
+            
+            # GIL Starvation 방지
+            time.sleep(0.1)
+
+            # 타임아웃 체크
+            if time.time() - start_time > TIMEOUT_SECONDS:
+                logger.error("작업 시간 초과 (%d초). 강제 중단 처리.", TIMEOUT_SECONDS)
+                # 주의: 파이썬 스레드는 강제 종료 불가. 프로세스를 종료하거나, 플래그를 써야 함.
+                # 여기서는 에러 응답 보내고 루프 탈출 -> 이후 컨테이너 재시작 등 고려해야 함.
+                break
+
+        # 스레드 종료 대기 (타임아웃 되었더라도 join은 필요하지만, 여기서는 바로 응답 보냄)
+        # 정상 종료된 경우 결과 가져오기
         try:
-            # 비디오 로드
-            video_path = self._load_video(task)
-            # 로컬 경로인 경우 삭제하지 않음
-            tmp_path = video_path if "video_path" not in task else None
+            # 타임아웃 안 걸리고 끝났거나, 타임아웃으로 루프 탈출한 경우
+            # get_nowait() 또는 timeout 있는 get() 사용
+            # 스레드가 아직 살아있으면(타임아웃 케이스) 큐에 아무것도 없음 -> Empty 예외
+            result_data = result_queue.get(timeout=1.0)
+            
+            # 임시 파일 경로 업데이트 (메인 스레드에서 삭제하기 위해)
+            tmp_path = result_data.get("tmp_path")
 
-            # 필수 필드 검증
-            if age_months is None:
-                raise KeyError("ageMonths")
+            if result_data["status"] == "success":
+                analysis_result = result_data["data"]
+                # === AI → BE 응답 생성 ===
+                result_message = {
+                    "examId": exam_id,
+                    "videoId": video_id,
+                    "videoType": "POSE_IMITATION",
+                    "analyzedAt": datetime.now(KST).isoformat(),
+                    "status": "SUCCESS",
+                    "metrics": analysis_result.metrics,
+                    "ADOS": analysis_result.ados
+                }
+                success_count = sum(1 for t in analysis_result.metrics["per_trial"] if t["success"])
+                logger.info("작업 %s 완료: %d/3 성공", exam_id, success_count)
+            else:
+                raise result_data["error"]
 
-            # 월령에 따른 동작 세트 자동 결정
-            action_list = get_action_set_by_age(age_months)
-
-            logger.info("pose_imitation 분석 시작: %s (%d개월)", child_name, age_months)
-            logger.info("동작 세트: %s", action_list)
-
-            # 분석 수행
-            result = self.analyzer.analyze_multi_trial(
-                video_path=video_path,
-                action_list=action_list,
-                age_months=age_months
-            )
-
-            # === AI → BE 응답 (camelCase, 평탄화) ===
+        except queue.Empty:
+            # 타임아웃 등으로 스레드가 응답을 주지 않은 경우
+            error_msg = f"작업 시간 초과 또는 응답 없음 (제한: {TIMEOUT_SECONDS}초)"
+            logger.error(error_msg)
             result_message = {
                 "examId": exam_id,
                 "videoId": video_id,
                 "videoType": "POSE_IMITATION",
                 "analyzedAt": datetime.now(KST).isoformat(),
-                "status": "SUCCESS",
-                "metrics": result.metrics,
-                "ADOS": result.ados
+                "status": "FAILED",
+                "error": error_msg
             }
+            # 좀비 스레드는 남지만, 메인 프로세스는 계속 돔 (메모리 누수 가능성 -> 추후 request count로 해결)
 
-            success_count = sum(1 for t in result.metrics["per_trial"] if t["success"])
-            logger.info("작업 %s 완료: %d/3 성공", exam_id, success_count)
-            logger.info("ADOS 결과: %s", result.ados)
-
-        except KeyError as e:
-            error_msg = f"필수 필드 누락: {e}"
-            logger.error("examId=%s: %s", exam_id, error_msg)
+        except Exception as e:
+            # 분석 내부 에러 처리
+            error_msg = str(e)
+            logger.error("examId=%s 실패: %s", exam_id, error_msg)
             result_message = {
                 "examId": exam_id,
                 "videoId": video_id,
@@ -159,34 +242,13 @@ class PoseWorker:
                 "error": error_msg
             }
 
-        except ValueError as e:
-            logger.error("examId=%s: %s", exam_id, e)
-            result_message = {
-                "examId": exam_id,
-                "videoId": video_id,
-                "videoType": "POSE_IMITATION",
-                "analyzedAt": datetime.now(KST).isoformat(),
-                "status": "FAILED",
-                "error": str(e)
-            }
-
-        except Exception as e:
-            logger.exception("작업 %s 실패", exam_id)
-            result_message = {
-                "examId": exam_id,
-                "videoId": video_id,
-                "videoType": "POSE_IMITATION",
-                "analyzedAt": datetime.now(KST).isoformat(),
-                "status": "FAILED",
-                "error": str(e)
-            }
-
         finally:
             # 임시 파일 정리
             if tmp_path and os.path.exists(tmp_path):
                 with contextlib.suppress(Exception):
                     os.remove(tmp_path)
 
+        # 결과 발행 및 Ack
         self.publish_result(result_message)
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
