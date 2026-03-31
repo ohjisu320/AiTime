@@ -14,7 +14,6 @@ import { MASTER_ADOS_ITEMS, CODES_PRE_VERBAL, CODES_VERBAL } from "../types/ados
 
 export const useDoctorDashboard = () => {
   // --- UI 상태 ---
-  const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isVideoModalOpen, setVideoModalOpen] = useState(false);
   const [isAdosModalOpen, setAdosModalOpen] = useState(false);
 
@@ -50,9 +49,10 @@ export const useDoctorDashboard = () => {
       setExamVideoList(data.examVideoList || []);
       setAdosGraphs(data.adosGraphs);
       setCurrentAdosDetail(data.latestAdosDetail);
-      setCurrentVideoData(data.latestPoseImitationVideo || null);
+      setCurrentVideoData(data.latestPoseVideo || null);
 
       console.log("✅ [Dashboard] 통합 데이터 로딩 완료");
+      setIsExamReportLoading(false); // [Fix] 성공 시 로딩 상태 해제
       return; // 여기서 종료
     } catch (error: any) {
       console.warn("⚠️ [Dashboard] 통합 API 실패 (S3 에러 등). 개별 API로 복구 시도합니다.", error);
@@ -207,8 +207,6 @@ export const useDoctorDashboard = () => {
     } else {
       console.warn("⚠️ 유효하지 않은 ID입니다.");
     }
-
-    setSidebarOpen(false);
   }, [loadExamReportInitialData]);
 
   /**
@@ -249,11 +247,8 @@ export const useDoctorDashboard = () => {
     fetchWaitingList();
   }, [selectPatient]);
 
-  const toggleSidebar = () => setSidebarOpen((prev) => !prev);
-
   return {
     states: {
-      isSidebarOpen,
       isVideoModalOpen,
       isAdosModalOpen,
       selectedPatient,
@@ -267,7 +262,6 @@ export const useDoctorDashboard = () => {
       isExamReportLoading,
     },
     actions: {
-      toggleSidebar,
       setVideoModalOpen,
       setAdosModalOpen,
       selectPatient,

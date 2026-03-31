@@ -95,11 +95,16 @@ export const examReportApi = {
     },
 
     /**
-     * 6) 검사(Exam) 기준 ADOS 수정 (비활성화 상태)
-     * 현재 스펙 미지원 -> 에러 처리
+     * 6) 검사(Exam) 기준 ADOS 수정
+     * PUT /api/v1/doctor/exams/{examId}/ados
      */
-    updateAdos: async (_examId: string, _scores: unknown): Promise<AdosDetail> => {
-        console.warn('updateAdos is not implemented in backend spec.');
-        throw new Error('Not Implemented');
+    updateAdos: async (examId: string, scores: Record<string, number>): Promise<AdosDetail> => {
+        console.log(`📡 [API] ADOS 수정: ${examId}`);
+        const { data } = await api.put<{ code: number; message: string; data: AdosDetail }>(
+            `/doctor/exams/${examId}/ados`,
+            scores
+        );
+        console.log('✅ [API] ADOS 수정 완료');
+        return data.data;
     }
 };

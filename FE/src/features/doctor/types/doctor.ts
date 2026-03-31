@@ -37,20 +37,22 @@ export interface AnalysisTimestamp {
   id: number;
   type: "parent" | "child-vocal" | "child-behavior"; // 타임라인 색상/위치 결정
   label: string;
+  detail?: string; // 툴팁용 상세 설명
   startTime: number;
   duration: number;
 }
 
-// 4. 비디오 분석 데이터 통합 (DoctorDashboard -> CentralAnalysisPanel)
-export interface TimelineRow {
+// 4. 타임라인 행 설정 타입 (이 부분이 누락되어 에러 발생함)
+export interface TimelineRowConfig {
   key: string;
   label: string;
   color: string;
 }
 
+// 5. 비디오 분석 데이터 통합 (DoctorDashboard -> CentralAnalysisPanel)
 export interface VideoAnalysisData {
-  videoUrl: string;
+  videoUrl: string | null; // 영상이 없을 수 있음 (null 허용)
   totalDuration: number;
   timestamps: AnalysisTimestamp[];
-  rows: TimelineRow[]; // 동적 타임라인 행 설정
+  rows: TimelineRowConfig[]; // 동적 타임라인 행 설정
 }

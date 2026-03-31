@@ -11,6 +11,9 @@ RUN npm ci
 
 # 소스 복사 및 빌드
 COPY . .
+
+# 🔥 빌드 시 환경 고정
+ENV NODE_ENV=production
 RUN npm run build
 
 # 프로덕션 스테이지

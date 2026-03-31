@@ -14,8 +14,8 @@ export type VideoType =
 export interface PoseTimestamp {
     parentStartTime: number;
     parentEndTime: number;
-    childStartTime: number;
-    childEndTime: number;
+    childStartTime: number | null;  // API에서 null 반환 가능 (아이 미반응 시)
+    childEndTime: number | null;    // API에서 null 반환 가능
     trialIndex: number;
 }
 
@@ -89,7 +89,7 @@ export interface AdosDetail {
 // 6. 초기 리포트 통합 데이터 (대시보드 진입용)
 export interface ExamReportInitialData {
     examVideoList: ExamVideoListItem[];
-    latestPoseImitationVideo: VideoPresignView | null;
+    latestPoseVideo: VideoPresignView | null;  // API 명세 기준 필드명
     adosGraphs: AdosGraphs | null;
     latestAdosDetail: AdosDetail | null;
 }

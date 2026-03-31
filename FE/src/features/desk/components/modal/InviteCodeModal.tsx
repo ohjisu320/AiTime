@@ -115,7 +115,7 @@ export default function InviteCodeModal({
       childName: formData.childName,
       childBirthdate: formData.childBirthdate, // 상위에서 . replace 처리
       parentPhone: formData.parentPhone,       // 상위에서 - replace 처리
-      scheduledAt: new Date(formData.scheduledAt).toISOString(), // ISO 변환
+      scheduledAt: formData.scheduledAt + ":00", // KST 유지를 위해 ISO 변환 제거, 문자열 그대로 전송
       doctorId: formData.doctorId || undefined
     };
 

@@ -14,8 +14,10 @@ public record LatestPoseVideoResponse(
         List<TimestampDTO> timestamps
 ) {
     public record TimestampDTO(
-            Double startS,
-            Double endS,
+            Double parentStartTime,
+            Double parentEndTime,
+            Double childStartTime,
+            Double childEndTime,
             Integer trialIndex
     ) {}
 }

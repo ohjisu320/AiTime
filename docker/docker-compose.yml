@@ -55,13 +55,12 @@ services:
     container_name: rabbitmq
     ports:
       - "127.0.0.1:5672:5672"
-      - "0.0.0.0:8099:15672"
+      - "127.0.0.1:8099:15672"
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
-      RABBITMQ_MANAGEMENT_PATH_PREFIX: /rabbitmq
     volumes:
-    - /home/ubuntu/src/S14P11A501/docker/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+    - /home/ubuntu/aitime/S14P11A501/docker/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
     networks:
       - cmn-network
     restart: unless-stopped
@@ -110,7 +109,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - /home/ubuntu:/home/ubuntu:rw
     environment:
-      - JENKINS_OPTS=--prefix=/jenkins -Xms512m -Xmx1024m
+      - JENKINS_OPTS=--prefix=/jenkins
+      - JAVA_OPTS=-Xms512m -Xmx1024m
     networks:
       - cmn-network
     restart: unless-stopped

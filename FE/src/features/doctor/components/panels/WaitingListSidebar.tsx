@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { doctorApi } from "../../api/doctorApi";
 import type { PatientDto } from "../../types/doctor";
+import LogoutModal from "../modals/LogoutModal";
 
 interface Props {
   isOpen: boolean;
@@ -10,10 +12,9 @@ interface Props {
 }
 
 export default function WaitingListSidebar({
-  isOpen,
-  onClose,
   onSelectPatient,
-}: Props) {
+}: Omit<Props, "isOpen" | "onClose">) {
+  const navigate = useNavigate();
   const [currentTime, setCurrentTime] = useState<string>("");
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
@@ -21,6 +22,7 @@ export default function WaitingListSidebar({
   const [patients, setPatients] = useState<PatientDto[]>([]);
   const [isCalendarLoading, setIsCalendarLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLogoutModalOpen, setLogoutModalOpen] = useState(false);
 
   const doctorInfo = useMemo(() => {
     try {
@@ -94,12 +96,11 @@ export default function WaitingListSidebar({
     }
   }, [selectedDate]);
 
+  // [수정] isOpen 의존성 제거 - 항상 마운트 시 데이터 로드
   useEffect(() => {
-    if (isOpen) {
-      fetchCalendarData();
-      fetchPatients();
-    }
-  }, [isOpen, fetchCalendarData, fetchPatients]);
+    fetchCalendarData();
+    fetchPatients();
+  }, [fetchCalendarData, fetchPatients]);
 
   const changeMonth = (delta: number) => {
     setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + delta, 1));
@@ -121,134 +122,141 @@ export default function WaitingListSidebar({
   const { daysInMonth, startDayOfWeek } = getDaysInMonth(currentMonth);
   const weekDays = ['일', '월', '화', '수', '목', '금', '토'];
 
-  if (!isOpen) return null;
+  // [Added] Logout handler
+  const handleLogoutClick = () => {
+    setLogoutModalOpen(true);
+  };
+
+  const handleConfirmLogout = () => {
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
+    navigate("/login");
+  };
 
   return (
-    <>
-      <div className="fixed inset-0 bg-black/50 z-[1500]" onClick={onClose} />
+    <div className="h-full w-full bg-[#d4d0c8] font-['Gulim'] text-[13px] flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col p-[4px] gap-2 overflow-hidden">
 
-      <div className={cn(
-        // [수정] 너비 320 -> 350px, 기본 폰트 13px
-        "fixed left-0 top-0 h-full w-[350px] bg-[#d4d0c8] border-r-2 border-white z-[2000] transition-transform font-['Gulim'] text-[13px] shadow-2xl",
-        isOpen ? "translate-x-0" : "-translate-x-full"
-      )}>
-        <div className="flex flex-col h-full">
+        <div className="bg-white border-2 border-[#808080] border-r-white border-b-white p-[8px]">
+          <div className="font-bold text-[#000080] mb-[4px] border-b border-gray-200 pb-1">[담당의 정보]</div>
+          <div className="leading-snug">성명: {doctorInfo.name}</div>
+          <div className="leading-snug">소속: {doctorInfo.department}</div>
+        </div>
 
-          <div className="bg-[#000080] p-[4px] flex items-center justify-between text-white shrink-0">
-            <span className="font-bold pl-1 text-[13px]">▣ 환자 예약 관리</span>
-            <button
-              onClick={onClose}
-              className="w-[20px] h-[20px] bg-[#d4d0c8] border-2 border-white border-r-[#404040] border-b-[#404040] text-black text-[12px] leading-none flex items-center justify-center cursor-pointer active:border-t-[#404040] active:border-l-[#404040]"
-            >
-              ✕
-            </button>
+        <div className="bg-white border-2 border-[#808080] border-r-white border-b-white relative min-h-[220px]">
+          {isCalendarLoading && (
+            <div className="absolute inset-0 z-10 bg-white/80 flex items-center justify-center">
+              <span className="text-blue-800 font-bold animate-pulse">Loading...</span>
+            </div>
+          )}
+
+          <div className="bg-[#000080] text-white p-[4px] flex items-center justify-between mb-1">
+            <button onClick={() => changeMonth(-1)} className="w-[24px] bg-[#d4d0c8] text-black text-[12px] border border-white border-r-[#404040] border-b-[#404040] active:border-inset hover:bg-gray-200">◀</button>
+            <span className="font-bold text-[13px]">{currentMonth.getFullYear()}년 {currentMonth.getMonth() + 1}월</span>
+            <button onClick={() => changeMonth(1)} className="w-[24px] bg-[#d4d0c8] text-black text-[12px] border border-white border-r-[#404040] border-b-[#404040] active:border-inset hover:bg-gray-200">▶</button>
           </div>
 
-          <div className="flex-1 flex flex-col p-[10px] overflow-hidden gap-2">
+          <div className="grid grid-cols-7 border-b border-[#ececec] mb-1">
+            {weekDays.map((day, i) => (
+              <div key={day} className={cn(
+                "text-center py-[2px] font-bold text-[12px]",
+                i === 0 && "text-red-600",
+                i === 6 && "text-blue-600"
+              )}>{day}</div>
+            ))}
+          </div>
 
-            <div className="bg-white border-2 border-[#808080] border-r-white border-b-white p-[8px]">
-              <div className="font-bold text-[#000080] mb-[4px] border-b border-gray-200 pb-1">[담당의 정보]</div>
-              <div className="leading-snug">성명: {doctorInfo.name}</div>
-              <div className="leading-snug">소속: {doctorInfo.department}</div>
-            </div>
+          <div className="grid grid-cols-7">
+            {Array.from({ length: startDayOfWeek }).map((_, i) => (
+              <div key={`empty-${i}`} className="h-[28px]" />
+            ))}
 
-            <div className="bg-white border-2 border-[#808080] border-r-white border-b-white relative min-h-[220px]">
-              {isCalendarLoading && (
-                <div className="absolute inset-0 z-10 bg-white/80 flex items-center justify-center">
-                  <span className="text-blue-800 font-bold animate-pulse">Loading...</span>
+            {Array.from({ length: daysInMonth }).map((_, i) => {
+              const day = i + 1;
+              const dayOfWeek = (startDayOfWeek + i) % 7;
+              const dateStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+              // [수정] 평일(월~금)은 무조건 예약된 것으로 간주 (0: 일요일, 6: 토요일)
+              const isReserved = reservedDates.includes(dateStr) || (dayOfWeek !== 0 && dayOfWeek !== 6);
+              const isSelected = selectedDate.getDate() === day && selectedDate.getMonth() === currentMonth.getMonth();
+              const isToday = new Date().getDate() === day && new Date().getMonth() === currentMonth.getMonth();
+
+              return (
+                <div
+                  key={`day-${day}`}
+                  onClick={() => handleDayClick(day)}
+                  className={cn(
+                    "h-[28px] flex items-center justify-center cursor-pointer text-[12px] relative border border-transparent",
+                    dayOfWeek === 0 && "text-red-600",
+                    dayOfWeek === 6 && "text-blue-600",
+                    isSelected && "bg-[#000080] text-white hover:bg-[#000080] hover:text-white",
+                    !isSelected && isToday && "bg-[#ffffcc] font-bold ring-1 ring-inset ring-orange-300",
+                    !isSelected && !isToday && "hover:bg-[#d4d0c8] hover:border-[#808080]"
+                  )}
+                >
+                  {day}
+                  {isReserved && !isSelected && (
+                    <span className="absolute bottom-[3px] w-[5px] h-[5px] bg-red-500 rounded-full" />
+                  )}
                 </div>
-              )}
-
-              <div className="bg-[#000080] text-white p-[4px] flex items-center justify-between mb-1">
-                <button onClick={() => changeMonth(-1)} className="w-[24px] bg-[#d4d0c8] text-black text-[12px] border border-white border-r-[#404040] border-b-[#404040] active:border-inset hover:bg-gray-200">◀</button>
-                <span className="font-bold text-[13px]">{currentMonth.getFullYear()}년 {currentMonth.getMonth() + 1}월</span>
-                <button onClick={() => changeMonth(1)} className="w-[24px] bg-[#d4d0c8] text-black text-[12px] border border-white border-r-[#404040] border-b-[#404040] active:border-inset hover:bg-gray-200">▶</button>
-              </div>
-
-              <div className="grid grid-cols-7 border-b border-[#ececec] mb-1">
-                {weekDays.map((day, i) => (
-                  <div key={day} className={cn(
-                    "text-center py-[2px] font-bold text-[12px]",
-                    i === 0 && "text-red-600",
-                    i === 6 && "text-blue-600"
-                  )}>{day}</div>
-                ))}
-              </div>
-
-              <div className="grid grid-cols-7">
-                {Array.from({ length: startDayOfWeek }).map((_, i) => (
-                  <div key={`empty-${i}`} className="h-[28px]" />
-                ))}
-
-                {Array.from({ length: daysInMonth }).map((_, i) => {
-                  const day = i + 1;
-                  const dayOfWeek = (startDayOfWeek + i) % 7;
-                  const dateStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                  const isReserved = reservedDates.includes(dateStr);
-                  const isSelected = selectedDate.getDate() === day && selectedDate.getMonth() === currentMonth.getMonth();
-                  const isToday = new Date().getDate() === day && new Date().getMonth() === currentMonth.getMonth();
-
-                  return (
-                    <div
-                      key={`day-${day}`}
-                      onClick={() => handleDayClick(day)}
-                      className={cn(
-                        "h-[28px] flex items-center justify-center cursor-pointer text-[12px] relative border border-transparent",
-                        dayOfWeek === 0 && "text-red-600",
-                        dayOfWeek === 6 && "text-blue-600",
-                        isSelected && "bg-[#000080] text-white hover:bg-[#000080] hover:text-white",
-                        !isSelected && isToday && "bg-[#ffffcc] font-bold ring-1 ring-inset ring-orange-300",
-                        !isSelected && !isToday && "hover:bg-[#d4d0c8] hover:border-[#808080]"
-                      )}
-                    >
-                      {day}
-                      {isReserved && !isSelected && (
-                        <span className="absolute bottom-[3px] w-[5px] h-[5px] bg-red-500 rounded-full" />
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="flex-1 flex flex-col min-h-0 bg-white border-2 border-[#808080] border-r-white border-b-white">
-              <div className="bg-[#000080] text-white px-2 py-1 font-bold shrink-0 text-[13px]">
-                ▣ {formatDate(selectedDate)} 예약 환자
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-1">
-                {isLoading ? (
-                  <div className="p-4 text-center text-gray-500">목록 로딩 중...</div>
-                ) : patients.length === 0 ? (
-                  <div className="p-4 text-center text-gray-500 text-[12px]">
-                    예약된 환자가 없습니다.
-                  </div>
-                ) : (
-                  patients.map((patient, index) => (
-                    <div
-                      key={patient.childId}
-                      onClick={() => { onSelectPatient(patient); onClose(); }}
-                      className="group flex justify-between items-center p-2 border-b border-[#ececec] cursor-pointer hover:bg-[#000080] hover:text-white transition-colors"
-                    >
-                      <div className="truncate font-bold text-[13px]">
-                        {index + 1}. {patient.childName}
-                      </div>
-                      <div className="text-[12px] text-gray-500 group-hover:text-gray-200">
-                        ({patient.gender === "MALE" ? "남" : "여"}/{patient.months}m)
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            <div className="bg-white border-2 border-[#808080] border-r-white border-b-white p-[4px] text-right text-gray-600 shrink-0 text-[12px]">
-              Current Time: {currentTime}
-            </div>
-
+              );
+            })}
           </div>
         </div>
+
+        <div className="flex-1 flex flex-col min-h-0 bg-white border-2 border-[#808080] border-r-white border-b-white">
+          <div className="bg-[#000080] text-white px-2 py-1 font-bold shrink-0 text-[13px]">
+            ▣ {formatDate(selectedDate)} 예약 환자
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-1">
+            {isLoading ? (
+              <div className="p-4 text-center text-gray-500">목록 로딩 중...</div>
+            ) : patients.length === 0 ? (
+              <div className="p-4 text-center text-gray-500 text-[12px]">
+                예약된 환자가 없습니다.
+              </div>
+            ) : (
+              patients.map((patient, index) => (
+                <div
+                  key={patient.childId}
+                  onClick={() => { onSelectPatient(patient); }}
+                  className="group flex justify-between items-center p-2 border-b border-[#ececec] cursor-pointer hover:bg-[#000080] hover:text-white transition-colors"
+                >
+                  <div className="truncate font-bold text-[13px]">
+                    {index + 1}. {patient.childName}
+                  </div>
+                  <div className="text-[12px] text-gray-500 group-hover:text-gray-200">
+                    ({patient.gender === "MALE" ? "남" : "여"}/{patient.months}m)
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* [Added] Logout Button */}
+        <div className="p-[4px] pb-0">
+          <button
+            onClick={handleLogoutClick}
+            className="w-full bg-[#d4d0c8] border border-white border-r-[#404040] border-b-[#404040] py-1 text-[12px] active:border-t-[#404040] active:border-l-[#404040] active:border-r-white active:border-b-white active:translate-y-[1px] hover:bg-[#e0e0e0] font-bold text-red-700"
+          >
+            로그아웃
+          </button>
+        </div>
+
+        <div className="bg-black border border-white/30 p-[4px] text-right text-[#00ff00] shrink-0 text-[14px] font-mono tracking-wider shadow-inner">
+          <span className="text-[11px] text-[#00ff00]/70 mr-2 font-sans tracking-normal">CURRENT TIME</span>
+          {currentTime}
+        </div>
+
       </div>
-    </>
+
+      {isLogoutModalOpen && (
+        <LogoutModal
+          onConfirm={handleConfirmLogout}
+          onCancel={() => setLogoutModalOpen(false)}
+        />
+      )}
+    </div>
   );
 }

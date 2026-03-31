@@ -10,17 +10,19 @@ import VideoModal from "../components/modals/VideoModal";
 import AdosModal from "../components/modals/AdosModal";
 import WaitingListSidebar from "../components/panels/WaitingListSidebar";
 import DoctorLayout from "../components/layout/DoctorLayout";
-import type { VideoAnalysisData, AnalysisTimestamp } from "../types/doctor";
+import type { VideoAnalysisData, AnalysisTimestamp, TimelineRowConfig } from "../types/doctor";
 import type { AdosUpdateRequest, PoseTimestamp, SimpleTimestamp, NonFacingTimestamp } from "@/api/types/examReport.types";
+
+// [추가] 미션 데이터 import (경로가 맞는지 확인해주세요)
+import { SCREENING_CONTENT } from "@/domains/exam/constants/missionData";
 
 const DEFAULT_ANALYSIS: VideoAnalysisData = {
   videoUrl: "",
-  totalDuration: 60,
+  totalDuration: 0,
   timestamps: [],
   rows: [
     { key: "parent", label: "부모 행동", color: "bg-gray-500" },
-    { key: "child-vocal", label: "아이 음성", color: "bg-green-600" },
-    { key: "child-behavior", label: "아이 행동", color: "bg-blue-600" },
+    { key: "child-behavior", label: "아이 반응", color: "bg-blue-600" },
   ],
 };
 
@@ -28,150 +30,221 @@ export default function DoctorDashboardPage() {
   const { states, actions } = useDoctorDashboard();
   const patientAge = states.selectedPatient?.monthlyAge || 0;
 
-  // [핵심 로직] API 데이터를 UI용 데이터로 변환 (타입별 분기 처리)
+  // [Moved] Determine mission key before analysisData (to use it for props as well)
+  const missionKey = useMemo(() => {
+    if (!states.currentVideoData) return "";
+    const videoData = states.currentVideoData;
+    const isUnder18 = patientAge < 18;
+
+    switch (videoData.videoType) {
+      case "POSE_IMITATION":
+        return isUnder18 ? "POSE_IMITATION_12M" : "POSE_IMITATION_18M";
+      case "SPEECH_IMITATION":
+        return isUnder18 ? "SPEECH_IMITATION_12M" : "SPEECH_IMITATION_18M";
+      case "NAME_NON_FACING":
+        return "NAME_NON_FACING";
+      case "NAME_FACING":
+        return "NAME_FACING";
+      default:
+        return "";
+    }
+  }, [states.currentVideoData, patientAge]);
+
+  // [핵심 로직] API 데이터를 UI용 데이터로 변환 (타입별 분기 + 미션 데이터 매핑)
   const analysisData: VideoAnalysisData = useMemo(() => {
     if (!states.currentVideoData) {
       return DEFAULT_ANALYSIS;
     }
 
     const videoData = states.currentVideoData;
-    const rawTimestamps = videoData.timestamps || [];
     const uiTimestamps: AnalysisTimestamp[] = [];
     let maxEndTime = 0;
 
-    // 비디오 타입에 따른 데이터 매핑 전략
-    rawTimestamps.forEach((ts, idx) => {
-      const baseId = (idx + 1) * 10; // ID 충돌 방지용
+    // 미션 데이터 가져오기 (Uses the key calculated above)
+    const missionContent = SCREENING_CONTENT[missionKey];
+
+    // [헬퍼 함수] Trial Index로 구체적인 행동 이름 가져오기
+    const getActionLabel = (index: number, type: "parent" | "child", defaultLabel: string) => {
+      if (!missionContent || !missionContent.instructions) return defaultLabel;
+
+      // index는 1부터 시작하므로 -1
+      const instruction = missionContent.instructions[index - 1];
+      if (!instruction) return defaultLabel;
+
+      // 부모 행동일 경우 미션 지침(suffix 등)을 사용하여 구체화
+      if (type === "parent") {
+        // [수정] Use 'title' field if available (e.g., "손뼉", "만세") for concise display
+        if (instruction.title) return instruction.title;
+
+        // 예: "정확하게 박수를 쳐주세요" -> "박수 치기" 처럼 간단히 보여주거나 원본 사용
+        // 여기서는 suffix나 boldText를 조합해서 보여줌
+        return `${instruction.boldText || ""} ${instruction.suffix || ""}`.trim();
+      }
+
+      // 아이 행동일 경우
+      return `${defaultLabel} (Trial ${index})`;
+    };
+
+    // [헬퍼 함수] 툴팁용 상세 설명 가져오기
+    const getActionDetail = (index: number) => {
+      if (!missionContent || !missionContent.instructions) return undefined;
+      const instruction = missionContent.instructions[index - 1];
+      if (!instruction) return undefined;
+
+      // 전체 문장 조합 (text + boldText + suffix)
+      return `${instruction.text || ""} ${instruction.boldText || ""} ${instruction.suffix || ""}`.trim();
+    };
+
+
+    // [추가] 정적 미션 데이터를 기반으로 '부모 행동' 타임스탬프 생성
+    if (missionContent?.instructions) {
+      missionContent.instructions.forEach((inst: any, idx: number) => {
+        if (inst.startAt !== undefined) {
+          uiTimestamps.push({
+            id: 10000 + idx, // API 데이터와 충돌 방지
+            type: "parent",
+            label: getActionLabel(idx + 1, "parent", `부모 행동 ${idx + 1}`),
+            detail: getActionDetail(idx + 1),
+            startTime: inst.startAt,
+            duration: inst.duration || 5, // 기본값
+          });
+          maxEndTime = Math.max(maxEndTime, inst.startAt + (inst.duration || 5));
+        }
+      });
+    }
+
+    // 비디오 타입에 따른 데이터 매핑 전략 (아이 반응/발화 위주)
+    videoData.timestamps?.forEach((ts, idx) => {
+      const baseId = (idx + 1) * 10;
 
       // 1. 동작 모방 (POSE_IMITATION)
       if (videoData.videoType === 'POSE_IMITATION') {
         const item = ts as PoseTimestamp;
 
-        // (1) 부모 행동 (Parent)
-        uiTimestamps.push({
-          id: baseId + 1,
-          type: "parent",
-          label: `Trial ${item.trialIndex} (시연)`,
-          startTime: item.parentStartTime,
-          duration: item.parentEndTime - item.parentStartTime,
-        });
+        // (A) 기존 포맷 (부모+아이) -> 부모는 위에서 정적으로 추가했으므로 아이만 처리하거나,
+        // API에서 부모 데이터가 오더라도 정적 데이터를 우선할지 고민.
+        // 요구사항: "부모 행동에 대한 타임스탬프를 안찍고 있어... SCREENING_CONTENT에 내용을 추가해서 담아주면 좋겠어"
+        // 즉, API에 없으니 정적으로 찍으라는 뜻.
 
-        // (2) 아이 행동 (Child)
-        uiTimestamps.push({
-          id: baseId + 2,
-          type: "child-behavior",
-          label: `Trial ${item.trialIndex} (모방)`,
-          startTime: item.childStartTime,
-          duration: item.childEndTime - item.childStartTime,
-        });
-
-        maxEndTime = Math.max(maxEndTime, item.childEndTime);
+        if (item.parentStartTime != null && item.childStartTime != null) {
+          uiTimestamps.push({
+            id: baseId + 2,
+            type: "child-behavior",
+            label: `모방 시도 (T${item.trialIndex})`,
+            startTime: item.childStartTime!,
+            duration: item.childEndTime! - item.childStartTime!,
+          });
+          maxEndTime = Math.max(maxEndTime, item.childEndTime!);
+        }
+        // [수정] Mock data removal: Removed fallback block using item.startS
       }
 
       // 2. 발화 모방 (SPEECH_IMITATION)
       else if (videoData.videoType === 'SPEECH_IMITATION') {
         const item = ts as SimpleTimestamp;
+        // [수정] Use missionContent.instructions[id].title if available for shorter label
+        // 'text' has awkward phrasing like '아 소리를'. 'title' is just '아'.
+        const instruction = missionContent?.instructions?.[item.trialIndex - 1];
+        const wordLabel = instruction?.title || `Trial ${item.trialIndex}`;
 
-        uiTimestamps.push({
-          id: baseId,
-          type: "child-vocal", // 음성 라인에 표시
-          label: `Trial ${item.trialIndex}`,
-          startTime: item.trialStartS,
-          duration: item.trialEndS - item.trialStartS,
-        });
-
-        maxEndTime = Math.max(maxEndTime, item.trialEndS);
+        if (item.trialStartS != null) {
+          uiTimestamps.push({
+            id: baseId,
+            type: "child-vocal",
+            label: `발화: ${wordLabel}`,
+            startTime: item.trialStartS,
+            duration: item.trialEndS - item.trialStartS,
+          });
+          maxEndTime = Math.max(maxEndTime, item.trialEndS);
+        }
       }
 
       // 3. 대면 호명 (NAME_FACING)
       else if (videoData.videoType === 'NAME_FACING') {
         const item = ts as SimpleTimestamp;
 
-        uiTimestamps.push({
-          id: baseId,
-          type: "child-behavior", // 행동 라인에 표시
-          label: `Trial ${item.trialIndex}`,
-          startTime: item.trialStartS,
-          duration: item.trialEndS - item.trialStartS,
-        });
-
-        maxEndTime = Math.max(maxEndTime, item.trialEndS);
+        if (item.trialStartS != null) {
+          uiTimestamps.push({
+            id: baseId,
+            type: "child-behavior",
+            label: "눈맞춤 확인",
+            startTime: item.trialStartS,
+            duration: item.trialEndS - item.trialStartS,
+          });
+          maxEndTime = Math.max(maxEndTime, item.trialEndS);
+        }
       }
 
       // 4. 비대면 호명 (NAME_NON_FACING)
       else if (videoData.videoType === 'NAME_NON_FACING') {
         const item = ts as NonFacingTimestamp;
 
-        // (1) 시각적 자극/트리거 (Parent 라인 활용)
-        uiTimestamps.push({
-          id: baseId + 1,
-          type: "parent",
-          label: `T${item.trialIndex} 자극`,
-          startTime: item.triggerStartS,
-          duration: item.triggerEndS - item.triggerStartS,
-        });
-
-        // (2) 호명/반응 (Child Vocal 또는 Behavior 라인 활용)
-        // 여기서는 '호명(소리)' 구간이므로 child-vocal 쪽에 표시하거나 
-        // 맥락에 따라 parent 라인에 '호명'으로 표시할 수도 있습니다.
-        // 현재는 아이의 반응 구간이 명시적이지 않으므로 호명 구간을 표시합니다.
-        uiTimestamps.push({
-          id: baseId + 2,
-          type: "child-vocal", // 혹은 'parent' (검사자 목소리이므로)
-          label: `T${item.trialIndex} 호명`,
-          startTime: item.voiceStartS,
-          duration: item.voiceEndS - item.voiceStartS,
-        });
-
-        maxEndTime = Math.max(maxEndTime, item.voiceEndS);
+        // 아이 음성 반응 (voiceStartS/voiceEndS)
+        if (item.voiceStartS != null) {
+          uiTimestamps.push({
+            id: baseId,
+            type: "child-vocal",
+            label: `음성 반응 (T${item.trialIndex})`,
+            startTime: item.voiceStartS,
+            duration: item.voiceEndS - item.voiceStartS,
+          });
+          maxEndTime = Math.max(maxEndTime, item.voiceEndS);
+        }
       }
     });
 
+    // [수정] 정적 타임스탬프 주입 로직 제거 (API 데이터만 사용)
+    // - 사용자 요청: "들어오는 것만 받게 수정"
+
     const totalDuration = Math.max(maxEndTime + 5, 60);
 
-    // [동적 타임라인 설정] 비디오 타입별 행 구성
-    // keys: "parent" | "child-vocal" | "child-behavior"
-    let timelineRows: { key: string; label: string; color: string }[] = [];
+    // [동적 타임라인 설정]
+    let timelineRows: TimelineRowConfig[] = [];
 
+    // [수정] 데이터 유무와 상관없이 부모/아이 두 줄은 항상 표시하도록 변경
     switch (videoData.videoType) {
       case 'POSE_IMITATION':
         timelineRows = [
-          { key: "parent", label: "부모 시연", color: "bg-gray-500" },
-          { key: "child-behavior", label: "아이 모방", color: "bg-blue-600" },
+          { key: "parent", label: "부모 행동", color: "bg-gray-500" },
+          { key: "child-behavior", label: "아이 반응", color: "bg-blue-600" },
         ];
         break;
       case 'SPEECH_IMITATION':
         timelineRows = [
-          { key: "child-vocal", label: "아이 발화", color: "bg-green-600" },
+          { key: "parent", label: "부모 행동", color: "bg-gray-500" },
+          { key: "child-vocal", label: "아이 반응", color: "bg-green-600" },
         ];
         break;
       case 'NAME_FACING':
         timelineRows = [
+          { key: "parent", label: "부모 행동", color: "bg-gray-500" },
           { key: "child-behavior", label: "아이 반응", color: "bg-blue-600" },
         ];
         break;
       case 'NAME_NON_FACING':
         timelineRows = [
-          { key: "parent", label: "자극 제시", color: "bg-gray-500" },
-          { key: "child-vocal", label: "호명(청각)", color: "bg-yellow-600" }, // 구분을 위해 색상 변경
+          { key: "parent", label: "부모 행동", color: "bg-gray-500" },
+          { key: "child-vocal", label: "아이 반응", color: "bg-green-600" },
         ];
         break;
       default:
-        // 기본값 (모두 표시)
         timelineRows = [
           { key: "parent", label: "부모 행동", color: "bg-gray-500" },
-          { key: "child-vocal", label: "아이 음성", color: "bg-green-600" },
+          { key: "child-vocal", label: "아이 반응", color: "bg-green-600" },
           { key: "child-behavior", label: "아이 행동", color: "bg-blue-600" },
         ];
     }
 
+    // startTime이 null/undefined/NaN인 항목 제거 (안전 필터)
+    const safeTimestamps = uiTimestamps.filter(t => t.startTime != null && !isNaN(t.startTime));
+
     return {
-      videoUrl: videoData.viewUrl,
+      videoUrl: videoData.viewUrl || null,
       totalDuration,
-      timestamps: uiTimestamps,
+      timestamps: safeTimestamps,
       rows: timelineRows,
     };
-  }, [states.currentVideoData]);
+  }, [states.currentVideoData, patientAge]); // patientAge 의존성 추가
 
   const [videoStartTime, setVideoStartTime] = useState(0);
 
@@ -187,10 +260,14 @@ export default function DoctorDashboardPage() {
       <main className="flex-1 overflow-hidden bg-[#808080] p-[2px]">
         <DoctorLayout
           panels={{
+            "waiting-list": (
+              <WaitingListSidebar
+                onSelectPatient={actions.selectPatient}
+              />
+            ),
             "patient-detail": (
               <PatientDetailPanel
                 patient={states.selectedPatient}
-                toggleSidebar={actions.toggleSidebar}
               />
             ),
             "session-list": (
@@ -203,10 +280,14 @@ export default function DoctorDashboardPage() {
             "central-analysis": (
               <CentralAnalysisPanel
                 analysisData={analysisData}
+                isLoading={states.isExamReportLoading}
                 onExpandVideo={(currentTime) => {
                   setVideoStartTime(currentTime);
                   actions.setVideoModalOpen(true);
                 }}
+                // [Added] Props transmission for instruction guide
+                missionContent={SCREENING_CONTENT[missionKey]}
+                missionKey={missionKey}
               />
             ),
             "trend-chart": (
@@ -240,14 +321,6 @@ export default function DoctorDashboardPage() {
           adosDetail={states.currentAdosDetail}
           examId={latestExamId}
           onSave={handleAdosSave}
-        />
-      )}
-
-      {states.isSidebarOpen && (
-        <WaitingListSidebar
-          isOpen={states.isSidebarOpen}
-          onClose={actions.toggleSidebar}
-          onSelectPatient={actions.selectPatient}
         />
       )}
     </div>

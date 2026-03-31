@@ -5,15 +5,18 @@ import { cn } from "@/lib/utils";
 export const WindowsContainer = ({
   children,
   className,
+  style,
 }: {
   children: React.ReactNode;
   className?: string;
+  style?: React.CSSProperties;
 }) => (
   <div
     className={cn(
       "bg-white border-2 border-white border-r-[#808080] border-b-[#808080] p-1 overflow-auto",
       className,
     )}
+    style={style}
   >
     {children}
   </div>

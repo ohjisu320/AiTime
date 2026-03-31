@@ -928,7 +928,9 @@ class MotionAnalyzer:
             if detected:
                 return i
         
-        logger.debug(f"점프 미감지: hip_baseline={baseline_hip_y:.3f if baseline_hip_y else 'N/A'}, ankle_baseline={baseline_ankle_y:.3f if baseline_ankle_y else 'N/A'}, margin={margin}")
+        hip_str = f"{baseline_hip_y:.3f}" if baseline_hip_y is not None else 'N/A'
+        ankle_str = f"{baseline_ankle_y:.3f}" if baseline_ankle_y is not None else 'N/A'
+        logger.debug(f"점프 미감지: hip_baseline={hip_str}, ankle_baseline={ankle_str}, margin={margin}")
         return ACTION_NOT_DETECTED  # 동작 미감지
     
     def _detect_kicking_start_frame(
